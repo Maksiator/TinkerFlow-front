@@ -15,6 +15,7 @@ import {
 	Calendar2EventFill,
 	PrinterFill,
 } from 'react-bootstrap-icons';
+import logo from '../assets/tinkerflow.svg';
 import { authService } from '../api/authService';
 import { UserRole } from '../api/userService';
 
@@ -60,10 +61,15 @@ export function Sidebar() {
 		>
 			{/* HEADER */}
 			<div className="mb-4 flex shrink-0 items-center justify-between border-b border-slate-100 p-4">
-				{isExpanded && <span className="text-xl font-extrabold tracking-tight text-slate-800">TinkerFlow</span>}
+				{isExpanded && (
+					<div className="flex items-center gap-2">
+						<img src={logo} alt="TinkerFlow Logo" className="h-6 w-6" />
+						<span className="text-xl font-extrabold tracking-tight text-slate-800">TinkerFlow</span>
+					</div>
+				)}
 				<button
 					onClick={() => setIsExpanded(!isExpanded)}
-					className="mx-auto cursor-pointer rounded-md bg-slate-50 p-2 text-slate-500 transition-colors hover:bg-slate-200"
+					className={`${isExpanded ? '' : 'mx-auto'} cursor-pointer rounded-md bg-slate-50 p-2 text-slate-500 transition-colors hover:bg-slate-200`}
 				>
 					<LayoutSidebar size={20} />
 				</button>
