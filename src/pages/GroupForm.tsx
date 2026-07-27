@@ -74,7 +74,7 @@ export function GroupForm() {
 
 				// 2. POTEM pobieramy słowniki
 				const fetchedBranches = await branchService.getAll();
-				const fetchedUsersResponse = await userService.getAll();
+				const fetchedUsersResponse = await userService.getAll(undefined, 1, 9999);
 				
 				try {
 					const sysSettings = await systemSettingsService.getSettings();

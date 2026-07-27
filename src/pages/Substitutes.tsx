@@ -37,14 +37,14 @@ export function Substitutes() {
 			try {
 				const [groupsData, usersData, subsData, settingsData] = await Promise.all([
 					groupService.getAll(),
-					userService.getAll(),
+					userService.getAll(undefined, 1, 9999),
 					substituteService.getAll(),
 					systemSettingsService.getSettings(),
 				]);
 
 				if (isMounted) {
-					const availableTrainers = usersData.filter(
-						(u) => u.role === UserRole.Trainer || u.role === UserRole.Coordinator,
+					const availableTrainers = (usersData.items || []).filter(
+						(u: User) => u.role === UserRole.Trainer || u.role === UserRole.Coordinator,
 					);
 					setGroups(groupsData);
 					setTrainers(availableTrainers);
