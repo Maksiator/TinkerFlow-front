@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { authService } from '../api/authService';
-import logo from '../assets/tinkerflow.svg';
 
 export function Login() {
 	// HOOK do czytania paska adresu
@@ -53,7 +52,7 @@ export function Login() {
 		<div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
 			<div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
 				<div className="mb-8 text-center flex flex-col items-center">
-					<img src={logo} alt="TinkerFlow Logo" className="h-16 w-16 mb-4 animate-pulse" style={{ animationDuration: '3s' }} />
+					<img src="/favicon-with-background.svg" alt="TinkerFlow Logo" className="h-16 w-16 mb-4 animate-pulse" style={{ animationDuration: '3s' }} />
 					<h1 className="text-3xl font-extrabold text-slate-800">TinkerFlow</h1>
 					<p className="mt-2 text-slate-500">Zaloguj się do panelu zarządzania</p>
 				</div>

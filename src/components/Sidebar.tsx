@@ -15,7 +15,6 @@ import {
 	Calendar2EventFill,
 	PrinterFill,
 } from 'react-bootstrap-icons';
-import logo from '../assets/tinkerflow.svg';
 import { authService } from '../api/authService';
 import { UserRole } from '../api/userService';
 
@@ -63,7 +62,7 @@ export function Sidebar() {
 			<div className="mb-4 flex shrink-0 items-center justify-between border-b border-slate-100 p-4">
 				{isExpanded && (
 					<div className="flex items-center gap-2">
-						<img src={logo} alt="TinkerFlow Logo" className="h-6 w-6" />
+						<img src="/favicon.svg" alt="TinkerFlow Logo" className="h-6 w-6" />
 						<span className="text-xl font-extrabold tracking-tight text-slate-800">TinkerFlow</span>
 					</div>
 				)}
