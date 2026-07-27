@@ -65,3 +65,5 @@ jobs:
             docker compose pull frontend
             # Restart kontenera frontendu
             docker compose up -d frontend
+            # Usunięcie starych nieużywanych obrazów (cleanup)
+            docker image prune -f
