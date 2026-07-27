@@ -1,0 +1,197 @@
+import axios from 'axios';
+import { apiClient } from './client';
+
+// ==========================================
+// 1. ENUMY (Zgodne z C#)
+// ==========================================
+
+export const PrintBatchState = {
+	Pending: 0,
+	Printing: 1,
+	ReadyForCollection: 2,
+	Completed: 3,
+} as const;
+export type PrintBatchState = (typeof PrintBatchState)[keyof typeof PrintBatchState];
+
+export const PrintJobsStates = {
+	Pending: 0,
+	Printing: 1,
+	Printed: 2,
+	Failed: 3,
+} as const;
+export type PrintJobsStates = (typeof PrintJobsStates)[keyof typeof PrintJobsStates];
+
+// ==========================================
+// 2. INTERFEJSY / DTOs (Odzwierciedlenie C#)
+// ==========================================
+
+export interface PrintJobRequest {
+	studentId: string;
+	projectId?: string | null;
+	customName?: string | null;
+}
+
+export interface CreatePrintBatchRequest {
+	groupId: string;
+	lessonDate: string; // ISO String np. "2026-10-15T00:00:00Z"
+	notes?: string | null;
+	projectsToPrint: PrintJobRequest[];
+}
+
+export interface UpdatePrintBatchRequest {
+	lessonDate: string;
+	notes?: string | null;
+	projectsToPrint: PrintJobRequest[];
+}
+
+export interface PrintJobResponse {
+	id: string;
+	studentId: string;
+	studentName: string;
+	studentProjectId: string | null;
+	projectName: string;
+	status: PrintJobsStates;
+}
+
+export interface PrintBatchResponse {
+	id: string;
+	groupId: string;
+	groupName: string;
+	lessonDate: string;
+	deadline: string;
+	notes: string | null;
+	status: PrintBatchState;
+	printJobs: PrintJobResponse[];
+}
+
+export interface ConfirmDeliveryRequest {
+	confirmedStudentProjectIds: string[];
+}
+
+// ==========================================
+// 3. LOGIKA SERWISU
+// ==========================================
+
+// Kontroler w C# ma [Route("api/[controller]")], więc endpoint to /PrintBatches
+// apiClient ma zdefiniowane baseURL, które pewnie zawiera '/api'
+const BASE_URL = '/printbatches';
+
+/**
+ * Pomocnicza funkcja do wyciągania przyjaznego komunikatu o błędzie z backendu (pod React Hot Toast)
+ */
+const extractErrorMessage = (error: unknown, defaultMessage: string): string => {
+	if (axios.isAxiosError(error) && error.response) {
+		const serverMessage = error.response.data?.message;
+		if (typeof serverMessage === 'string') return serverMessage;
+
+		if (error.response.data?.errors) {
+			const firstErrorKey = Object.keys(error.response.data.errors)[0];
+			return error.response.data.errors[firstErrorKey][0];
+		}
+	}
+	return defaultMessage;
+};
+
+export const printBatchService = {
+	// ----------------------------------------------------
+	// DLA TRENERA
+	// ----------------------------------------------------
+
+	sendToFarm: async (data: CreatePrintBatchRequest) => {
+		try {
+			const response = await apiClient.post<{ message: string; batchId: string; deadline: string }>(
+				'/printbatches/send-to-farm', // Wpisane z palca - zgodnie z Twoją konwencją
+				data,
+			);
+			return response.data;
+		} catch (error) {
+			throw new Error(extractErrorMessage(error, 'Wystąpił błąd podczas wysyłania paczki na farmę.'));
+		}
+	},
+
+	updateBatch: async (batchId: string, data: UpdatePrintBatchRequest) => {
+		try {
+			const response = await apiClient.put<{ message: string; batchId: string; deadline: string }>(
+				`${BASE_URL}/${batchId}`,
+				data,
+			);
+			return response.data;
+		} catch (error) {
+			throw new Error(extractErrorMessage(error, 'Nie udało się zaktualizować zawartości paczki.'));
+		}
+	},
+
+	getReadyBatchForGroup: async (groupId: string) => {
+		try {
+			const response = await apiClient.get<PrintBatchResponse | null>(`${BASE_URL}/group/${groupId}/ready`);
+			return response.data;
+		} catch (error) {
+			throw new Error(extractErrorMessage(error, 'Nie udało się pobrać gotowych paczek dla tej grupy.'));
+		}
+	},
+
+	confirmDelivery: async (batchId: string, data: ConfirmDeliveryRequest) => {
+		try {
+			const response = await apiClient.post<{ message: string }>(`${BASE_URL}/${batchId}/delivery-confirm`, data);
+			return response.data;
+		} catch (error) {
+			throw new Error(extractErrorMessage(error, 'Wystąpił błąd podczas potwierdzania odbioru paczki.'));
+		}
+	},
+
+	// ----------------------------------------------------
+	// DLA DRUKARZA (FARMY)
+	// ----------------------------------------------------
+
+	getBatchesForFarm: async (statusFilter?: PrintBatchState) => {
+		try {
+			const params = statusFilter !== undefined ? { statusFilter } : {};
+			const response = await apiClient.get<PrintBatchResponse[]>('/printbatches/farm', { params });
+			return response.data;
+		} catch (error) {
+			throw new Error(extractErrorMessage(error, 'Nie udało się załadować listy paczek z farmy druku.'));
+		}
+	},
+
+	updateBatchStatus: async (batchId: string, status: PrintBatchState) => {
+		try {
+			const response = await apiClient.patch<{ message: string; newStatus: PrintBatchState }>(
+				`${BASE_URL}/${batchId}/status`,
+				{ status },
+			);
+			return response.data;
+		} catch (error) {
+			throw new Error(extractErrorMessage(error, 'Wystąpił błąd podczas zmiany statusu paczki.'));
+		}
+	},
+
+	updateJobStatus: async (jobId: string, status: PrintJobsStates) => {
+		try {
+			// Zwróć uwagę na ścieżkę w C#: [HttpPatch("~/api/printjobs/{jobId:guid}/status")]
+			// Używamy /printjobs bezpośrednio, a nie /printbatches
+			const response = await apiClient.patch<{ message: string; newStatus: PrintJobsStates }>(
+				`/printjobs/${jobId}/status`,
+				{ status },
+			);
+			return response.data;
+		} catch (error) {
+			throw new Error(extractErrorMessage(error, 'Wystąpił błąd podczas zmiany statusu pojedynczego wydruku.'));
+		}
+	},
+	deleteBatch: async (batchId: string) => {
+		try {
+			const response = await apiClient.delete<{ message: string }>(`/printbatches/${batchId}`);
+			return response.data;
+		} catch (error) {
+			throw new Error(extractErrorMessage(error, 'Wystąpił błąd podczas usuwania paczki.'));
+		}
+	},
+	getBatchHistoryForGroup: async (groupId: string) => {
+		try {
+			const response = await apiClient.get<PrintBatchResponse[]>(`/printbatches/group/${groupId}/history`);
+			return response.data;
+		} catch (error) {
+			throw new Error(extractErrorMessage(error, 'Nie udało się pobrać historii paczek dla tej grupy.'));
+		}
+	},
+};
