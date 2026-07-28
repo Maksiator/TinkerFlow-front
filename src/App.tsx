@@ -22,17 +22,12 @@ const AdminBranches = lazy(() => import('./pages/AdminBranches').then(m => ({ de
 const Substitutes = lazy(() => import('./pages/Substitutes').then(m => ({ default: m.Substitutes })));
 const AdminSettings = lazy(() => import('./pages/AdminSettings').then(m => ({ default: m.AdminSettings })));
 const PrinterDashboard = lazy(() => import('./pages/PrinterDashboard').then(m => ({ default: m.PrinterDashboard })));
+const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 
 // NOWE IMPORTY DO WERYFIKACJI RÓL
 import { authService } from './api/authService';
 import { UserRole } from './api/userService';
 import toast from 'react-hot-toast';
-
-const Settings = () => (
-	<div className="p-10">
-		<h1 className="text-3xl font-bold">Ustawienia Trenera</h1>
-	</div>
-);
 
 const MainLayout = () => {
 	return (

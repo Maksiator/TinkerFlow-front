@@ -51,6 +51,11 @@ export interface UpdateUserRequest {
 	branchIds: string[]; // NOWE: Lista ID oddziałów
 }
 
+export interface ChangePasswordRequest {
+	currentPassword: string;
+	newPassword: string;
+}
+
 interface IdentityError {
 	code: string;
 	description: string;
@@ -95,6 +100,23 @@ export const userService = {
 
 	deleteUser: async (id: string) => {
 		const response = await apiClient.delete(`/users/${id}`);
+		return response.data;
+	},
+
+	changePassword: async (data: ChangePasswordRequest) => {
+		try {
+			const response = await apiClient.post<{ message: string }>('/users/change-password', data);
+			return response.data;
+		} catch (error) {
+			if (axios.isAxiosError(error) && error.response?.data?.message) {
+				throw new Error(error.response.data.message);
+			}
+			throw new Error('Nie udało się zmienić hasła.');
+		}
+	},
+
+	getMe: async () => {
+		const response = await apiClient.get<User>('/users/me');
 		return response.data;
 	},
 };
