@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { authService } from '../api/authService';
+import { EyeFill, EyeSlashFill } from 'react-bootstrap-icons';
 
 export function Login() {
 	// HOOK do czytania paska adresu
@@ -11,6 +12,7 @@ export function Login() {
 	const [password, setPassword] = useState('');
 	const [error, setError] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
+	const [showPassword, setShowPassword] = useState(false);
 
 	// Wyłapywanie powodu wylogowania z URL
 	useEffect(() => {
@@ -72,14 +74,24 @@ export function Login() {
 
 					<div>
 						<label className="mb-2 block text-sm font-bold text-slate-700">Hasło</label>
-						<input
-							type="password"
-							required
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							className="w-full rounded-lg border border-slate-300 p-3 transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-							placeholder="••••••••"
-						/>
+						<div className="relative">
+							<input
+								type={showPassword ? 'text' : 'password'}
+								required
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+								className="w-full rounded-lg border border-slate-300 p-3 pr-10 transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+								placeholder="••••••••"
+							/>
+							<button
+								type="button"
+								tabIndex={-1}
+								onClick={() => setShowPassword(!showPassword)}
+								className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+							>
+								{showPassword ? <EyeSlashFill size={18} /> : <EyeFill size={18} />}
+							</button>
+						</div>
 					</div>
 
 					{error && <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-600">{error}</div>}
