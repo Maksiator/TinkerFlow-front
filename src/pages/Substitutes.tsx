@@ -131,9 +131,14 @@ export function Substitutes() {
 
 			const updatedSubs = await substituteService.getAll();
 			setSubstitutes(updatedSubs);
-		} catch (error) {
+		} catch (error: any) {
 			console.error(error);
-			toast.error('Błąd podczas dodawania zastępstw. Sprawdź konsolę.');
+			const serverMsg = error.response?.data?.message;
+			if (serverMsg) {
+				toast.error(serverMsg);
+			} else {
+				toast.error('Błąd podczas dodawania zastępstw.');
+			}
 		} finally {
 			setIsSubmitting(false);
 		}
