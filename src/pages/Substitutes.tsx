@@ -193,7 +193,7 @@ export function Substitutes() {
 								/>
 							</div>
 
-							{/* 2. CUSTOMOWE WIDEŁKI CZASOWE */}
+							{/* 2. AUTOMATYCZNE WIDEŁKI CZASOWE */}
 							<div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
 								<div className="grid grid-cols-2 gap-3">
 									<div>
@@ -201,9 +201,9 @@ export function Substitutes() {
 										<input
 											type="date"
 											required
+											disabled
 											value={validFrom}
-											onChange={(e) => setValidFrom(e.target.value)}
-											className="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs outline-none focus:border-blue-500"
+											className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 p-2 text-xs text-slate-500 outline-none"
 										/>
 									</div>
 									<div>
@@ -211,14 +211,14 @@ export function Substitutes() {
 										<input
 											type="date"
 											required
+											disabled
 											value={validUntil}
-											onChange={(e) => setValidUntil(e.target.value)}
-											className="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs outline-none focus:border-blue-500"
+											className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 p-2 text-xs text-slate-500 outline-none"
 										/>
 									</div>
 								</div>
 								<p className="mt-2 text-[10px] text-slate-400 italic">
-									*Daty uzupełniane automatycznie wg ustawień globalnych. Możesz je edytować.
+									*Daty wyliczane automatycznie wg ustawień globalnych.
 								</p>
 							</div>
 
