@@ -483,6 +483,7 @@ export function AdminUsers() {
 									<div className="absolute right-2 flex items-center gap-1.5">
 										<button
 											type="button"
+											tabIndex={-1}
 											onClick={() => setShowStartPassword(!showStartPassword)}
 											className="p-1 text-slate-400 hover:text-slate-600 focus:outline-none"
 											title={showStartPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
@@ -491,6 +492,7 @@ export function AdminUsers() {
 										</button>
 										<button
 											type="button"
+											tabIndex={-1}
 											onClick={generateRandomPassword}
 											className="rounded bg-blue-50 px-2 py-1 text-xs font-bold text-blue-600 hover:bg-blue-100 focus:outline-none"
 											title="Generuj losowe hasło"

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { PersonFill, KeyFill, ShieldFill, BuildingFill, EyeFill, EyeSlashFill } from 'react-bootstrap-icons';
 import { userService, type User, UserRole } from '../api/userService';
-import { authService } from '../api/authService';
 
 export function Settings() {
 	const [user, setUser] = useState<User | null>(null);
@@ -57,6 +56,11 @@ export function Settings() {
 			return;
 		}
 
+		if (newPassword === currentPassword) {
+			toast.error('Nowe hasło nie może być takie samo jak aktualne!');
+			return;
+		}
+
 		setIsSavingPassword(true);
 		try {
 			await userService.changePassword({ currentPassword, newPassword });
@@ -65,7 +69,9 @@ export function Settings() {
 			setNewPassword('');
 			setConfirmPassword('');
 			setTimeout(() => {
-				authService.logout();
+				localStorage.removeItem('tinkerflow_token');
+				localStorage.removeItem('tinkerflow_user');
+				window.location.href = '/login?reason=expired';
 			}, 2000);
 		} catch (error: any) {
 			console.error(error);
@@ -74,6 +80,20 @@ export function Settings() {
 			setIsSavingPassword(false);
 		}
 	};
+
+	// Dynamiczna walidacja na żywo
+	const isNewPasswordSameAsCurrent = newPassword.length > 0 && newPassword === currentPassword;
+	const arePasswordsMismatch = confirmPassword.length > 0 && confirmPassword !== newPassword;
+	const isNewPasswordTooShort = newPassword.length > 0 && newPassword.length < 6;
+
+	const isSubmitDisabled =
+		isSavingPassword ||
+		!currentPassword ||
+		!newPassword ||
+		!confirmPassword ||
+		isNewPasswordSameAsCurrent ||
+		arePasswordsMismatch ||
+		isNewPasswordTooShort;
 
 	const getRoleName = (role?: UserRole) => {
 		if (role === UserRole.Admin) return 'Administrator';
@@ -174,6 +194,7 @@ export function Settings() {
 									/>
 									<button
 										type="button"
+										tabIndex={-1}
 										onClick={() => setShowCurrentPassword(!showCurrentPassword)}
 										className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
 									>
@@ -196,12 +217,19 @@ export function Settings() {
 										/>
 										<button
 											type="button"
+											tabIndex={-1}
 											onClick={() => setShowNewPassword(!showNewPassword)}
 											className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
 										>
 											{showNewPassword ? <EyeSlashFill size={18} /> : <EyeFill size={18} />}
 										</button>
 									</div>
+									{isNewPasswordSameAsCurrent && (
+										<span className="text-xs text-red-500 mt-1.5 block">Nowe hasło nie może być takie samo jak aktualne.</span>
+									)}
+									{isNewPasswordTooShort && (
+										<span className="text-xs text-slate-400 mt-1.5 block">Hasło powinno mieć co najmniej 6 znaków.</span>
+									)}
 								</div>
 								<div>
 									<label className="block text-sm font-semibold text-slate-700">Potwierdź nowe hasło</label>
@@ -216,20 +244,24 @@ export function Settings() {
 										/>
 										<button
 											type="button"
+											tabIndex={-1}
 											onClick={() => setShowConfirmPassword(!showConfirmPassword)}
 											className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
 										>
 											{showConfirmPassword ? <EyeSlashFill size={18} /> : <EyeFill size={18} />}
 										</button>
 									</div>
+									{arePasswordsMismatch && (
+										<span className="text-xs text-red-500 mt-1.5 block">Hasła nie są ze sobą zgodne.</span>
+									)}
 								</div>
 							</div>
 
 							<div className="flex justify-end pt-4">
 								<button
 									type="submit"
-									disabled={isSavingPassword}
-									className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-blue-600 px-6 py-2.5 font-bold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50"
+									disabled={isSubmitDisabled}
+									className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-blue-600 px-6 py-2.5 font-bold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{isSavingPassword ? (
 										<div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
