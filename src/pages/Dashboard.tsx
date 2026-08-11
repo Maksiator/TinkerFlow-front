@@ -25,6 +25,13 @@ export function Dashboard() {
 	const [mySubstitutes, setMySubstitutes] = useState<SubstituteResponse[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 
+	// Przekierowanie drukarza bezpośrednio na farmę druku
+	useEffect(() => {
+		if (user?.role === UserRole.Printer) {
+			navigate('/farma', { replace: true });
+		}
+	}, [user, navigate]);
+
 	const currentDayIndex = new Date().getDay();
 	const canManage = user?.role === UserRole.Admin || user?.role === UserRole.Coordinator;
 

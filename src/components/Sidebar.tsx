@@ -89,12 +89,14 @@ export function Sidebar() {
 						</NavLink>
 					</li>
 
-					<li>
-						<NavLink to="/matryca" className={navLinkClass}>
-							<LayersFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-							{isExpanded && <span className="truncate">Matryca Projektów</span>}
-						</NavLink>
-					</li>
+					{user?.role !== UserRole.Printer && (
+						<li>
+							<NavLink to="/matryca" className={navLinkClass}>
+								<LayersFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+								{isExpanded && <span className="truncate">Matryca Projektów</span>}
+							</NavLink>
+						</li>
+					)}
 
 					{/* 2. STREFA KOORDYNATORA (Koordynator + Admin) */}
 					{isCoordinatorOrAdmin && (

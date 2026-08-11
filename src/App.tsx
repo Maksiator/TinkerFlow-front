@@ -117,9 +117,13 @@ function App() {
 						<Route path="/" element={<MainLayout />}>
 							{/* === POZIOM 1: DOSTĘP DLA WSZYSTKICH (Trener, Koordynator, Admin) === */}
 							<Route index element={<Dashboard />} />
-							<Route path="matryca" element={<MatrixSetup />} />
-							<Route path="matryca/widok" element={<Matrix />} />
 							<Route path="ustawienia" element={<Settings />} />
+
+							{/* DOSTĘP DO MATRYCY: WYKLUCZAMY DRUKARZA */}
+							<Route element={<RoleGuard allowedRoles={[UserRole.Admin, UserRole.Coordinator, UserRole.Trainer]} />}>
+								<Route path="matryca" element={<MatrixSetup />} />
+								<Route path="matryca/widok" element={<Matrix />} />
+							</Route>
 
 							{/* === POZIOM 2: DOSTĘP DLA KOORDYNATORA I ADMINA === */}
 							<Route element={<RoleGuard allowedRoles={[UserRole.Coordinator, UserRole.Admin]} />}>

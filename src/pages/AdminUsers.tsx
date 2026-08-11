@@ -13,6 +13,7 @@ import {
 	Trash,
 	EyeFill,
 	EyeSlashFill,
+	PrinterFill,
 } from 'react-bootstrap-icons';
 import { userService, type User, UserRole, type UpdateUserRequest, type CreateUserRequest } from '../api/userService';
 import { branchService, type Branch } from '../api/branchService';
@@ -262,6 +263,12 @@ export function AdminUsers() {
 				return (
 					<span className="flex w-max items-center gap-1 rounded-md bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">
 						<PersonBadgeFill /> Trener
+					</span>
+				);
+			case UserRole.Printer:
+				return (
+					<span className="flex w-max items-center gap-1 rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700">
+						<PrinterFill /> Drukarz
 					</span>
 				);
 			default:
@@ -514,6 +521,7 @@ export function AdminUsers() {
 									{isCurrentUserAdmin && <option value={UserRole.Admin}>Administrator</option>}
 									{isCurrentUserAdmin && <option value={UserRole.Coordinator}>Koordynator</option>}
 									<option value={UserRole.Trainer}>Trener</option>
+									{isCurrentUserAdmin && <option value={UserRole.Printer}>Drukarz</option>}
 								</select>
 							</div>
 
