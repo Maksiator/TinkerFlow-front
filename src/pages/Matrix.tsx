@@ -234,57 +234,31 @@ export function Matrix() {
 		return (
 			<div
 				key={item.id}
-				className={`flex flex-col gap-3 rounded-xl border-2 p-4 transition-all ${
+				className={`flex items-center justify-between rounded-xl border-2 p-4 transition-all ${
 					isChecked ? 'border-slate-200 bg-slate-50 opacity-60' : 'border-blue-200 bg-blue-50 shadow-sm'
 				}`}
 			>
-				<div className="flex cursor-pointer items-center justify-between" onClick={() => togglePacked(item.id)}>
-					<div className="flex items-center gap-4">
-						<div
-							className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border-2 transition-colors ${
-								isChecked ? 'border-slate-400 bg-slate-400' : 'border-blue-500 bg-white'
-							}`}
-						>
-							{isChecked && <CheckLg className="text-white" />}
-						</div>
-						<span
-							className={`text-base font-bold sm:text-lg ${isChecked ? 'text-slate-500 line-through' : 'text-slate-800'}`}
-						>
-							{item.name}
-						</span>
-					</div>
-					<span
-						className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-bold transition-colors ${
-							isChecked ? 'bg-slate-200 text-slate-500' : 'bg-blue-600 text-white shadow-sm'
+				<div className="flex cursor-pointer items-center gap-4 flex-1" onClick={() => togglePacked(item.id)}>
+					<div
+						className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border-2 transition-colors ${
+							isChecked ? 'border-slate-400 bg-slate-400' : 'border-blue-500 bg-white'
 						}`}
 					>
-						Spakuj: {item.totalQty} szt. (max)
+						{isChecked && <CheckLg className="text-white" />}
+					</div>
+					<span
+						className={`text-base font-bold sm:text-lg ${isChecked ? 'text-slate-500 line-through' : 'text-slate-800'}`}
+					>
+						{item.name}
 					</span>
 				</div>
-
-				{!isChecked && (
-					<div className="ml-10 flex flex-col gap-3 border-l-2 border-blue-200 pl-4 text-sm text-slate-600">
-						{item.groups.map((g) => (
-							<div key={g.groupId} className="flex flex-col gap-1">
-								<div className="font-bold text-slate-700">
-									{g.groupName} <span className="text-xs text-blue-600 font-semibold">({g.qty} szt.)</span>
-								</div>
-								{g.studentsScheduled.length > 0 && (
-									<div>
-										<span className="text-xs font-semibold text-blue-700">W planach: </span>
-										<span className="text-xs text-slate-500">{g.studentsScheduled.join(', ')}</span>
-									</div>
-								)}
-								{g.studentsInProgress.length > 0 && (
-									<div>
-										<span className="text-xs font-semibold text-orange-600">W trakcie: </span>
-										<span className="text-xs text-slate-500">{g.studentsInProgress.join(', ')}</span>
-									</div>
-								)}
-							</div>
-						))}
-					</div>
-				)}
+				<span
+					className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-bold transition-colors ${
+						isChecked ? 'bg-slate-200 text-slate-500' : 'bg-blue-600 text-white shadow-sm'
+					}`}
+				>
+					{item.totalQty} szt.
+				</span>
 			</div>
 		);
 	};
