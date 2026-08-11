@@ -18,6 +18,7 @@ export interface Student {
 	needsAttention: boolean;
 	groupId: string | null;
 	groupName?: string | null;
+	branchId?: string | null;
 	recordHistory?: boolean;
 	isMidYear?: boolean;
 	academicYear?: string;

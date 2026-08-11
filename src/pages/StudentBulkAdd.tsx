@@ -9,6 +9,7 @@ import {
 } from 'react-bootstrap-icons';
 import { studentService, type StudentRequest, SkillLevel } from '../api/studentService';
 import { groupService, type Group } from '../api/groupService';
+import { branchService, type Branch } from '../api/branchService';
 import { authService } from '../api/authService';
 import { UserRole } from '../api/userService';
 import toast from 'react-hot-toast';
@@ -41,7 +42,9 @@ export function StudentBulkAdd() {
 	const [rawText, setRawText] = useState('');
 	const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
 	const [selectedGroupId, setSelectedGroupId] = useState<string>(preselectedGroupId || '');
+	const [selectedBranchId, setSelectedBranchId] = useState<string>('');
 	const [groups, setGroups] = useState<Group[]>([]);
+	const [branches, setBranches] = useState<Branch[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSaving, setIsSaving] = useState(false);
 
@@ -51,16 +54,24 @@ export function StudentBulkAdd() {
 	useEffect(() => {
 		let isMounted = true;
 
-		const fetchGroups = async () => {
+		const fetchInitialData = async () => {
 			try {
-				const data = await groupService.getAll();
+				const [groupsData, branchesData] = await Promise.all([
+					groupService.getAll(),
+					branchService.getAll()
+				]);
 				if (isMounted) {
-					setGroups(data);
+					setGroups(groupsData);
+					setBranches(branchesData);
+					// Domyślnie zaznacz pierwszy oddział, jeśli koordynator/admin ma dostęp
+					if (branchesData.length > 0) {
+						setSelectedBranchId(branchesData[0].id);
+					}
 				}
 			} catch (error) {
 				console.error(error);
 				if (isMounted) {
-					toast.error('Błąd pobierania listy grup.');
+					toast.error('Błąd pobierania danych startowych.');
 				}
 			} finally {
 				if (isMounted) {
@@ -69,7 +80,7 @@ export function StudentBulkAdd() {
 			}
 		};
 
-		fetchGroups();
+		fetchInitialData();
 
 		return () => {
 			isMounted = false;
@@ -150,6 +161,11 @@ export function StudentBulkAdd() {
 			return;
 		}
 
+		if (selectedGroupId === '' && !selectedBranchId) {
+			toast.error('Wybierz oddział, do którego chcesz zaimportować uczniów bez grupy.');
+			return;
+		}
+
 		setIsSaving(true);
 		try {
 			const payload: StudentRequest[] = previewRows.map((row) => ({
@@ -160,6 +176,7 @@ export function StudentBulkAdd() {
 				isIndependent: false,
 				needsAttention: false,
 				groupId: selectedGroupId === '' ? null : selectedGroupId,
+				branchId: selectedGroupId === '' ? (selectedBranchId === '' ? null : selectedBranchId) : null,
 			}));
 
 			await studentService.createBulk(payload);
@@ -235,6 +252,24 @@ export function StudentBulkAdd() {
 								))}
 							</select>
 						</div>
+
+						{selectedGroupId === '' && (
+							<div>
+								<label className="mb-2 block text-sm font-bold text-slate-700">Wybierz oddział (wymagany):</label>
+								<select
+									value={selectedBranchId}
+									onChange={(e) => setSelectedBranchId(e.target.value)}
+									className="w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1"
+								>
+									<option value="">Wybierz oddział...</option>
+									{branches.map((b) => (
+										<option key={b.id} value={b.id}>
+											{b.name}
+										</option>
+									))}
+								</select>
+							</div>
+						)}
 					</div>
 
 					<div className="flex h-full flex-col">

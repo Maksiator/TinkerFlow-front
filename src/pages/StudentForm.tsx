@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search } from 'react-bootstrap-icons';
 import { studentService, type StudentRequest, SkillLevel } from '../api/studentService';
 import { groupService, type Group } from '../api/groupService';
+import { branchService, type Branch } from '../api/branchService';
 import { systemSettingsService } from '../api/systemSettingsService';
 import toast from 'react-hot-toast';
 
@@ -20,11 +21,13 @@ export function StudentForm() {
 		isIndependent: false,
 		needsAttention: false,
 		groupId: null,
+		branchId: null,
 	});
 
 	const [initialGroupId, setInitialGroupId] = useState<string | null>(null);
 
 	const [groups, setGroups] = useState<Group[]>([]);
+	const [branches, setBranches] = useState<Branch[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSaving, setIsSaving] = useState(false);
 
@@ -55,11 +58,15 @@ export function StudentForm() {
 		const fetchData = async () => {
 			setIsLoading(true);
 			try {
-				// Pobieramy grupy (używając nowego serwisu, który zwraca branchName)
-				const fetchedGroups = await groupService.getAll();
+				// Pobieramy grupy i oddziały
+				const [fetchedGroups, fetchedBranches] = await Promise.all([
+					groupService.getAll(),
+					branchService.getAll()
+				]);
 
 				if (isMounted) {
 					setGroups(fetchedGroups);
+					setBranches(fetchedBranches);
 				}
 
 				if (isEditMode && id) {
@@ -80,6 +87,7 @@ export function StudentForm() {
 							isIndependent: student.isIndependent,
 							needsAttention: student.needsAttention,
 							groupId: student.groupId,
+							branchId: student.branchId || null,
 						});
 						setHistory(historyData);
 					}
@@ -120,6 +128,7 @@ export function StudentForm() {
 			const payload: StudentRequest = {
 				...formData,
 				groupId: formData.groupId === '' ? null : formData.groupId,
+				branchId: formData.groupId ? null : formData.branchId,
 			};
 
 			if (isEditMode && initialGroupId && formData.groupId !== initialGroupId) {
@@ -327,6 +336,25 @@ export function StudentForm() {
 								</div>
 							)}
 						</div>
+
+						{!formData.groupId && (
+							<div className="md:col-span-2">
+								<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Oddział (Wymagany przy braku grupy)</label>
+								<select
+									value={formData.branchId || ''}
+									onChange={(e) => setFormData({ ...formData, branchId: e.target.value || null })}
+									required
+									className="w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-3 text-sm transition-all outline-none focus:border-blue-500"
+								>
+									<option value="">Wybierz oddział...</option>
+									{branches.map((b) => (
+										<option key={b.id} value={b.id}>
+											{b.name}
+										</option>
+									))}
+								</select>
+							</div>
+						)}
 					</div>
 
 					<div>
