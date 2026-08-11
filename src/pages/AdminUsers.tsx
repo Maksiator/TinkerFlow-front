@@ -11,6 +11,8 @@ import {
 	LockFill,
 	BuildingFill,
 	Trash,
+	EyeFill,
+	EyeSlashFill,
 } from 'react-bootstrap-icons';
 import { userService, type User, UserRole, type UpdateUserRequest, type CreateUserRequest } from '../api/userService';
 import { branchService, type Branch } from '../api/branchService';
@@ -46,6 +48,33 @@ export function AdminUsers() {
 	const currentUserRole = currentUser?.role;
 	const isCurrentUserCoordinator = currentUserRole === UserRole.Coordinator;
 	const isCurrentUserAdmin = currentUserRole === UserRole.Admin;
+
+	const [showStartPassword, setShowStartPassword] = useState(false);
+
+	const generateRandomPassword = () => {
+		const length = 10;
+		const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+		const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+		const numbers = '0123456789';
+		const special = '!@#$%^&*()_+~`|}{[]:;?><,./-';
+		const allChars = uppercase + lowercase + numbers + special;
+		
+		let password = '';
+		password += uppercase[Math.floor(Math.random() * uppercase.length)];
+		password += lowercase[Math.floor(Math.random() * lowercase.length)];
+		password += numbers[Math.floor(Math.random() * numbers.length)];
+		password += special[Math.floor(Math.random() * special.length)];
+		
+		for (let i = 4; i < length; i++) {
+			password += allChars[Math.floor(Math.random() * allChars.length)];
+		}
+		
+		const shuffledPassword = password.split('').sort(() => 0.5 - Math.random()).join('');
+		
+		setFormData(prev => ({ ...prev, password: shuffledPassword }));
+		setShowStartPassword(true);
+		toast.success('Wygenerowano losowe hasło startowe.');
+	};
 
 	useEffect(() => {
 		if (currentUserRole === undefined || currentUserRole === UserRole.Trainer) {
@@ -140,6 +169,7 @@ export function AdminUsers() {
 	const handleCloseModal = () => {
 		setIsModalOpen(false);
 		setEditingUser(null);
+		setShowStartPassword(false);
 	};
 
 	const toggleBranch = (branchId: string) => {
@@ -441,14 +471,34 @@ export function AdminUsers() {
 							/>
 
 							{!editingUser && (
-								<input
-									type="password"
-									placeholder="Hasło startowe"
-									required
-									value={formData.password}
-									onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-									className="rounded-lg border p-2.5"
-								/>
+								<div className="relative flex items-center">
+									<input
+										type={showStartPassword ? 'text' : 'password'}
+										placeholder="Hasło startowe"
+										required
+										value={formData.password}
+										onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+										className="w-full rounded-lg border p-2.5 pr-24"
+									/>
+									<div className="absolute right-2 flex items-center gap-1.5">
+										<button
+											type="button"
+											onClick={() => setShowStartPassword(!showStartPassword)}
+											className="p-1 text-slate-400 hover:text-slate-600 focus:outline-none"
+											title={showStartPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
+										>
+											{showStartPassword ? <EyeSlashFill size={18} /> : <EyeFill size={18} />}
+										</button>
+										<button
+											type="button"
+											onClick={generateRandomPassword}
+											className="rounded bg-blue-50 px-2 py-1 text-xs font-bold text-blue-600 hover:bg-blue-100 focus:outline-none"
+											title="Generuj losowe hasło"
+										>
+											Generuj
+										</button>
+									</div>
+								</div>
 							)}
 
 							<div>

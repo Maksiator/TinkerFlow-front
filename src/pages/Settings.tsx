@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { PersonFill, KeyFill, ShieldFill, BuildingFill } from 'react-bootstrap-icons';
+import { PersonFill, KeyFill, ShieldFill, BuildingFill, EyeFill, EyeSlashFill } from 'react-bootstrap-icons';
 import { userService, type User, UserRole } from '../api/userService';
+import { authService } from '../api/authService';
 
 export function Settings() {
 	const [user, setUser] = useState<User | null>(null);
@@ -12,6 +13,11 @@ export function Settings() {
 	const [newPassword, setNewPassword] = useState('');
 	const [confirmPassword, setConfirmPassword] = useState('');
 	const [isSavingPassword, setIsSavingPassword] = useState(false);
+
+	// Widoczność haseł
+	const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+	const [showNewPassword, setShowNewPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -54,10 +60,13 @@ export function Settings() {
 		setIsSavingPassword(true);
 		try {
 			await userService.changePassword({ currentPassword, newPassword });
-			toast.success('Hasło zostało pomyślnie zmienione!');
+			toast.success('Hasło zostało pomyślnie zmienione! Nastąpi automatyczne wylogowanie...', { duration: 3000 });
 			setCurrentPassword('');
 			setNewPassword('');
 			setConfirmPassword('');
+			setTimeout(() => {
+				authService.logout();
+			}, 2000);
 		} catch (error: any) {
 			console.error(error);
 			toast.error(error.message || 'Nie udało się zmienić hasła.');
@@ -154,38 +163,65 @@ export function Settings() {
 						<form onSubmit={handlePasswordChange} className="space-y-6">
 							<div>
 								<label className="block text-sm font-semibold text-slate-700">Aktualne hasło</label>
-								<input
-									type="password"
-									value={currentPassword}
-									onChange={(e) => setCurrentPassword(e.target.value)}
-									required
-									placeholder="••••••••"
-									className="mt-1.5 block w-full rounded-xl border border-slate-200 px-4 py-2.5 text-slate-800 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-300"
-								/>
+								<div className="relative mt-1.5">
+									<input
+										type={showCurrentPassword ? 'text' : 'password'}
+										value={currentPassword}
+										onChange={(e) => setCurrentPassword(e.target.value)}
+										required
+										placeholder="••••••••"
+										className="block w-full rounded-xl border border-slate-200 pl-4 pr-10 py-2.5 text-slate-800 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-300"
+									/>
+									<button
+										type="button"
+										onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+										className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+									>
+										{showCurrentPassword ? <EyeSlashFill size={18} /> : <EyeFill size={18} />}
+									</button>
+								</div>
 							</div>
 
 							<div className="grid gap-6 sm:grid-cols-2">
 								<div>
 									<label className="block text-sm font-semibold text-slate-700">Nowe hasło</label>
-									<input
-										type="password"
-										value={newPassword}
-										onChange={(e) => setNewPassword(e.target.value)}
-										required
-										placeholder="••••••••"
-										className="mt-1.5 block w-full rounded-xl border border-slate-200 px-4 py-2.5 text-slate-800 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-300"
-									/>
+									<div className="relative mt-1.5">
+										<input
+											type={showNewPassword ? 'text' : 'password'}
+											value={newPassword}
+											onChange={(e) => setNewPassword(e.target.value)}
+											required
+											placeholder="••••••••"
+											className="block w-full rounded-xl border border-slate-200 pl-4 pr-10 py-2.5 text-slate-800 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-300"
+										/>
+										<button
+											type="button"
+											onClick={() => setShowNewPassword(!showNewPassword)}
+											className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+										>
+											{showNewPassword ? <EyeSlashFill size={18} /> : <EyeFill size={18} />}
+										</button>
+									</div>
 								</div>
 								<div>
 									<label className="block text-sm font-semibold text-slate-700">Potwierdź nowe hasło</label>
-									<input
-										type="password"
-										value={confirmPassword}
-										onChange={(e) => setConfirmPassword(e.target.value)}
-										required
-										placeholder="••••••••"
-										className="mt-1.5 block w-full rounded-xl border border-slate-200 px-4 py-2.5 text-slate-800 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-300"
-									/>
+									<div className="relative mt-1.5">
+										<input
+											type={showConfirmPassword ? 'text' : 'password'}
+											value={confirmPassword}
+											onChange={(e) => setConfirmPassword(e.target.value)}
+											required
+											placeholder="••••••••"
+											className="block w-full rounded-xl border border-slate-200 pl-4 pr-10 py-2.5 text-slate-800 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-300"
+										/>
+										<button
+											type="button"
+											onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+											className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+										>
+											{showConfirmPassword ? <EyeSlashFill size={18} /> : <EyeFill size={18} />}
+										</button>
+									</div>
 								</div>
 							</div>
 
