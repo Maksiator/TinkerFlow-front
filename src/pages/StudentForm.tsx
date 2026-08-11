@@ -5,11 +5,14 @@ import { studentService, type StudentRequest, SkillLevel } from '../api/studentS
 import { groupService, type Group } from '../api/groupService';
 import { branchService, type Branch } from '../api/branchService';
 import { systemSettingsService } from '../api/systemSettingsService';
+import { authService } from '../api/authService';
+import { UserRole } from '../api/userService';
 import toast from 'react-hot-toast';
 
 export function StudentForm() {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
+	const user = authService.getCurrentUser();
 
 	const isEditMode = Boolean(id) && id !== 'nowy';
 
@@ -35,6 +38,11 @@ export function StudentForm() {
 	const [mainGroupSearch, setMainGroupSearch] = useState('');
 	const [isMainGroupDropdownOpen, setIsMainGroupDropdownOpen] = useState(false);
 	const mainGroupDropdownRef = useRef<HTMLDivElement>(null);
+
+	// Wyszukiwarka dla oddziału
+	const [branchSearch, setBranchSearch] = useState('');
+	const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
+	const branchDropdownRef = useRef<HTMLDivElement>(null);
 
 	// Historia ucznia
 	const [history, setHistory] = useState<import('../api/studentService').StudentHistoryResponse | null>(null);
@@ -154,9 +162,18 @@ export function StudentForm() {
 	};
 
 	useEffect(() => {
+		if (user?.role === UserRole.Coordinator && branches.length > 0 && !formData.branchId) {
+			setFormData(prev => ({ ...prev, branchId: branches[0].id }));
+		}
+	}, [branches, user, formData.branchId]);
+
+	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
 			if (mainGroupDropdownRef.current && !mainGroupDropdownRef.current.contains(event.target as Node)) {
 				setIsMainGroupDropdownOpen(false);
+			}
+			if (branchDropdownRef.current && !branchDropdownRef.current.contains(event.target as Node)) {
+				setIsBranchDropdownOpen(false);
 			}
 			if (historyGroupDropdownRef.current && !historyGroupDropdownRef.current.contains(event.target as Node)) {
 				setIsHistoryGroupDropdownOpen(false);
@@ -338,36 +355,91 @@ export function StudentForm() {
 						</div>
 
 						{!formData.groupId && (
-							<div className="md:col-span-2">
-								<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Oddział (Wymagany przy braku grupy)</label>
-								<select
-									value={formData.branchId || ''}
-									onChange={(e) => setFormData({ ...formData, branchId: e.target.value || null })}
-									required
-									className="w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-3 text-sm transition-all outline-none focus:border-blue-500"
-								>
-									<option value="">Wybierz oddział...</option>
-									{branches.map((b) => (
-										<option key={b.id} value={b.id}>
-											{b.name}
-										</option>
-									))}
-								</select>
-							</div>
+							user?.role === UserRole.Coordinator ? (
+								<div className="md:col-span-2">
+									<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Oddział</label>
+									<input
+										type="text"
+										value={branches.find(b => b.id === formData.branchId)?.name || 'Pobieranie oddziału...'}
+										disabled
+										className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-400 outline-none cursor-not-allowed font-medium"
+									/>
+								</div>
+							) : (
+								<div className="md:col-span-2 relative" ref={branchDropdownRef}>
+									<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Oddział (Wymagany przy braku grupy)</label>
+									<div className="relative">
+										<Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
+										<input
+											type="text"
+											placeholder="Wyszukaj oddział..."
+											value={branchSearch || (formData.branchId ? branches.find(b => b.id === formData.branchId)?.name || '' : '')}
+											onChange={(e) => {
+												setBranchSearch(e.target.value);
+												if (e.target.value === '') setFormData({ ...formData, branchId: null });
+												setIsBranchDropdownOpen(true);
+											}}
+											onFocus={() => {
+												setIsBranchDropdownOpen(true);
+												setBranchSearch('');
+											}}
+											className="w-full rounded-lg border border-slate-300 py-3 pr-4 pl-10 text-sm outline-none focus:border-blue-500"
+										/>
+									</div>
+									
+									{isBranchDropdownOpen && (
+										<div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl">
+											{branches.filter(b => b.name.toLowerCase().includes(branchSearch.toLowerCase())).length === 0 ? (
+												<div className="p-3 text-sm text-slate-500">Brak wyników</div>
+											) : (
+												branches.filter(b => b.name.toLowerCase().includes(branchSearch.toLowerCase())).map(b => (
+													<div
+														key={b.id}
+														onClick={() => {
+															setFormData({ ...formData, branchId: b.id });
+															setBranchSearch('');
+															setIsBranchDropdownOpen(false);
+														}}
+														className="cursor-pointer border-b border-slate-100 p-3 text-sm hover:bg-slate-50 last:border-0 font-medium"
+													>
+														{b.name}
+													</div>
+												))
+											)}
+										</div>
+									)}
+								</div>
+							)
 						)}
 					</div>
 
 					<div>
-						<label className="mb-2 block text-sm font-bold text-slate-700">Poziom</label>
-						<select
-							value={formData.level}
-							onChange={(e) => setFormData({ ...formData, level: Number(e.target.value) as SkillLevel })}
-							className="w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-						>
-							<option value={SkillLevel.Beginner}>Początkujący</option>
-							<option value={SkillLevel.Intermediate}>Średniozaawansowany</option>
-							<option value={SkillLevel.Advanced}>Zaawansowany</option>
-						</select>
+						<label className="mb-2 block text-xs font-bold text-slate-500 uppercase tracking-wider">Poziom</label>
+						<div className="grid grid-cols-3 gap-2 bg-slate-100 p-1 rounded-xl">
+							{(Object.keys(SkillLevel) as Array<keyof typeof SkillLevel>).map((key) => {
+								const val = SkillLevel[key];
+								const labelMap: Record<number, string> = {
+									0: 'Początkujący',
+									1: 'Średni',
+									2: 'Zaawansowany'
+								};
+								const isActive = formData.level === val;
+								return (
+									<button
+										key={key}
+										type="button"
+										onClick={() => setFormData({ ...formData, level: val })}
+										className={`py-2 px-3 text-xs font-bold rounded-lg transition-all ${
+											isActive 
+												? 'bg-white text-blue-600 shadow-sm' 
+												: 'text-slate-600 hover:text-slate-900'
+										}`}
+									>
+										{labelMap[val]}
+									</button>
+								);
+							})}
+						</div>
 					</div>
 
 					<div className="rounded-xl border border-slate-200 bg-slate-50 p-4">

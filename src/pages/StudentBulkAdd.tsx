@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
 	ArrowLeft,
@@ -6,6 +6,7 @@ import {
 	CheckCircleFill,
 	ExclamationCircleFill,
 	ShieldLockFill,
+	Search,
 } from 'react-bootstrap-icons';
 import { studentService, type StudentRequest, SkillLevel } from '../api/studentService';
 import { groupService, type Group } from '../api/groupService';
@@ -48,6 +49,11 @@ export function StudentBulkAdd() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSaving, setIsSaving] = useState(false);
 
+	// Wyszukiwarka dla oddziału
+	const [branchSearch, setBranchSearch] = useState('');
+	const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
+	const branchDropdownRef = useRef<HTMLDivElement>(null);
+
 	// SPRAWDZENIE UPRAWNIEŃ (RODO/ADMIN)
 	const canAccess = user?.role === UserRole.Admin || user?.role === UserRole.Coordinator;
 
@@ -86,6 +92,22 @@ export function StudentBulkAdd() {
 			isMounted = false;
 		};
 	}, []);
+
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (branchDropdownRef.current && !branchDropdownRef.current.contains(event.target as Node)) {
+				setIsBranchDropdownOpen(false);
+			}
+		};
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	}, []);
+
+	useEffect(() => {
+		if (user?.role === UserRole.Coordinator && branches.length > 0) {
+			setSelectedBranchId(branches[0].id);
+		}
+	}, [branches, user]);
 
 	const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		const newText = e.target.value;
@@ -254,21 +276,61 @@ export function StudentBulkAdd() {
 						</div>
 
 						{selectedGroupId === '' && (
-							<div>
-								<label className="mb-2 block text-sm font-bold text-slate-700">Wybierz oddział (wymagany):</label>
-								<select
-									value={selectedBranchId}
-									onChange={(e) => setSelectedBranchId(e.target.value)}
-									className="w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1"
-								>
-									<option value="">Wybierz oddział...</option>
-									{branches.map((b) => (
-										<option key={b.id} value={b.id}>
-											{b.name}
-										</option>
-									))}
-								</select>
-							</div>
+							user?.role === UserRole.Coordinator ? (
+								<div>
+									<label className="mb-2 block text-xs font-bold text-slate-500 uppercase tracking-wider">Oddział</label>
+									<input
+										type="text"
+										value={branches.find(b => b.id === selectedBranchId)?.name || 'Pobieranie oddziału...'}
+										disabled
+										className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-400 outline-none cursor-not-allowed font-medium"
+									/>
+								</div>
+							) : (
+								<div className="relative" ref={branchDropdownRef}>
+									<label className="mb-2 block text-xs font-bold text-slate-500 uppercase tracking-wider">Wybierz oddział (wymagany):</label>
+									<div className="relative">
+										<Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
+										<input
+											type="text"
+											placeholder="Wyszukaj oddział..."
+											value={branchSearch || (selectedBranchId ? branches.find(b => b.id === selectedBranchId)?.name || '' : '')}
+											onChange={(e) => {
+												setBranchSearch(e.target.value);
+												if (e.target.value === '') setSelectedBranchId('');
+												setIsBranchDropdownOpen(true);
+											}}
+											onFocus={() => {
+												setIsBranchDropdownOpen(true);
+												setBranchSearch('');
+											}}
+											className="w-full rounded-lg border border-slate-300 py-3 pr-4 pl-10 text-sm outline-none focus:border-blue-500 focus:ring-1"
+										/>
+									</div>
+									
+									{isBranchDropdownOpen && (
+										<div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl">
+											{branches.filter(b => b.name.toLowerCase().includes(branchSearch.toLowerCase())).length === 0 ? (
+												<div className="p-3 text-sm text-slate-500">Brak wyników</div>
+											) : (
+												branches.filter(b => b.name.toLowerCase().includes(branchSearch.toLowerCase())).map(b => (
+													<div
+														key={b.id}
+														onClick={() => {
+															setSelectedBranchId(b.id);
+															setBranchSearch('');
+															setIsBranchDropdownOpen(false);
+														}}
+														className="cursor-pointer border-b border-slate-100 p-3 text-sm hover:bg-slate-50 last:border-0 font-medium"
+													>
+														{b.name}
+													</div>
+												))
+											)}
+										</div>
+									)}
+								</div>
+							)
 						)}
 					</div>
 
