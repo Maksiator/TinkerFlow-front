@@ -15,11 +15,18 @@ interface GroupData {
 	isFavorite: boolean;
 }
 
+interface SummaryProjectGroup {
+	groupId: string;
+	groupName: string;
+	studentsScheduled: string[];
+	studentsInProgress: string[];
+	qty: number;
+}
+
 interface SummaryProject {
 	id: string;
 	name: string;
-	studentsScheduled: string[];
-	studentsInProgress: string[];
+	groups: SummaryProjectGroup[];
 	totalQty: number;
 }
 
@@ -155,6 +162,10 @@ export function Matrix() {
 
 			trees.forEach((tree) => {
 				if (tree && tree.students) {
+					// Szukamy nazwy grupy dla tego drzewa
+					const groupInfo = selectedGroups.find(g => g.id === tree.groupId);
+					const groupName = groupInfo ? groupInfo.name : 'Nieznana grupa';
+
 					tree.students.forEach((s) => {
 						const studentName = s.fullName;
 
@@ -165,23 +176,40 @@ export function Matrix() {
 									projectMap[p.projectId] = {
 										id: p.projectId,
 										name: projInfo ? `${projInfo.name} (${projInfo.code})` : 'Nieznany projekt',
-										studentsScheduled: [],
-										studentsInProgress: [],
+										groups: [],
 										totalQty: 0,
 									};
 								}
 
-								if (p.status === ProjectState.Scheduled) {
-									projectMap[p.projectId].studentsScheduled.push(studentName);
-								} else if (p.status === ProjectState.InProgress) {
-									projectMap[p.projectId].studentsInProgress.push(studentName);
+								const proj = projectMap[p.projectId];
+								let pg = proj.groups.find(g => g.groupId === tree.groupId);
+								if (!pg) {
+									pg = {
+										groupId: tree.groupId,
+										groupName: groupName,
+										studentsScheduled: [],
+										studentsInProgress: [],
+										qty: 0
+									};
+									proj.groups.push(pg);
 								}
 
-								projectMap[p.projectId].totalQty += 1;
+								if (p.status === ProjectState.Scheduled) {
+									pg.studentsScheduled.push(studentName);
+								} else if (p.status === ProjectState.InProgress) {
+									pg.studentsInProgress.push(studentName);
+								}
+
+								pg.qty += 1;
 							}
 						});
 					});
 				}
+			});
+
+			// Obliczamy totalQty jako MAKSYMALNĄ ilość wymaganą przez pojedynczą grupę
+			Object.values(projectMap).forEach((proj) => {
+				proj.totalQty = proj.groups.reduce((max, g) => Math.max(max, g.qty), 0);
 			});
 
 			const sortedSummary = Object.values(projectMap).sort((a, b) => a.name.localeCompare(b.name));
@@ -230,24 +258,31 @@ export function Matrix() {
 							isChecked ? 'bg-slate-200 text-slate-500' : 'bg-blue-600 text-white shadow-sm'
 						}`}
 					>
-						Razem: {item.totalQty} szt.
+						Spakuj: {item.totalQty} szt. (max)
 					</span>
 				</div>
 
 				{!isChecked && (
-					<div className="ml-10 flex flex-col gap-2 text-sm text-slate-600">
-						{item.studentsScheduled.length > 0 && (
-							<div>
-								<span className="font-bold text-blue-700">W planach: </span>
-								<span>{item.studentsScheduled.join(', ')}</span>
+					<div className="ml-10 flex flex-col gap-3 border-l-2 border-blue-200 pl-4 text-sm text-slate-600">
+						{item.groups.map((g) => (
+							<div key={g.groupId} className="flex flex-col gap-1">
+								<div className="font-bold text-slate-700">
+									{g.groupName} <span className="text-xs text-blue-600 font-semibold">({g.qty} szt.)</span>
+								</div>
+								{g.studentsScheduled.length > 0 && (
+									<div>
+										<span className="text-xs font-semibold text-blue-700">W planach: </span>
+										<span className="text-xs text-slate-500">{g.studentsScheduled.join(', ')}</span>
+									</div>
+								)}
+								{g.studentsInProgress.length > 0 && (
+									<div>
+										<span className="text-xs font-semibold text-orange-600">W trakcie: </span>
+										<span className="text-xs text-slate-500">{g.studentsInProgress.join(', ')}</span>
+									</div>
+								)}
 							</div>
-						)}
-						{item.studentsInProgress.length > 0 && (
-							<div>
-								<span className="font-bold text-orange-600">W trakcie: </span>
-								<span>{item.studentsInProgress.join(', ')}</span>
-							</div>
-						)}
+						))}
 					</div>
 				)}
 			</div>
