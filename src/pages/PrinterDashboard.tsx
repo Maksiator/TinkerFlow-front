@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { printBatchService, type PrintBatchResponse, PrintBatchState } from '../api/printBatchService';
 import { PrinterFill, ClockHistory, CheckCircleFill, GearFill } from 'react-bootstrap-icons';
 import { PrintBatchManagerModal } from '../components/PrintBatchManagerModal';
+import { CustomSelect } from '../components/CustomSelect';
 import toast from 'react-hot-toast';
 
 export function PrinterDashboard() {
@@ -282,36 +283,34 @@ export function PrinterDashboard() {
 				</div>
 
 				{/* FILTR STATUSU */}
-				<div className="flex-1 min-w-[150px]">
-					<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Status</label>
-					<select
-						value={statusFilter}
-						onChange={(e) => setStatusFilter(e.target.value)}
-						className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition-all hover:border-slate-300 focus:border-purple-500"
-					>
-						<option value="all">Wszystkie</option>
-						<option value="0">Oczekujące</option>
-						<option value="1">W druku</option>
-						<option value="2">Do odbioru</option>
-						<option value="3">Zakończone</option>
-					</select>
-				</div>
+				<CustomSelect
+					label="Status"
+					value={statusFilter}
+					onChange={setStatusFilter}
+					options={[
+						{ value: 'all', label: 'Wszystkie' },
+						{ value: '0', label: 'Oczekujące' },
+						{ value: '1', label: 'W druku' },
+						{ value: '2', label: 'Do odbioru' },
+						{ value: '3', label: 'Zakończone' },
+					]}
+					className="flex-1 min-w-[150px]"
+				/>
 
 				{/* FILTR DATY LEKCJI */}
-				<div className="flex-1 min-w-[150px]">
-					<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Data lekcji</label>
-					<select
-						value={dateFilterType}
-						onChange={(e) => setDateFilterType(e.target.value as any)}
-						className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition-all hover:border-slate-300 focus:border-purple-500"
-					>
-						<option value="all">Wszystkie daty</option>
-						<option value="today">Dzisiaj</option>
-						<option value="yesterday">Wczoraj</option>
-						<option value="thisWeek">Ten tydzień</option>
-						<option value="custom">Inna data...</option>
-					</select>
-				</div>
+				<CustomSelect
+					label="Data lekcji"
+					value={dateFilterType}
+					onChange={(val) => setDateFilterType(val as any)}
+					options={[
+						{ value: 'all', label: 'Wszystkie daty' },
+						{ value: 'today', label: 'Dzisiaj' },
+						{ value: 'yesterday', label: 'Wczoraj' },
+						{ value: 'thisWeek', label: 'Ten tydzień' },
+						{ value: 'custom', label: 'Inna data...' },
+					]}
+					className="flex-1 min-w-[150px]"
+				/>
 
 				{/* INNA DATA (OPCJONALNIE) */}
 				{dateFilterType === 'custom' && (
@@ -327,18 +326,17 @@ export function PrinterDashboard() {
 				)}
 
 				{/* SORTOWANIE */}
-				<div className="flex-1 min-w-[180px]">
-					<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Sortowanie</label>
-					<select
-						value={sortBy}
-						onChange={(e) => setSortBy(e.target.value as any)}
-						className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition-all hover:border-slate-300 focus:border-purple-500"
-					>
-						<option value="createdAtDesc">Najnowsze zlecenia</option>
-						<option value="createdAtAsc">Najstarsze zlecenia</option>
-						<option value="deadlineAsc">Najbliższy termin</option>
-					</select>
-				</div>
+				<CustomSelect
+					label="Sortowanie"
+					value={sortBy}
+					onChange={(val) => setSortBy(val as any)}
+					options={[
+						{ value: 'createdAtDesc', label: 'Najnowsze zlecenia' },
+						{ value: 'createdAtAsc', label: 'Najstarsze zlecenia' },
+						{ value: 'deadlineAsc', label: 'Najbliższy termin' },
+					]}
+					className="flex-1 min-w-[180px]"
+				/>
 
 				{/* WYCZYŚĆ FILTRY */}
 				{(selectedBranchIds.length > 0 || statusFilter !== 'all' || dateFilterType !== 'all' || sortBy !== 'createdAtDesc') && (
