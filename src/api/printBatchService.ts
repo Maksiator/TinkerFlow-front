@@ -146,9 +146,11 @@ export const printBatchService = {
 	// DLA DRUKARZA (FARMY)
 	// ----------------------------------------------------
 
-	getBatchesForFarm: async (statusFilter?: PrintBatchState) => {
+	getBatchesForFarm: async (statusFilter?: PrintBatchState, includeCompleted?: boolean) => {
 		try {
-			const params = statusFilter !== undefined ? { statusFilter } : {};
+			const params: any = {};
+			if (statusFilter !== undefined) params.statusFilter = statusFilter;
+			if (includeCompleted !== undefined) params.includeCompleted = includeCompleted;
 			const response = await apiClient.get<PrintBatchResponse[]>('/printbatches/farm', { params });
 			return response.data;
 		} catch (error) {

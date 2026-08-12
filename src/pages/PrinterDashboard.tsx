@@ -15,7 +15,14 @@ export function PrinterDashboard() {
 	// Filtry i sortowanie
 	const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
 	const [statusFilter, setStatusFilter] = useState<string>('all');
-	const [dateFilter, setDateFilter] = useState<string>('');
+	
+	// Czy pokazywać zakończone (domyślnie false, zapisywane w localStorage)
+	const [showCompleted, setShowCompleted] = useState<boolean>(() => {
+		return localStorage.getItem('tinkerflow_farm_show_completed') === 'true';
+	});
+
+	const [dateFilterType, setDateFilterType] = useState<'all' | 'today' | 'yesterday' | 'thisWeek' | 'custom'>('all');
+	const [customDateValue, setCustomDateValue] = useState<string>('');
 	const [sortBy, setSortBy] = useState<'createdAtDesc' | 'createdAtAsc' | 'deadlineAsc'>('createdAtDesc');
 	const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
 	const [branchSearch, setBranchSearch] = useState('');
@@ -38,7 +45,8 @@ export function PrinterDashboard() {
 		const fetchBatches = async () => {
 			setIsLoading(true);
 			try {
-				const data = await printBatchService.getBatchesForFarm();
+				const includeCompleted = showCompleted || statusFilter === '3';
+				const data = await printBatchService.getBatchesForFarm(undefined, includeCompleted);
 				if (isMounted) {
 					setBatches(data);
 				}
@@ -60,7 +68,7 @@ export function PrinterDashboard() {
 		return () => {
 			isMounted = false;
 		};
-	}, [refreshTrigger]);
+	}, [refreshTrigger, showCompleted, statusFilter]);
 
 	// Funkcja wywoływana przez przycisk odświeżania
 	const handleRefresh = () => {
@@ -110,11 +118,38 @@ export function PrinterDashboard() {
 			result = result.filter((b) => selectedBranchIds.includes(b.branchId));
 		}
 
-		// 3. Filtrowanie po dacie lekcji
-		if (dateFilter) {
+		// 3. Filtrowanie po dacie lekcji (zakresy)
+		if (dateFilterType !== 'all') {
+			const todayStr = new Date().toISOString().split('T')[0];
+
+			const yesterday = new Date();
+			yesterday.setDate(yesterday.getDate() - 1);
+			const yesterdayStr = yesterday.toISOString().split('T')[0];
+
 			result = result.filter((b) => {
 				const bDate = new Date(b.lessonDate).toISOString().split('T')[0];
-				return bDate === dateFilter;
+				
+				if (dateFilterType === 'today') {
+					return bDate === todayStr;
+				} else if (dateFilterType === 'yesterday') {
+					return bDate === yesterdayStr;
+				} else if (dateFilterType === 'thisWeek') {
+					const d = new Date(b.lessonDate);
+					const now = new Date();
+					const day = now.getDay();
+					const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+					const monday = new Date(now.setDate(diff));
+					monday.setHours(0, 0, 0, 0);
+
+					const sunday = new Date(monday);
+					sunday.setDate(monday.getDate() + 6);
+					sunday.setHours(23, 59, 59, 999);
+
+					return d >= monday && d <= sunday;
+				} else if (dateFilterType === 'custom' && customDateValue) {
+					return bDate === customDateValue;
+				}
+				return true;
 			});
 		}
 
@@ -131,7 +166,7 @@ export function PrinterDashboard() {
 		});
 
 		return result;
-	}, [batches, statusFilter, selectedBranchIds, dateFilter, sortBy]);
+	}, [batches, statusFilter, selectedBranchIds, dateFilterType, customDateValue, sortBy]);
 
 	if (isLoading && batches.length === 0) {
 		return (
@@ -150,13 +185,28 @@ export function PrinterDashboard() {
 					</h1>
 					<p className="mt-2 text-slate-500">Zarządzaj zleceniami spływającymi od trenerów.</p>
 				</div>
-				<button
-					onClick={handleRefresh}
-					disabled={isLoading}
-					className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
-				>
-					{isLoading ? 'Odświeżanie...' : 'Odśwież listę'}
-				</button>
+				<div className="flex items-center gap-5">
+					<label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 shadow-sm transition-all hover:bg-slate-50">
+						<input
+							type="checkbox"
+							checked={showCompleted}
+							onChange={(e) => {
+								const val = e.target.checked;
+								setShowCompleted(val);
+								localStorage.setItem('tinkerflow_farm_show_completed', String(val));
+							}}
+							className="h-4 w-4 rounded border-slate-300 text-purple-600 accent-purple-600 focus:ring-purple-500"
+						/>
+						Pokaż zakończone zlecenia
+					</label>
+					<button
+						onClick={handleRefresh}
+						disabled={isLoading}
+						className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
+					>
+						{isLoading ? 'Odświeżanie...' : 'Odśwież listę'}
+					</button>
+				</div>
 			</div>
 
 			{/* SEKCA FILTRÓW */}
@@ -250,13 +300,31 @@ export function PrinterDashboard() {
 				{/* FILTR DATY LEKCJI */}
 				<div className="flex-1 min-w-[150px]">
 					<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Data lekcji</label>
-					<input
-						type="date"
-						value={dateFilter}
-						onChange={(e) => setDateFilter(e.target.value)}
+					<select
+						value={dateFilterType}
+						onChange={(e) => setDateFilterType(e.target.value as any)}
 						className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition-all hover:border-slate-300 focus:border-purple-500"
-					/>
+					>
+						<option value="all">Wszystkie daty</option>
+						<option value="today">Dzisiaj</option>
+						<option value="yesterday">Wczoraj</option>
+						<option value="thisWeek">Ten tydzień</option>
+						<option value="custom">Inna data...</option>
+					</select>
 				</div>
+
+				{/* INNA DATA (OPCJONALNIE) */}
+				{dateFilterType === 'custom' && (
+					<div className="flex-1 min-w-[150px] animate-in fade-in slide-in-from-left-2 duration-200">
+						<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Wybierz datę</label>
+						<input
+							type="date"
+							value={customDateValue}
+							onChange={(e) => setCustomDateValue(e.target.value)}
+							className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition-all hover:border-slate-300 focus:border-purple-500"
+						/>
+					</div>
+				)}
 
 				{/* SORTOWANIE */}
 				<div className="flex-1 min-w-[180px]">
@@ -273,13 +341,14 @@ export function PrinterDashboard() {
 				</div>
 
 				{/* WYCZYŚĆ FILTRY */}
-				{(selectedBranchIds.length > 0 || statusFilter !== 'all' || dateFilter !== '' || sortBy !== 'createdAtDesc') && (
+				{(selectedBranchIds.length > 0 || statusFilter !== 'all' || dateFilterType !== 'all' || sortBy !== 'createdAtDesc') && (
 					<div className="flex items-end">
 						<button
 							onClick={() => {
 								setSelectedBranchIds([]);
 								setStatusFilter('all');
-								setDateFilter('');
+								setDateFilterType('all');
+								setCustomDateValue('');
 								setSortBy('createdAtDesc');
 							}}
 							className="h-[46px] cursor-pointer rounded-xl bg-slate-100 px-4 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-200"
