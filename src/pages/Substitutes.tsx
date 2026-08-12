@@ -116,6 +116,17 @@ export function Substitutes() {
 			return;
 		}
 
+		// Walidacja przed wysyłką: czy wybrano głównego prowadzącego grupy jako zastępcę
+		const isPrimaryTrainerSelected = selectedGroupIds.some((groupId) => {
+			const group = groups.find((g) => g.id === groupId);
+			return group?.primaryTrainerId === selectedTrainerId;
+		});
+
+		if (isPrimaryTrainerSelected) {
+			toast.error('Nie możesz przypisać zastępstwa głównemu prowadzącemu tej grupy!');
+			return;
+		}
+
 		setIsSubmitting(true);
 		try {
 			await Promise.all(
@@ -272,15 +283,8 @@ export function Substitutes() {
 															: 'border-transparent bg-white text-slate-700 hover:bg-slate-50'
 													}`}
 												>
-													<span className="flex flex-col gap-0.5">
-														<span>
-															{g.name} <span className="ml-1 text-[10px] text-slate-400 uppercase">({g.branchName})</span>
-														</span>
-														{g.primaryTrainerName && (
-															<span className="text-[10px] text-slate-500 italic">
-																Prowadzący: {g.primaryTrainerName}
-															</span>
-														)}
+													<span>
+														{g.name} <span className="ml-1 text-[10px] text-slate-400 uppercase">({g.branchName})</span>
 													</span>
 													{isSelected && <CheckCircleFill className="text-blue-500" />}
 												</div>
