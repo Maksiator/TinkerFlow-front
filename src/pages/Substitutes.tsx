@@ -70,28 +70,32 @@ export function Substitutes() {
 		};
 	}, []);
 
-	// NOWA AUTOMATYKA: Przeliczanie w momencie akcji użytkownika (bez zbędnych renderów)
-	const handleLessonDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const newDateStr = e.target.value;
-		setLessonDate(newDateStr); // Zapisujemy datę lekcji
+	// AUTOMATYCZNE WYLICZANIE WIDEŁKÓW DOSTĘPU (zabezpieczone przed asynchronicznym wczytywaniem settings)
+	useEffect(() => {
+		if (lessonDate) {
+			try {
+				const date = new Date(lessonDate);
+				if (!isNaN(date.getTime())) {
+					const from = new Date(date);
+					from.setDate(date.getDate() - (settings.substituteDaysBefore ?? 2));
 
-		if (newDateStr) {
-			// Od razu wyliczamy i ustawiamy widełki
-			const date = new Date(newDateStr);
+					const until = new Date(date);
+					until.setDate(date.getDate() + (settings.substituteDaysAfter ?? 2));
 
-			const from = new Date(date);
-			from.setDate(date.getDate() - settings.substituteDaysBefore);
-
-			const until = new Date(date);
-			until.setDate(date.getDate() + settings.substituteDaysAfter);
-
-			setValidFrom(from.toISOString().split('T')[0]);
-			setValidUntil(until.toISOString().split('T')[0]);
-		} else {
-			// Jeśli użytkownik wyczyścił datę, czyścimy też widełki
-			setValidFrom('');
-			setValidUntil('');
+					setValidFrom(from.toISOString().split('T')[0]);
+					setValidUntil(until.toISOString().split('T')[0]);
+					return;
+				}
+			} catch (err) {
+				console.error('Błąd wyliczania dat zastępstwa:', err);
+			}
 		}
+		setValidFrom('');
+		setValidUntil('');
+	}, [lessonDate, settings]);
+
+	const handleLessonDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		setLessonDate(e.target.value);
 	};
 
 	const toggleGroup = (id: string) => {
@@ -102,7 +106,13 @@ export function Substitutes() {
 		e.preventDefault();
 
 		if (selectedGroupIds.length === 0 || !selectedTrainerId || !lessonDate || !validFrom || !validUntil) {
-			toast.error('Wypełnij wszystkie wymagane pola (w tym daty dostępu)!');
+			const missing = [];
+			if (selectedGroupIds.length === 0) missing.push('Grupa');
+			if (!selectedTrainerId) missing.push('Trener');
+			if (!lessonDate) missing.push('Data zajęć');
+			if (!validFrom) missing.push('Dostęp od');
+			if (!validUntil) missing.push('Dostęp do');
+			toast.error(`Wypełnij wymagane pola: ${missing.join(', ')}`);
 			return;
 		}
 
