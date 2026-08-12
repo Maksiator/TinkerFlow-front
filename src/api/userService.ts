@@ -119,4 +119,16 @@ export const userService = {
 		const response = await apiClient.get<User>('/users/me');
 		return response.data;
 	},
+
+	resetPassword: async (id: string, data: { newPassword: string }) => {
+		try {
+			const response = await apiClient.post<{ message: string }>(`/users/${id}/reset-password`, data);
+			return response.data;
+		} catch (error) {
+			if (axios.isAxiosError(error) && error.response?.data?.message) {
+				throw new Error(error.response.data.message);
+			}
+			throw new Error('Nie udało się zresetować hasła.');
+		}
+	},
 };
