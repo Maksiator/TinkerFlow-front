@@ -272,8 +272,15 @@ export function Substitutes() {
 															: 'border-transparent bg-white text-slate-700 hover:bg-slate-50'
 													}`}
 												>
-													<span>
-														{g.name} <span className="ml-1 text-[10px] text-slate-400 uppercase">({g.branchName})</span>
+													<span className="flex flex-col gap-0.5">
+														<span>
+															{g.name} <span className="ml-1 text-[10px] text-slate-400 uppercase">({g.branchName})</span>
+														</span>
+														{g.primaryTrainerName && (
+															<span className="text-[10px] text-slate-500 italic">
+																Prowadzący: {g.primaryTrainerName}
+															</span>
+														)}
 													</span>
 													{isSelected && <CheckCircleFill className="text-blue-500" />}
 												</div>
@@ -296,19 +303,33 @@ export function Substitutes() {
 										className="w-full rounded-lg border border-slate-200 py-2 pr-3 pl-9 text-sm outline-none focus:border-blue-500"
 									/>
 								</div>
-								<select
-									required
-									size={4}
-									value={selectedTrainerId}
-									onChange={(e) => setSelectedTrainerId(e.target.value)}
-									className="scrollbar-thin w-full rounded-xl border border-slate-300 p-2 outline-none focus:border-blue-500"
-								>
-									{filteredTrainers.map((t) => (
-										<option key={t.id} value={t.id} className="cursor-pointer rounded-md p-2 hover:bg-slate-100">
-											{t.firstName} {t.lastName}
-										</option>
-									))}
-								</select>
+								
+								<div className="scrollbar-thin flex max-h-48 flex-col gap-1 overflow-y-auto rounded-xl border border-slate-300 p-2 bg-white">
+									{filteredTrainers.length === 0 ? (
+										<div className="p-4 text-center text-xs text-slate-400">Brak wyników...</div>
+									) : (
+										filteredTrainers.map((t) => {
+											const isSelected = selectedTrainerId === t.id;
+											return (
+												<button
+													key={t.id}
+													type="button"
+													onClick={() => setSelectedTrainerId(t.id)}
+													className={`flex w-full cursor-pointer items-center justify-between rounded-lg border p-2 text-left text-sm transition-all duration-200 ${
+														isSelected
+															? 'border-blue-200 bg-blue-50 font-bold text-blue-700 shadow-sm'
+															: 'border-transparent bg-white text-slate-700 hover:bg-slate-50'
+													}`}
+												>
+													<span>
+														{t.firstName} {t.lastName}
+													</span>
+													{isSelected && <CheckCircleFill className="text-blue-500" />}
+												</button>
+											);
+										})
+									)}
+								</div>
 							</div>
 
 							<button
