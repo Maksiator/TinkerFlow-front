@@ -404,19 +404,40 @@ export function PrinterDashboard() {
 								<h3 className="mb-3 text-xs font-extrabold tracking-wider text-slate-400 uppercase">
 									Zawartość paczki ({batch.printJobs.length})
 								</h3>
-								<ul className="flex flex-col gap-2">
-									{batch.printJobs.map((job) => (
-										<li
-											key={job.id}
-											className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-2 text-sm"
-										>
-											<span className="truncate font-bold text-slate-700">{job.studentName}</span>
-											<span className="shrink-0 rounded border border-purple-100 bg-white px-2 py-1 text-xs font-bold text-purple-700 shadow-sm">
-												{job.projectName}
-											</span>
-										</li>
-									))}
-								</ul>
+								
+								{(() => {
+									const groupedJobs = batch.printJobs.reduce(
+										(acc, job) => {
+											if (!acc[job.studentName]) acc[job.studentName] = [];
+											acc[job.studentName].push(job.projectName);
+											return acc;
+										},
+										{} as Record<string, string[]>,
+									);
+
+									return (
+										<div className="flex flex-col gap-2.5">
+											{Object.entries(groupedJobs).map(([studentName, projectNames]) => (
+												<div
+													key={studentName}
+													className="flex flex-col rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-sm"
+												>
+													<span className="mb-1.5 font-bold text-slate-700">{studentName}</span>
+													<div className="flex flex-wrap gap-1">
+														{projectNames.map((proj, idx) => (
+															<span
+																key={idx}
+																className="rounded border border-purple-100 bg-white px-2 py-0.5 text-xs font-bold text-purple-700 shadow-sm"
+															>
+																{proj}
+															</span>
+														))}
+													</div>
+												</div>
+											))}
+										</div>
+									);
+								})()}
 
 								{batch.notes && (
 									<div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
