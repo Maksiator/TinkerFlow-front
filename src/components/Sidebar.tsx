@@ -77,135 +77,146 @@ export function Sidebar() {
 			{/* MENU */}
 			<nav className="flex-1 overflow-y-auto px-3">
 				<ul className="flex flex-col gap-1">
-					{/* 1. STREFA TRENERA (Widzą wszyscy) */}
-					{isExpanded && (
-						<p className="mt-2 mb-2 px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase">Menu Główne</p>
-					)}
-
-					<li>
-						<NavLink to="/" className={navLinkClass}>
-							<BoxSeam size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-							{isExpanded && <span className="truncate">Dashboard</span>}
-						</NavLink>
-					</li>
-
-					{user?.role !== UserRole.Printer && (
+					{user?.mustChangePassword ? (
 						<li>
-							<NavLink to="/matryca" className={navLinkClass}>
-								<LayersFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-								{isExpanded && <span className="truncate">Matryca Projektów</span>}
+							<NavLink to="/ustawienia" className={navLinkClass}>
+								<GearFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+								{isExpanded && <span className="truncate">Ustawienia Konta</span>}
 							</NavLink>
 						</li>
-					)}
-
-					{/* 2. STREFA KOORDYNATORA (Koordynator + Admin) */}
-					{isCoordinatorOrAdmin && (
+					) : (
 						<>
-							<div className="my-2 border-t border-slate-100" />
+							{/* 1. STREFA TRENERA (Widzą wszyscy) */}
 							{isExpanded && (
-								<p className="mt-2 mb-2 px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-									Zarządzanie Ośrodkiem
-								</p>
+								<p className="mt-2 mb-2 px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase">Menu Główne</p>
 							)}
 
 							<li>
-								<NavLink to="/grupy" className={navLinkClass}>
-									<PeopleFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-									{isExpanded && <span className="truncate">Zarządzanie Grupami</span>}
+								<NavLink to="/" className={navLinkClass}>
+									<BoxSeam size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+									{isExpanded && <span className="truncate">Dashboard</span>}
 								</NavLink>
 							</li>
 
-							<li>
-								<NavLink to="/uczniowie" className={navLinkClass}>
-									<PersonVcardFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-									{isExpanded && <span className="truncate">Baza Uczniów</span>}
-								</NavLink>
-							</li>
-
-							{/* NOWY LINK: ZASTĘPSTWA */}
-							<li>
-								<NavLink to="/zastepstwa" className={navLinkClass}>
-									<Calendar2EventFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-									{isExpanded && <span className="truncate">Zastępstwa</span>}
-								</NavLink>
-							</li>
-
-							<li>
-								<NavLink to="/admin/trenerzy" className={navLinkClass}>
-									<PersonBadgeFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-									{isExpanded && <span className="truncate">Personel</span>}
-								</NavLink>
-							</li>
-						</>
-					)}
-
-					{/* 3. STREFA ADMINA (Tylko Admin) */}
-					{isAdmin && (
-						<>
-							<div className="my-2 border-t border-slate-100" />
-							{isExpanded && (
-								<p className="mt-2 mb-2 px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-									Opcje Systemowe
-								</p>
+							{user?.role !== UserRole.Printer && (
+								<li>
+									<NavLink to="/matryca" className={navLinkClass}>
+										<LayersFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+										{isExpanded && <span className="truncate">Matryca Projektów</span>}
+									</NavLink>
+								</li>
 							)}
 
-							<li>
-								<NavLink to="/admin/projekty" className={navLinkClass}>
-									<ShieldLockFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-									{isExpanded && <span className="truncate">Baza Projektów</span>}
-								</NavLink>
-							</li>
+							{/* 2. STREFA KOORDYNATORA (Koordynator + Admin) */}
+							{isCoordinatorOrAdmin && (
+								<>
+									<div className="my-2 border-t border-slate-100" />
+									{isExpanded && (
+										<p className="mt-2 mb-2 px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+											Zarządzanie Ośrodkiem
+										</p>
+									)}
 
-							<li>
-								<NavLink to="/admin/oddzialy" className={navLinkClass}>
-									<BuildingFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-									{isExpanded && <span className="truncate">Sieć Oddziałów</span>}
-								</NavLink>
-							</li>
+									<li>
+										<NavLink to="/grupy" className={navLinkClass}>
+											<PeopleFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+											{isExpanded && <span className="truncate">Zarządzanie Grupami</span>}
+										</NavLink>
+									</li>
 
-							<li>
-								<NavLink to="/admin/migracja" className={navLinkClass}>
-									<DatabaseFillUp size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-									{isExpanded && <span className="truncate">Migracja Bazy</span>}
-								</NavLink>
-							</li>
+									<li>
+										<NavLink to="/uczniowie" className={navLinkClass}>
+											<PersonVcardFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+											{isExpanded && <span className="truncate">Baza Uczniów</span>}
+										</NavLink>
+									</li>
 
-							{/* NOWY LINK DLA ADMINA: USTAWIENIA GLOBALNE */}
+									{/* NOWY LINK: ZASTĘPSTWA */}
+									<li>
+										<NavLink to="/zastepstwa" className={navLinkClass}>
+											<Calendar2EventFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+											{isExpanded && <span className="truncate">Zastępstwa</span>}
+										</NavLink>
+									</li>
+
+									<li>
+										<NavLink to="/admin/trenerzy" className={navLinkClass}>
+											<PersonBadgeFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+											{isExpanded && <span className="truncate">Personel</span>}
+										</NavLink>
+									</li>
+								</>
+							)}
+
+							{/* 3. STREFA ADMINA (Tylko Admin) */}
+							{isAdmin && (
+								<>
+									<div className="my-2 border-t border-slate-100" />
+									{isExpanded && (
+										<p className="mt-2 mb-2 px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+											Opcje Systemowe
+										</p>
+									)}
+
+									<li>
+										<NavLink to="/admin/projekty" className={navLinkClass}>
+											<ShieldLockFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+											{isExpanded && <span className="truncate">Baza Projektów</span>}
+										</NavLink>
+									</li>
+
+									<li>
+										<NavLink to="/admin/oddzialy" className={navLinkClass}>
+											<BuildingFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+											{isExpanded && <span className="truncate">Sieć Oddziałów</span>}
+										</NavLink>
+									</li>
+
+									<li>
+										<NavLink to="/admin/migracja" className={navLinkClass}>
+											<DatabaseFillUp size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+											{isExpanded && <span className="truncate">Migracja Bazy</span>}
+										</NavLink>
+									</li>
+
+									{/* NOWY LINK DLA ADMINA: USTAWIENIA GLOBALNE */}
+									<li>
+										<NavLink to="/admin/ustawienia" className={navLinkClass}>
+											<GearFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+											{isExpanded && <span className="truncate">Ustawienia Globalne</span>}
+										</NavLink>
+									</li>
+								</>
+							)}
+
+							{/* 4. STREFA DRUKARZA (Farma Druku) */}
+							{isPrinterOrAdmin && (
+								<>
+									<div className="my-2 border-t border-slate-100" />
+									{isExpanded && (
+										<p className="mt-2 mb-2 px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+											Farma Druku
+										</p>
+									)}
+
+									<li>
+										<NavLink to="/farma" className={navLinkClass}>
+											<PrinterFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+											{isExpanded && <span className="truncate">Zlecenia Druku</span>}
+										</NavLink>
+									</li>
+								</>
+							)}
+
+							<div className="my-2 border-t border-slate-100" />
 							<li>
-								<NavLink to="/admin/ustawienia" className={navLinkClass}>
+								<NavLink to="/ustawienia" className={navLinkClass}>
 									<GearFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-									{isExpanded && <span className="truncate">Ustawienia Globalne</span>}
+									{isExpanded && <span className="truncate">Ustawienia Konta</span>}
 								</NavLink>
 							</li>
 						</>
 					)}
-
-					{/* 4. STREFA DRUKARZA (Farma Druku) */}
-					{isPrinterOrAdmin && (
-						<>
-							<div className="my-2 border-t border-slate-100" />
-							{isExpanded && (
-								<p className="mt-2 mb-2 px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-									Farma Druku
-								</p>
-							)}
-
-							<li>
-								<NavLink to="/farma" className={navLinkClass}>
-									<PrinterFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-									{isExpanded && <span className="truncate">Zlecenia Druku</span>}
-								</NavLink>
-							</li>
-						</>
-					)}
-
-					<div className="my-2 border-t border-slate-100" />
-					<li>
-						<NavLink to="/ustawienia" className={navLinkClass}>
-							<GearFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-							{isExpanded && <span className="truncate">Ustawienia Konta</span>}
-						</NavLink>
-					</li>
 				</ul>
 			</nav>
 

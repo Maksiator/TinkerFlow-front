@@ -11,6 +11,11 @@ export function ProtectedRoute() {
 		return <Navigate to="/login" replace />;
 	}
 
+	const currentUser = authService.getCurrentUser();
+	if (currentUser?.mustChangePassword && window.location.pathname !== '/ustawienia') {
+		return <Navigate to="/ustawienia" replace />;
+	}
+
 	// Outlet to miejsce, w którym wyrenderuje się właściwy komponent (np. Panel Grup)
 	return <Outlet />;
 }

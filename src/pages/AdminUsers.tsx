@@ -14,7 +14,6 @@ import {
 	EyeFill,
 	EyeSlashFill,
 	PrinterFill,
-	KeyFill,
 } from 'react-bootstrap-icons';
 import { userService, type User, UserRole, type UpdateUserRequest, type CreateUserRequest } from '../api/userService';
 import { branchService, type Branch } from '../api/branchService';
@@ -53,11 +52,7 @@ export function AdminUsers() {
 
 	const [showStartPassword, setShowStartPassword] = useState(false);
 
-	const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-	const [resettingUser, setResettingUser] = useState<User | null>(null);
-	const [resetPasswordVal, setResetPasswordVal] = useState('');
-	const [showResetPassword, setShowResetPassword] = useState(false);
-	const [isSubmittingReset, setIsSubmittingReset] = useState(false);
+
 
 	const generateRandomPassword = () => {
 		const length = 10;
@@ -84,57 +79,7 @@ export function AdminUsers() {
 		toast.success('Wygenerowano losowe hasło startowe.');
 	};
 
-	const openResetModal = (user: User) => {
-		setResettingUser(user);
-		setResetPasswordVal('');
-		setShowResetPassword(false);
-		setIsResetModalOpen(true);
-	};
 
-	const generateRandomResetPassword = () => {
-		const length = 10;
-		const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-		const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-		const numbers = '0123456789';
-		const special = '!@#$%^&*()_+~`|}{[]:;?><,./-';
-		const allChars = uppercase + lowercase + numbers + special;
-		
-		let password = '';
-		password += uppercase[Math.floor(Math.random() * uppercase.length)];
-		password += lowercase[Math.floor(Math.random() * lowercase.length)];
-		password += numbers[Math.floor(Math.random() * numbers.length)];
-		password += special[Math.floor(Math.random() * special.length)];
-		
-		for (let i = 4; i < length; i++) {
-			password += allChars[Math.floor(Math.random() * allChars.length)];
-		}
-		
-		const shuffledPassword = password.split('').sort(() => 0.5 - Math.random()).join('');
-		setResetPasswordVal(shuffledPassword);
-		setShowResetPassword(true);
-		toast.success('Wygenerowano losowe hasło.');
-	};
-
-	const handleResetPassword = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!resettingUser) return;
-		if (resetPasswordVal.length < 6) {
-			toast.error('Hasło musi mieć co najmniej 6 znaków.');
-			return;
-		}
-
-		setIsSubmittingReset(true);
-		try {
-			await userService.resetPassword(resettingUser.id, { newPassword: resetPasswordVal });
-			toast.success(`Zresetowano hasło dla ${resettingUser.firstName} ${resettingUser.lastName}!`);
-			setIsResetModalOpen(false);
-		} catch (err: any) {
-			console.error(err);
-			toast.error(err.message || 'Wystąpił błąd podczas resetowania hasła.');
-		} finally {
-			setIsSubmittingReset(false);
-		}
-	};
 
 	useEffect(() => {
 		if (currentUserRole === undefined || currentUserRole === UserRole.Trainer) {
@@ -254,7 +199,12 @@ export function AdminUsers() {
 					branchIds: formData.branchIds,
 				};
 				await userService.update(editingUser.id, updateData);
-				toast.success('Zaktualizowano!');
+				if (formData.password) {
+					await userService.resetPassword(editingUser.id, { newPassword: formData.password });
+					toast.success('Zaktualizowano dane pracownika i ustawiono nowe hasło tymczasowe!');
+				} else {
+					toast.success('Zaktualizowano dane pracownika!');
+				}
 			} else {
 				const createData: CreateUserRequest = { ...formData };
 				// Zabezpieczenie przed atakiem typu "wstrzyknięcie wartości w ukryte pole"
@@ -447,15 +397,7 @@ export function AdminUsers() {
 																	</button>
 																)}
 
-																{canEdit && (
-																	<button
-																		onClick={() => openResetModal(user)}
-																		className="cursor-pointer rounded-lg p-2 text-slate-600 transition-colors hover:bg-amber-100 hover:text-amber-700"
-																		title="Resetuj hasło"
-																	>
-																		<KeyFill size={18} />
-																	</button>
-																)}
+
 
 																{canDelete && (
 																	<button
@@ -546,35 +488,91 @@ export function AdminUsers() {
 								className="rounded-lg border p-2.5 disabled:bg-slate-50"
 							/>
 
-							{!editingUser && (
-								<div className="relative flex items-center">
-									<input
-										type={showStartPassword ? 'text' : 'password'}
-										placeholder="Hasło startowe"
-										required
-										value={formData.password}
-										onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-										className="w-full rounded-lg border p-2.5 pr-24"
-									/>
-									<div className="absolute right-2 flex items-center gap-1.5">
-										<button
-											type="button"
-											tabIndex={-1}
-											onClick={() => setShowStartPassword(!showStartPassword)}
-											className="p-1 text-slate-400 hover:text-slate-600 focus:outline-none"
-											title={showStartPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
-										>
-											{showStartPassword ? <EyeSlashFill size={18} /> : <EyeFill size={18} />}
-										</button>
-										<button
-											type="button"
-											tabIndex={-1}
-											onClick={generateRandomPassword}
-											className="rounded bg-blue-50 px-2 py-1 text-xs font-bold text-blue-600 hover:bg-blue-100 focus:outline-none"
-											title="Generuj losowe hasło"
-										>
-											Generuj
-										</button>
+							{editingUser ? (
+								<div>
+									<label className="mb-1 block text-xs font-bold text-slate-500 uppercase">Hasło tymczasowe (opcjonalnie)</label>
+									<div className="relative flex items-center">
+										<input
+											type={showStartPassword ? 'text' : 'password'}
+											placeholder="Ustaw nowe hasło tymczasowe..."
+											value={formData.password}
+											onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+											className="w-full rounded-lg border p-2.5 pr-24 outline-none focus:border-blue-500"
+										/>
+										<div className="absolute right-2 flex items-center gap-1.5">
+											<button
+												type="button"
+												tabIndex={-1}
+												onClick={() => setShowStartPassword(!showStartPassword)}
+												className="p-1 text-slate-400 hover:text-slate-600 focus:outline-none"
+												title={showStartPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
+											>
+												{showStartPassword ? <EyeSlashFill size={18} /> : <EyeFill size={18} />}
+											</button>
+											<button
+												type="button"
+												onClick={() => {
+													const length = 10;
+													const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+													const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+													const numbers = '0123456789';
+													const special = '!@#$%^&*()_+~`|}{[]:;?><,./-';
+													const allChars = uppercase + lowercase + numbers + special;
+													
+													let pwd = '';
+													pwd += uppercase[Math.floor(Math.random() * uppercase.length)];
+													pwd += lowercase[Math.floor(Math.random() * lowercase.length)];
+													pwd += numbers[Math.floor(Math.random() * numbers.length)];
+													pwd += special[Math.floor(Math.random() * special.length)];
+													
+													for (let i = 4; i < length; i++) {
+														pwd += allChars[Math.floor(Math.random() * allChars.length)];
+													}
+													
+													const shuffledPwd = pwd.split('').sort(() => 0.5 - Math.random()).join('');
+													setFormData(prev => ({ ...prev, password: shuffledPwd }));
+													setShowStartPassword(true);
+													toast.success('Wygenerowano losowe hasło tymczasowe.');
+												}}
+												className="rounded bg-blue-50 px-2 py-1 text-xs font-bold text-blue-600 hover:bg-blue-100 focus:outline-none"
+												title="Generuj hasło tymczasowe"
+											>
+												Losuj
+											</button>
+										</div>
+									</div>
+								</div>
+							) : (
+								<div>
+									<label className="mb-1 block text-xs font-bold text-slate-500 uppercase">Hasło startowe</label>
+									<div className="relative flex items-center">
+										<input
+											type={showStartPassword ? 'text' : 'password'}
+											placeholder="Wpisz hasło startowe..."
+											required
+											value={formData.password}
+											onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+											className="w-full rounded-lg border p-2.5 pr-24 outline-none focus:border-blue-500"
+										/>
+										<div className="absolute right-2 flex items-center gap-1.5">
+											<button
+												type="button"
+												tabIndex={-1}
+												onClick={() => setShowStartPassword(!showStartPassword)}
+												className="p-1 text-slate-400 hover:text-slate-600 focus:outline-none"
+												title={showStartPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
+											>
+												{showStartPassword ? <EyeSlashFill size={18} /> : <EyeFill size={18} />}
+											</button>
+											<button
+												type="button"
+												onClick={generateRandomPassword}
+												className="rounded bg-blue-50 px-2 py-1 text-xs font-bold text-blue-600 hover:bg-blue-100 focus:outline-none"
+												title="Generuj losowe hasło"
+											>
+												Losuj
+											</button>
+										</div>
 									</div>
 								</div>
 							)}
@@ -634,79 +632,6 @@ export function AdminUsers() {
 									className="flex-1 cursor-pointer rounded-lg bg-slate-800 py-2.5 font-bold text-white transition-colors hover:bg-slate-900 disabled:bg-slate-400"
 								>
 									{isSubmitting ? 'Czekaj...' : 'Zapisz'}
-								</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			)}
-
-			{/* RESET PASSWORD MODAL */}
-			{isResetModalOpen && resettingUser && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-					<div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-						<div className="mb-6 flex items-center justify-between">
-							<h2 className="text-xl font-bold font-outfit text-slate-800">Resetuj hasło pracownika</h2>
-							<button
-								onClick={() => setIsResetModalOpen(false)}
-								className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-slate-100 transition-colors"
-							>
-								<XLg />
-							</button>
-						</div>
-
-						<p className="mb-5 text-sm text-slate-500 leading-relaxed">
-							Resetujesz hasło dla użytkownika <strong className="text-slate-700">{resettingUser.firstName} {resettingUser.lastName}</strong> ({resettingUser.email}).
-						</p>
-
-						<form onSubmit={handleResetPassword} className="flex flex-col gap-4">
-							<div>
-								<label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nowe Hasło</label>
-								<div className="relative flex items-center">
-									<input
-										type={showResetPassword ? 'text' : 'password'}
-										placeholder="Wpisz nowe hasło..."
-										required
-										value={resetPasswordVal}
-										onChange={(e) => setResetPasswordVal(e.target.value)}
-										className="w-full rounded-xl border border-slate-200 p-3 pr-24 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
-									/>
-									<div className="absolute right-2 flex items-center gap-1.5">
-										<button
-											type="button"
-											tabIndex={-1}
-											onClick={() => setShowResetPassword(!showResetPassword)}
-											className="p-1 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
-											title={showResetPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
-										>
-											{showResetPassword ? <EyeSlashFill size={18} /> : <EyeFill size={18} />}
-										</button>
-										<button
-											type="button"
-											onClick={generateRandomResetPassword}
-											className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
-											title="Generuj hasło"
-										>
-											Losuj
-										</button>
-									</div>
-								</div>
-							</div>
-
-							<div className="mt-4 flex gap-3">
-								<button
-									type="button"
-									onClick={() => setIsResetModalOpen(false)}
-									className="flex-1 cursor-pointer rounded-xl bg-slate-100 py-2.5 font-bold transition-colors hover:bg-slate-200"
-								>
-									Anuluj
-								</button>
-								<button
-									type="submit"
-									disabled={isSubmittingReset || resetPasswordVal.length < 6}
-									className="flex-1 cursor-pointer rounded-xl bg-slate-800 py-2.5 font-bold text-white transition-colors hover:bg-slate-900 disabled:bg-slate-400 disabled:cursor-not-allowed"
-								>
-									{isSubmittingReset ? 'Zapisuję...' : 'Zapisz'}
 								</button>
 							</div>
 						</form>

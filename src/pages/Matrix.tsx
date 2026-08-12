@@ -5,7 +5,6 @@ import { ArrowLeft, ArrowRight, CheckLg, XLg, Tools } from 'react-bootstrap-icon
 import { studentProjectService } from '../api/studentProjectService';
 import { projectService, ProjectState } from '../api/projectService';
 import { groupService } from '../api/groupService';
-import { PrintQueueModal } from '../components/PrintQueueModal';
 import toast from 'react-hot-toast';
 
 interface GroupData {
@@ -46,11 +45,9 @@ export function Matrix() {
 
 	const [globalSummary, setGlobalSummary] = useState<SummaryProject[]>([]);
 
-	const [refreshTrigger, setRefreshTrigger] = useState(0);
+	const [refreshTrigger] = useState(0);
 
-	const triggerPivotRefresh = () => {
-		setRefreshTrigger((prev) => prev + 1);
-	};
+
 
 	useEffect(() => {
 		let isMounted = true;
@@ -371,7 +368,7 @@ export function Matrix() {
 				</div>
 			)}
 
-			<PrintQueueModal groupId={currentGroup.id} onCompleted={triggerPivotRefresh} />
+
 		</div>
 	);
 }

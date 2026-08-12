@@ -57,11 +57,14 @@ export interface PrintBatchResponse {
 	id: string;
 	groupId: string;
 	groupName: string;
+	branchId: string;
+	branchName: string;
 	lessonDate: string;
 	deadline: string;
 	notes: string | null;
 	status: PrintBatchState;
 	printJobs: PrintJobResponse[];
+	createdAt: string;
 }
 
 export interface ConfirmDeliveryRequest {

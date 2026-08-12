@@ -117,6 +117,20 @@ export function Settings() {
 				<p className="mt-1 text-slate-500">Zarządzaj swoimi danymi osobowymi i bezpieczeństwem konta</p>
 			</header>
 
+			{user?.mustChangePassword && (
+				<div className="mb-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 shadow-sm flex items-start gap-3">
+					<div className="rounded-lg bg-red-100 p-1.5 text-red-600 shrink-0">
+						<ShieldFill size={18} />
+					</div>
+					<div>
+						<h3 className="font-bold text-red-950">Wymagana zmiana hasła</h3>
+						<p className="text-sm mt-0.5">
+							Zostało ustawione dla Ciebie hasło tymczasowe. Ze względów bezpieczeństwa musisz je teraz zmienić, aby móc dalej korzystać z systemu.
+						</p>
+					</div>
+				</div>
+			)}
+
 			<div className="grid gap-8 md:grid-cols-3">
 				{/* LEWA KOLUMNA: INFORMACJE O PROFILU */}
 				<div className="md:col-span-1 space-y-6">

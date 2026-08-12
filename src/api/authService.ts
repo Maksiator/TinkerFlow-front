@@ -7,6 +7,7 @@ export interface AuthenticatedUser {
 	firstName: string;
 	lastName: string;
 	role: UserRole;
+	mustChangePassword: boolean;
 }
 
 export interface AuthResponse {
@@ -14,12 +15,12 @@ export interface AuthResponse {
 	userId: string;
 	firstName: string;
 	lastName: string;
-	role: UserRole; // Już nie dowolny number, a konkretny UserRole
+	role: UserRole;
+	mustChangePassword: boolean;
 }
 
 export const authService = {
 	login: async (credentials: { email: string; password: string }) => {
-		// API zwróci dane, a token JWT wyląduje automatycznie w bezpiecznym ciasteczku
 		const res = await apiClient.post<AuthResponse>('/auth/login', credentials);
 
 		const user: AuthenticatedUser = {
@@ -27,9 +28,9 @@ export const authService = {
 			firstName: res.data.firstName,
 			lastName: res.data.lastName,
 			role: res.data.role,
+			mustChangePassword: res.data.mustChangePassword,
 		};
 
-		// Zapisujemy w przeglądarce TYLKO profil usera do celów UI. Żadnego tokena!
 		localStorage.setItem('tinkerflow_user', JSON.stringify(user));
 		return res.data;
 	},

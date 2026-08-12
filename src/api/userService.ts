@@ -25,6 +25,7 @@ export interface User {
 	role: UserRole;
 	isActive: boolean;
 	branches: UserBranch[]; // NOWE: Teraz backend to zwraca
+	mustChangePassword: boolean;
 }
 
 export interface PagedUserResponse {
