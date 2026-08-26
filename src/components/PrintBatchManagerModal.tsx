@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { XCircleFill, PrinterFill, BoxSeamFill, ExclamationTriangleFill, TrashFill } from 'react-bootstrap-icons';
 import { printBatchService, type PrintBatchResponse, PrintBatchState, PrintJobsStates } from '../api/printBatchService';
@@ -20,6 +20,25 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 
 	// Stan lokalny dla wydruków (żeby dropdowny zmieniały się na żywo)
 	const [localJobs, setLocalJobs] = useState(batch.printJobs);
+
+	// Grupowanie wydruków po uczniu
+	const groupedJobs = useMemo(() => {
+		const groups: Record<string, typeof localJobs> = {};
+		localJobs.forEach((job) => {
+			if (!groups[job.studentName]) {
+				groups[job.studentName] = [];
+			}
+			groups[job.studentName].push(job);
+		});
+
+		// Sortowanie alfabetyczne uczniów
+		return Object.keys(groups)
+			.sort()
+			.reduce((acc, key) => {
+				acc[key] = groups[key];
+				return acc;
+			}, {} as Record<string, typeof localJobs>);
+	}, [localJobs]);
 
 	// Stan lokalny dla paczki (żeby wyłączać przyciski po kliknięciu)
 	const [localBatchStatus, setLocalBatchStatus] = useState(batch.status);
@@ -172,30 +191,43 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 							<p className="text-sm">Użyj czerwonego kosza w prawym górnym rogu, aby ją usunąć.</p>
 						</div>
 					) : (
-						<div className="flex flex-col gap-3">
-							{localJobs.map((job) => (
+						<div className="flex flex-col gap-4">
+							{Object.entries(groupedJobs).map(([studentName, jobs]) => (
 								<div
-									key={job.id}
-									className="flex flex-col justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-colors hover:border-purple-300 sm:flex-row sm:items-center"
+									key={studentName}
+									className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm flex flex-col gap-3"
 								>
-									<div className="flex flex-col">
-										<span className="font-bold text-slate-800">{job.studentName}</span>
-										<span className="text-xs text-slate-500">
-											Model: <span className="font-medium text-slate-700">{job.projectName}</span>
+									{/* Nagłówek Ucznia */}
+									<div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+										<span className="font-extrabold text-slate-800 text-sm">{studentName}</span>
+										<span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[10px] font-black text-purple-700">
+											{jobs.length} {jobs.length === 1 ? 'model' : jobs.length < 5 ? 'modele' : 'modeli'}
 										</span>
 									</div>
 
-									<select
-										value={job.status}
-										onChange={(e) => handleJobStatusChange(job.id, Number(e.target.value) as PrintJobsStates)}
-										disabled={isSubmitting || localBatchStatus === PrintBatchState.ReadyForCollection}
-										className={`cursor-pointer rounded-lg border p-2 text-sm font-medium transition-colors outline-none focus:ring-2 focus:ring-purple-500 ${getJobStatusSelectClass(job.status)}`}
-									>
-										<option value={PrintJobsStates.Pending}>W kolejce</option>
-										<option value={PrintJobsStates.Printing}>Drukuje się</option>
-										<option value={PrintJobsStates.Printed}>Wydrukowano</option>
-										<option value={PrintJobsStates.Failed}>Błąd druku (Zepsute)</option>
-									</select>
+									{/* Projekty Ucznia */}
+									<div className="flex flex-col gap-2">
+										{jobs.map((job) => (
+											<div
+												key={job.id}
+												className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm transition-colors hover:border-purple-300"
+											>
+												<span className="text-xs font-semibold text-slate-700">{job.projectName}</span>
+
+												<select
+													value={job.status}
+													onChange={(e) => handleJobStatusChange(job.id, Number(e.target.value) as PrintJobsStates)}
+													disabled={isSubmitting || localBatchStatus === PrintBatchState.ReadyForCollection}
+													className={`cursor-pointer rounded-lg border p-1.5 text-xs font-semibold transition-colors outline-none focus:ring-2 focus:ring-purple-500 ${getJobStatusSelectClass(job.status)}`}
+												>
+													<option value={PrintJobsStates.Pending}>W kolejce</option>
+													<option value={PrintJobsStates.Printing}>Drukuje się</option>
+													<option value={PrintJobsStates.Printed}>Wydrukowano</option>
+													<option value={PrintJobsStates.Failed}>Błąd druku (Zepsute)</option>
+												</select>
+											</div>
+										))}
+									</div>
 								</div>
 							))}
 						</div>
