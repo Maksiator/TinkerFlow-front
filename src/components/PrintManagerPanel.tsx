@@ -42,7 +42,19 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 
 	// STANY DLA WYDRUKÓW NIESTANDARDOWYCH (CUSTOM)
 	const [customText, setCustomText] = useState('');
-	const [customJobs, setCustomJobs] = useState<{ id: string; studentId: string; customName: string }[]>([]);
+	const [customJobs, setCustomJobs] = useState<{ id: string; studentId: string; customName: string }[]>(() => {
+		try {
+			const saved = localStorage.getItem(`custom_jobs_${groupId}`);
+			return saved ? JSON.parse(saved) : [];
+		} catch {
+			return [];
+		}
+	});
+
+	// AUTO-ZAPIS WYDRUKÓW NIESTANDARDOWYCH W LOCAL STORAGE
+	useEffect(() => {
+		localStorage.setItem(`custom_jobs_${groupId}`, JSON.stringify(customJobs));
+	}, [customJobs, groupId]);
 
 	// STANY DLA ZAKŁADKI HISTORII
 	const [historyBatches, setHistoryBatches] = useState<PrintBatchResponse[]>([]);
