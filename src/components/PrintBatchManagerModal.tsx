@@ -145,7 +145,7 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm transition-opacity">
-			<div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+			<div className="flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
 				{/* NAGŁÓWEK */}
 				<div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-5">
 					<div>
