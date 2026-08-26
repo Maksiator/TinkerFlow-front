@@ -403,9 +403,16 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 							{/* 1. Podsumowanie zawartości paczki (Z matrycy + Niestandardowe) */}
 							{Object.keys(combinedToPrint).length > 0 && (
 								<div className="mb-4 flex flex-col gap-3">
-									<h5 className="text-xs font-extrabold tracking-wider text-slate-400 uppercase">
-										Zawartość paczki ({Object.values(combinedToPrint).flat().length} modeli)
-									</h5>
+									<div className="flex items-center justify-between">
+										<h5 className="text-xs font-extrabold tracking-wider text-slate-400 uppercase">
+											Zawartość paczki ({Object.values(combinedToPrint).flat().length} modeli)
+										</h5>
+										{/* Mini legenda */}
+										<div className="flex items-center gap-2 text-[9px] font-bold text-slate-450 uppercase tracking-wider">
+											<span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-purple-500"></span> Matryca</span>
+											<span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-orange-500"></span> Własny</span>
+										</div>
+									</div>
 									{Object.entries(combinedToPrint).map(([studentName, projectList]) => (
 										<div key={studentName} className="rounded-lg border border-purple-100 bg-purple-50/50 p-3 shadow-sm">
 											<div className="mb-2 flex items-center justify-between">
@@ -418,16 +425,13 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 												{projectList.map((proj, idx) => (
 													<span
 														key={idx}
-														className={`rounded-md border px-2 py-1 text-[10px] font-bold shadow-sm flex items-center gap-1.5 ${
+														className={`rounded-md border px-2 py-1 text-[10px] font-bold shadow-sm ${
 															proj.isCustom 
 																? 'border-orange-200 bg-orange-50 text-orange-700' 
 																: 'border-purple-200 bg-white text-purple-700'
 														}`}
 													>
 														{proj.name}
-														<span className={`text-[8px] font-black uppercase ${proj.isCustom ? 'text-orange-500' : 'text-purple-400'}`}>
-															{proj.isCustom ? 'Własny' : 'Matryca'}
-														</span>
 													</span>
 												))}
 											</div>
@@ -571,10 +575,13 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 								const groupedHistoryJobs = batch.printJobs.reduce(
 									(acc, job) => {
 										if (!acc[job.studentName]) acc[job.studentName] = [];
-										acc[job.studentName].push(job.projectName);
+										acc[job.studentName].push({
+											name: job.projectName,
+											isCustom: !job.studentProjectId,
+										});
 										return acc;
 									},
-									{} as Record<string, string[]>,
+									{} as Record<string, { name: string; isCustom: boolean }[]>,
 								);
 
 								return (
@@ -586,23 +593,34 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 											{getStatusBadge(batch.status)}
 										</div>
 										<div className="p-3 text-sm">
-											<p className="mb-2 font-bold text-slate-700">Zawartość ({batch.printJobs.length}):</p>
+											<div className="mb-2 flex items-center justify-between">
+												<span className="font-bold text-slate-700">Zawartość ({batch.printJobs.length})</span>
+												{/* Mini legenda */}
+												<div className="flex items-center gap-2 text-[8px] font-bold text-slate-400 uppercase tracking-wider">
+													<span className="flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-purple-500"></span> Matryca</span>
+													<span className="flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-orange-500"></span> Własny</span>
+												</div>
+											</div>
 
 											{/* Wyświetlanie pogrupowanych modeli */}
 											<div className="flex flex-col gap-2 text-xs text-slate-600">
-												{Object.entries(groupedHistoryJobs).map(([studentName, projectNames]) => (
+												{Object.entries(groupedHistoryJobs).map(([studentName, projectList]) => (
 													<div
 														key={studentName}
 														className="flex flex-col rounded border border-slate-100 bg-slate-50 p-2"
 													>
 														<span className="mb-1 font-bold text-slate-700">{studentName}</span>
 														<div className="flex flex-wrap gap-1">
-															{projectNames.map((proj, idx) => (
+															{projectList.map((proj, idx) => (
 																<span
 																	key={idx}
-																	className="rounded border border-purple-100 bg-white px-1.5 py-0.5 text-[10px] font-bold text-purple-700 shadow-sm"
+																	className={`rounded border px-1.5 py-0.5 text-[10px] font-bold shadow-sm ${
+																		proj.isCustom 
+																			? 'border-orange-200 bg-orange-50 text-orange-700' 
+																			: 'border-purple-100 bg-white text-purple-700'
+																	}`}
 																>
-																	{proj}
+																	{proj.name}
 																</span>
 															))}
 														</div>
