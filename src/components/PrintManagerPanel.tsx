@@ -130,48 +130,54 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 	// FUNKCJA PARSUJĄCA TEKST NIESTANDARDOWYCH WYDRUKÓW
 	const handleParseCustomText = (text: string) => {
 		if (!text.trim()) return;
-		const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-		
+		const lines = text
+			.split('\n')
+			.map((l) => l.trim())
+			.filter(Boolean);
+
 		const newCustomJobs = lines.map((line) => {
 			// Szukamy separatorów typu: -, ,, (, ;, :, tab
 			const separatorRegex = /[-,\(;:]/;
 			const match = line.match(separatorRegex);
-			
+
 			let studentPart = line;
 			let projectPart = '';
-			
+
 			if (match && match.index !== undefined) {
 				studentPart = line.substring(0, match.index).trim();
-				projectPart = line.substring(match.index + 1).replace(/\)$/, '').trim();
+				projectPart = line
+					.substring(match.index + 1)
+					.replace(/\)$/, '')
+					.trim();
 			}
-			
+
 			if (!projectPart) {
 				projectPart = 'Projekt własny';
 			}
-			
+
 			// Spróbuj dopasować studentPart do uczniów w grupie (tolerancja na kolejność imię/nazwisko)
 			const matchedStudent = students.find((s) => {
 				const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
 				const reverseFullName = `${s.lastName} ${s.firstName}`.toLowerCase();
 				const search = studentPart.toLowerCase();
-				
+
 				if (fullName.includes(search) || reverseFullName.includes(search)) return true;
-				
+
 				const hasFirstName = search.includes(s.firstName.toLowerCase());
 				const hasLastName = search.includes(s.lastName.toLowerCase());
 				if (hasFirstName && hasLastName) return true;
-				
+
 				return false;
 			});
-			
+
 			return {
 				id: Math.random().toString(36).substring(2, 9),
 				studentId: matchedStudent ? matchedStudent.id : '',
-				customName: projectPart
+				customName: projectPart,
 			};
 		});
-		
-		setCustomJobs(prev => [...prev, ...newCustomJobs]);
+
+		setCustomJobs((prev) => [...prev, ...newCustomJobs]);
 		setCustomText('');
 		toast.success(`Dodano ${newCustomJobs.length} pozycji.`);
 	};
@@ -181,7 +187,7 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 		if (!hasItemsToPrint) return;
 
 		// Walidacja przypisania uczniów w customowych wydrukach
-		const unassignedCustom = customJobs.some(j => !j.studentId);
+		const unassignedCustom = customJobs.some((j) => !j.studentId);
 		if (unassignedCustom) {
 			toast.error('Wybierz ucznia dla wszystkich wydruków niestandardowych!');
 			return;
@@ -313,7 +319,7 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 									<BoxSeamFill /> Paczka do odbioru!
 								</h3>
 								<p className="mb-3 text-xs text-green-700">
-									Wydruki z grupy gotowe. Potwierdź odbiór, aby oznaczyć pająki jako Zrobione.
+									Wydruki z grupy gotowe. Potwierdź odbiór, aby oznaczyć projekty jako Zrobione.
 								</p>
 								<button
 									onClick={handleConfirmDelivery}
@@ -332,8 +338,8 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 
 							{/* 1. Wyświetlanie wydruków z matrycy (jeśli są) */}
 							{readyToPrint.length > 0 && (
-								<div className="flex flex-col gap-3 mb-4">
-									<h5 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+								<div className="mb-4 flex flex-col gap-3">
+									<h5 className="text-xs font-extrabold tracking-wider text-slate-400 uppercase">
 										Z matrycy ({readyToPrint.length})
 									</h5>
 									{Object.entries(groupedToPrint).map(([studentName, projectList]) => (
@@ -356,23 +362,26 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 
 							{/* 2. Wyświetlanie wydruków niestandardowych (jeśli są) */}
 							{customJobs.length > 0 && (
-								<div className="flex flex-col gap-2.5 mb-4 border-t border-slate-100 pt-4">
-									<h5 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+								<div className="mb-4 flex flex-col gap-2.5 border-t border-slate-100 pt-4">
+									<h5 className="text-xs font-extrabold tracking-wider text-slate-500 uppercase">
 										Wydruki niestandardowe ({customJobs.length})
 									</h5>
 									<div className="flex flex-col gap-2">
 										{customJobs.map((job) => (
-											<div key={job.id} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2 shadow-sm">
+											<div
+												key={job.id}
+												className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2 shadow-sm"
+											>
 												<select
 													value={job.studentId}
 													onChange={(e) => {
 														const val = e.target.value;
-														setCustomJobs(prev => prev.map(j => j.id === job.id ? { ...j, studentId: val } : j));
+														setCustomJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, studentId: val } : j)));
 													}}
-													className="flex-1 min-w-0 cursor-pointer rounded-md border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-purple-500"
+													className="min-w-0 flex-1 cursor-pointer rounded-md border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-purple-500"
 												>
 													<option value="">-- Wybierz ucznia --</option>
-													{students.map(s => (
+													{students.map((s) => (
 														<option key={s.id} value={s.id}>
 															{s.lastName} {s.firstName}
 														</option>
@@ -383,14 +392,14 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 													value={job.customName}
 													onChange={(e) => {
 														const val = e.target.value;
-														setCustomJobs(prev => prev.map(j => j.id === job.id ? { ...j, customName: val } : j));
+														setCustomJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, customName: val } : j)));
 													}}
 													placeholder="Nazwa projektu"
 													className="w-24 shrink-0 rounded-md border border-slate-200 bg-white p-1.5 text-xs font-medium text-slate-700 outline-none focus:border-purple-500"
 												/>
 												<button
 													type="button"
-													onClick={() => setCustomJobs(prev => prev.filter(j => j.id !== job.id))}
+													onClick={() => setCustomJobs((prev) => prev.filter((j) => j.id !== job.id))}
 													className="shrink-0 text-slate-400 hover:text-red-500"
 												>
 													<Trash size={16} />
@@ -403,37 +412,40 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 
 							{/* Jeśli kompletnie nic nie ma wybranego/dodanego */}
 							{readyToPrint.length === 0 && customJobs.length === 0 && (
-								<p className="text-xs text-slate-400 italic mb-4">
+								<p className="mb-4 text-xs text-slate-400 italic">
 									Zaznacz na matrycy status "Do druku" przy wybranych modelach lub dodaj wydruki niestandardowe poniżej.
 								</p>
 							)}
 
 							{/* 3. Panel wprowadzania i szybkiego dodawania wydruków niestandardowych (Zawsze dostępny!) */}
 							<div className="mt-4 border-t border-slate-100 pt-4">
-								<div className="flex items-center justify-between mb-2">
-									<span className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+								<div className="mb-2 flex items-center justify-between">
+									<span className="text-xs font-extrabold tracking-wider text-slate-500 uppercase">
 										Wydruk spoza lekcji
 									</span>
 									<button
 										type="button"
 										onClick={() => {
-											setCustomJobs(prev => [...prev, {
-												id: Math.random().toString(36).substring(2, 9),
-												studentId: '',
-												customName: 'Projekt własny'
-											}]);
+											setCustomJobs((prev) => [
+												...prev,
+												{
+													id: Math.random().toString(36).substring(2, 9),
+													studentId: '',
+													customName: 'Projekt własny',
+												},
+											]);
 										}}
-										className="text-xs font-bold text-purple-600 hover:text-purple-700 flex items-center gap-1"
+										className="flex items-center gap-1 text-xs font-bold text-purple-600 hover:text-purple-700"
 									>
 										<PlusLg /> Wiersz
 									</button>
 								</div>
-								
+
 								<textarea
 									rows={2}
 									value={customText}
 									onChange={(e) => setCustomText(e.target.value)}
-									placeholder="Wklej listę, np:&#10;Kamil Nowak - Miecz Minecraft&#10;Zosia Kowalska - Breloczek"
+									placeholder="Wpisz wydruki, np:&#10;Uczeń 1 - Brelok piesek&#10;Uczeń 2 - Kwiatek"
 									className="w-full rounded-lg border border-slate-300 p-2 text-xs outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
 								/>
 								<button
