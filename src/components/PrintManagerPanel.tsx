@@ -255,9 +255,30 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 		);
 		if (!isConfirmed) return;
 
+		// Znajdujemy anulowaną paczkę, aby móc wyciągnąć z niej wydruki niestandardowe
+		const batchToCancel = historyBatches.find((b) => b.id === batchId);
+
 		try {
 			await printBatchService.deleteBatch(batchId);
 			toast.success('Paczka została anulowana.');
+
+			// Jeśli paczka miała wydruki niestandardowe, przywracamy je do formularza do ponownej edycji
+			if (batchToCancel) {
+				const customJobsFromCanceled = batchToCancel.printJobs
+					.filter((job) => !job.studentProjectId)
+					.map((job) => ({
+						id: Math.random().toString(36).substring(2, 9),
+						studentId: job.studentId,
+						customName: job.projectName || 'Projekt własny',
+					}));
+
+				if (customJobsFromCanceled.length > 0) {
+					setCustomJobs((prev) => [...prev, ...customJobsFromCanceled]);
+					setActiveTab('send'); // Wracamy do zakładki edycji
+					toast.success(`Przywrócono ${customJobsFromCanceled.length} wydruków niestandardowych do ponownej edycji.`);
+				}
+			}
+
 			setHistoryBatches((prev) => prev.filter((b) => b.id !== batchId));
 			onBatchReceived();
 		} catch (error: unknown) {
