@@ -67,10 +67,10 @@ export function StudentForm() {
 		const fetchData = async () => {
 			setIsLoading(true);
 			try {
-				// Pobieramy grupy i oddziały
+				// Pobieramy grupy i oddziały z obsługa błędów
 				const [fetchedGroups, fetchedBranches] = await Promise.all([
-					groupService.getAll(),
-					branchService.getAll()
+					groupService.getAll().catch(() => []),
+					isTrainer ? Promise.resolve([]) : branchService.getAll().catch(() => [])
 				]);
 
 				if (isMounted) {
@@ -263,7 +263,9 @@ export function StudentForm() {
 			</button>
 
 			<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-				<h1 className="mb-8 text-2xl font-bold text-slate-800">{isEditMode ? 'Edytuj dane ucznia' : 'Dodaj ucznia'}</h1>
+				<h1 className="mb-8 text-2xl font-bold text-slate-800">
+					{isTrainer ? 'Profil ucznia' : isEditMode ? 'Edytuj dane ucznia' : 'Dodaj ucznia'}
+				</h1>
 
 				<form onSubmit={handlePreSubmit} className="flex flex-col gap-6">
 					<div className="grid grid-cols-1 gap-6 md:grid-cols-2">

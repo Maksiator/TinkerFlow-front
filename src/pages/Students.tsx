@@ -13,6 +13,7 @@ import {
 	ArrowUp,
 	ArrowDown,
 	SortDown,
+	EyeFill,
 } from 'react-bootstrap-icons';
 import { studentService, type Student, SkillLevel } from '../api/studentService';
 import { authService } from '../api/authService';
@@ -237,8 +238,9 @@ export function Students() {
 												<button
 													onClick={() => navigate(`/uczniowie/${student.id}`)}
 													className="cursor-pointer rounded-lg bg-slate-100 p-2 text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-600"
+													title={isTrainer ? "Podgląd profilu i projektów" : "Edytuj dane ucznia"}
 												>
-													<PencilFill />
+													{isTrainer ? <EyeFill /> : <PencilFill />}
 												</button>
 												{!isTrainer && (
 													<button
