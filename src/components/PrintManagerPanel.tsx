@@ -421,7 +421,7 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 							<div className="mt-4 border-t border-slate-100 pt-4">
 								<div className="mb-2 flex items-center justify-between">
 									<span className="text-xs font-extrabold tracking-wider text-slate-500 uppercase">
-										Wydruk spoza lekcji
+										Wydruk dodatkowy
 									</span>
 									<button
 										type="button"
