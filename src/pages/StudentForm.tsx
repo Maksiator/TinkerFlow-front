@@ -13,6 +13,7 @@ export function StudentForm() {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
 	const user = authService.getCurrentUser();
+	const isTrainer = user?.role === UserRole.Trainer;
 
 	const isEditMode = Boolean(id) && id !== 'nowy';
 
@@ -273,7 +274,8 @@ export function StudentForm() {
 								required
 								value={formData.firstName}
 								onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-								className="w-full rounded-lg border border-slate-300 p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+								disabled={isTrainer}
+								className="w-full rounded-lg border border-slate-300 p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
 							/>
 						</div>
 						<div>
@@ -283,7 +285,8 @@ export function StudentForm() {
 								required
 								value={formData.lastName}
 								onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-								className="w-full rounded-lg border border-slate-300 p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+								disabled={isTrainer}
+								className="w-full rounded-lg border border-slate-300 p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
 							/>
 						</div>
 					</div>
@@ -297,7 +300,8 @@ export function StudentForm() {
 								max={new Date().toISOString().split('T')[0]}
 								value={formData.dateOfBirth}
 								onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-								className="w-full rounded-lg border border-slate-300 p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+								disabled={isTrainer}
+								className="w-full rounded-lg border border-slate-300 p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
 							/>
 						</div>
 						<div className="md:col-span-2 relative" ref={mainGroupDropdownRef}>
@@ -309,15 +313,18 @@ export function StudentForm() {
 									placeholder="Wyszukaj grupę..."
 									value={mainGroupSearch || (formData.groupId ? `${groups.find(g => g.id === formData.groupId)?.name || ''} (${groups.find(g => g.id === formData.groupId)?.branchName || ''})` : '')}
 									onChange={(e) => {
+										if (isTrainer) return;
 										setMainGroupSearch(e.target.value);
 										if (e.target.value === '') setFormData({ ...formData, groupId: null });
 										setIsMainGroupDropdownOpen(true);
 									}}
 									onFocus={() => {
+										if (isTrainer) return;
 										setIsMainGroupDropdownOpen(true);
 										setMainGroupSearch('');
 									}}
-									className="w-full rounded-lg border border-slate-300 py-3 pr-4 pl-10 text-sm outline-none focus:border-blue-500"
+									disabled={isTrainer}
+									className="w-full rounded-lg border border-slate-300 py-3 pr-4 pl-10 text-sm outline-none focus:border-blue-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
 								/>
 							</div>
 							
@@ -375,15 +382,18 @@ export function StudentForm() {
 											placeholder="Wyszukaj oddział..."
 											value={branchSearch || (formData.branchId ? branches.find(b => b.id === formData.branchId)?.name || '' : '')}
 											onChange={(e) => {
+												if (isTrainer) return;
 												setBranchSearch(e.target.value);
 												if (e.target.value === '') setFormData({ ...formData, branchId: null });
 												setIsBranchDropdownOpen(true);
 											}}
 											onFocus={() => {
+												if (isTrainer) return;
 												setIsBranchDropdownOpen(true);
 												setBranchSearch('');
 											}}
-											className="w-full rounded-lg border border-slate-300 py-3 pr-4 pl-10 text-sm outline-none focus:border-blue-500"
+											disabled={isTrainer}
+											className="w-full rounded-lg border border-slate-300 py-3 pr-4 pl-10 text-sm outline-none focus:border-blue-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
 										/>
 									</div>
 									
@@ -429,11 +439,12 @@ export function StudentForm() {
 										key={key}
 										type="button"
 										onClick={() => setFormData({ ...formData, level: val })}
+										disabled={isTrainer}
 										className={`py-2 px-3 text-xs font-bold rounded-lg transition-all ${
 											isActive 
 												? 'bg-white text-blue-600 shadow-sm' 
 												: 'text-slate-600 hover:text-slate-900'
-										}`}
+										} disabled:opacity-75 disabled:cursor-not-allowed`}
 									>
 										{labelMap[val]}
 									</button>
@@ -449,7 +460,8 @@ export function StudentForm() {
 									type="checkbox"
 									checked={formData.isIndependent}
 									onChange={(e) => setFormData({ ...formData, isIndependent: e.target.checked })}
-									className="h-5 w-5 rounded border-slate-300"
+									disabled={isTrainer}
+									className="h-5 w-5 rounded border-slate-300 disabled:bg-slate-100 disabled:cursor-not-allowed"
 								/>
 								<span className="text-sm font-medium text-slate-700">Pracuje samodzielnie (Zdolniacha)</span>
 							</label>
@@ -458,7 +470,8 @@ export function StudentForm() {
 									type="checkbox"
 									checked={formData.needsAttention}
 									onChange={(e) => setFormData({ ...formData, needsAttention: e.target.checked })}
-									className="h-5 w-5 rounded border-slate-300"
+									disabled={isTrainer}
+									className="h-5 w-5 rounded border-slate-300 disabled:bg-slate-100 disabled:cursor-not-allowed"
 								/>
 								<span className="text-sm font-medium text-slate-700">Wymaga większej uwagi</span>
 							</label>
@@ -471,15 +484,17 @@ export function StudentForm() {
 							onClick={() => navigate('/uczniowie')}
 							className="cursor-pointer rounded-lg bg-slate-100 px-6 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-200"
 						>
-							Anuluj
+							{isTrainer ? 'Powrót' : 'Anuluj'}
 						</button>
-						<button
-							type="submit"
-							disabled={isSaving}
-							className="cursor-pointer rounded-lg bg-blue-600 px-8 py-3 font-bold text-white transition-colors hover:bg-blue-700 disabled:bg-slate-400"
-						>
-							{isSaving ? 'Zapisywanie...' : 'Zapisz'}
-						</button>
+						{!isTrainer && (
+							<button
+								type="submit"
+								disabled={isSaving}
+								className="cursor-pointer rounded-lg bg-blue-600 px-8 py-3 font-bold text-white transition-colors hover:bg-blue-700 disabled:bg-slate-400"
+							>
+								{isSaving ? 'Zapisywanie...' : 'Zapisz'}
+							</button>
+						)}
 					</div>
 				</form>
 			</div>
@@ -523,69 +538,71 @@ export function StudentForm() {
 					<div className="w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
 						<h2 className="mb-6 text-xl font-bold text-slate-800">Historia Grup</h2>
 						
-						<div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end">
-							<div className="flex-1">
-								<label className="mb-1 block text-xs font-bold text-slate-500 uppercase">Rok szkolny</label>
-								<input
-									type="text"
-									placeholder="np. 2025/2026"
-									value={newHistoryYear}
-									onChange={e => setNewHistoryYear(e.target.value)}
-									className="w-full rounded-lg border border-slate-300 p-2.5 text-sm outline-none focus:border-blue-500"
-								/>
-							</div>
-							<div className="flex-1 relative" ref={historyGroupDropdownRef}>
-								<label className="mb-1 block text-xs font-bold text-slate-500 uppercase">Grupa</label>
-								<div className="relative">
-									<Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
+						{!isTrainer && (
+							<div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end">
+								<div className="flex-1">
+									<label className="mb-1 block text-xs font-bold text-slate-500 uppercase">Rok szkolny</label>
 									<input
 										type="text"
-										placeholder="Wyszukaj grupę..."
-										value={historyGroupSearch || (newHistoryGroup ? `${groups.find(g => g.id === newHistoryGroup)?.name || ''} (${groups.find(g => g.id === newHistoryGroup)?.branchName || ''})` : '')}
-										onChange={(e) => {
-											setHistoryGroupSearch(e.target.value);
-											if (e.target.value === '') setNewHistoryGroup('');
-											setIsHistoryGroupDropdownOpen(true);
-										}}
-										onFocus={() => {
-											setIsHistoryGroupDropdownOpen(true);
-											setHistoryGroupSearch('');
-										}}
-										className="w-full rounded-lg border border-slate-300 py-2.5 pr-4 pl-10 text-sm outline-none focus:border-blue-500"
+										placeholder="np. 2025/2026"
+										value={newHistoryYear}
+										onChange={e => setNewHistoryYear(e.target.value)}
+										className="w-full rounded-lg border border-slate-300 p-2.5 text-sm outline-none focus:border-blue-500"
 									/>
 								</div>
-
-								{isHistoryGroupDropdownOpen && (
-									<div className="absolute bottom-full mb-1 z-20 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl">
-										{groups.filter(g => (g.name + ' ' + g.branchName).toLowerCase().includes(historyGroupSearch.toLowerCase())).length === 0 ? (
-											<div className="p-3 text-sm text-slate-500">Brak wyników</div>
-										) : (
-											groups.filter(g => (g.name + ' ' + g.branchName).toLowerCase().includes(historyGroupSearch.toLowerCase())).map(g => (
-												<div
-													key={g.id}
-													onClick={() => {
-														setNewHistoryGroup(g.id);
-														setHistoryGroupSearch('');
-														setIsHistoryGroupDropdownOpen(false);
-													}}
-													className="cursor-pointer border-b border-slate-100 p-3 text-sm hover:bg-slate-50 last:border-0"
-												>
-													<span className="font-bold">{g.name}</span> <span className="text-slate-500">({g.branchName})</span>
-												</div>
-											))
-										)}
+								<div className="flex-1 relative" ref={historyGroupDropdownRef}>
+									<label className="mb-1 block text-xs font-bold text-slate-500 uppercase">Grupa</label>
+									<div className="relative">
+										<Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
+										<input
+											type="text"
+											placeholder="Wyszukaj grupę..."
+											value={historyGroupSearch || (newHistoryGroup ? `${groups.find(g => g.id === newHistoryGroup)?.name || ''} (${groups.find(g => g.id === newHistoryGroup)?.branchName || ''})` : '')}
+											onChange={(e) => {
+												setHistoryGroupSearch(e.target.value);
+												if (e.target.value === '') setNewHistoryGroup('');
+												setIsHistoryGroupDropdownOpen(true);
+											}}
+											onFocus={() => {
+												setIsHistoryGroupDropdownOpen(true);
+												setHistoryGroupSearch('');
+											}}
+											className="w-full rounded-lg border border-slate-300 py-2.5 pr-4 pl-10 text-sm outline-none focus:border-blue-500"
+										/>
 									</div>
-								)}
+
+									{isHistoryGroupDropdownOpen && (
+										<div className="absolute bottom-full mb-1 z-20 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl">
+											{groups.filter(g => (g.name + ' ' + g.branchName).toLowerCase().includes(historyGroupSearch.toLowerCase())).length === 0 ? (
+												<div className="p-3 text-sm text-slate-500">Brak wyników</div>
+											) : (
+												groups.filter(g => (g.name + ' ' + g.branchName).toLowerCase().includes(historyGroupSearch.toLowerCase())).map(g => (
+													<div
+														key={g.id}
+														onClick={() => {
+															setNewHistoryGroup(g.id);
+															setHistoryGroupSearch('');
+															setIsHistoryGroupDropdownOpen(false);
+														}}
+														className="cursor-pointer border-b border-slate-100 p-3 text-sm hover:bg-slate-50 last:border-0"
+													>
+														<span className="font-bold">{g.name}</span> <span className="text-slate-500">({g.branchName})</span>
+													</div>
+												))
+											)}
+										</div>
+									)}
+								</div>
+								<button
+									type="button"
+									onClick={handleAddHistory}
+									disabled={!newHistoryGroup || !newHistoryYear}
+									className="rounded-lg bg-green-600 px-6 py-2.5 font-bold text-white transition-colors hover:bg-green-700 disabled:bg-slate-300"
+								>
+									Dodaj
+								</button>
 							</div>
-							<button
-								type="button"
-								onClick={handleAddHistory}
-								disabled={!newHistoryGroup || !newHistoryYear}
-								className="rounded-lg bg-green-600 px-6 py-2.5 font-bold text-white transition-colors hover:bg-green-700 disabled:bg-slate-300"
-							>
-								Dodaj
-							</button>
-						</div>
+						)}
 
 						{history.groupHistory.length === 0 ? (
 							<p className="text-sm text-slate-500">Brak historii przypisań do grup.</p>
@@ -599,12 +616,14 @@ export function StudentForm() {
 												<span className="mx-3 font-medium text-slate-300">|</span>
 												<span className="font-bold text-slate-700">{h.groupName}</span>
 											</div>
-											<button
-												onClick={() => handleDeleteHistory(h.id)}
-												className="cursor-pointer rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-600 transition-colors hover:bg-red-200 hover:text-red-700"
-											>
-												Usuń
-											</button>
+											{!isTrainer && (
+												<button
+													onClick={() => handleDeleteHistory(h.id)}
+													className="cursor-pointer rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-600 transition-colors hover:bg-red-200 hover:text-red-700"
+												>
+													Usuń
+												</button>
+											)}
 										</li>
 									))}
 								</ul>

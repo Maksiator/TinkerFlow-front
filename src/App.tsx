@@ -131,15 +131,19 @@ function App() {
 								<Route path="grupy/nowa" element={<GroupForm />} />
 								<Route path="grupy/:id" element={<GroupForm />} />
 
-								<Route path="uczniowie" element={<Students />} />
 								<Route path="uczniowie/nowy" element={<StudentForm />} />
 								<Route path="uczniowie/masowo" element={<StudentBulkAdd />} />
-								<Route path="uczniowie/:id" element={<StudentForm />} />
 
 								{/* NOWA ŚCIEŻKA DLA ZASTĘPSTW */}
 								<Route path="zastepstwa" element={<Substitutes />} />
 
 								<Route path="admin/trenerzy" element={<AdminUsers />} />
+							</Route>
+
+							{/* DOSTĘP DLA TRENERA, KOORDYNATORA I ADMINA */}
+							<Route element={<RoleGuard allowedRoles={[UserRole.Trainer, UserRole.Coordinator, UserRole.Admin]} />}>
+								<Route path="uczniowie" element={<Students />} />
+								<Route path="uczniowie/:id" element={<StudentForm />} />
 							</Route>
 
 							{/* === POZIOM 3: DOSTĘP TYLKO DLA ADMINA === */}

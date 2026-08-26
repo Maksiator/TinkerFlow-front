@@ -99,12 +99,20 @@ export function Sidebar() {
 							</li>
 
 							{user?.role !== UserRole.Printer && (
-								<li>
-									<NavLink to="/matryca" className={navLinkClass}>
-										<LayersFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-										{isExpanded && <span className="truncate">Matryca Projektów</span>}
-									</NavLink>
-								</li>
+								<>
+									<li>
+										<NavLink to="/matryca" className={navLinkClass}>
+											<LayersFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+											{isExpanded && <span className="truncate">Matryca Projektów</span>}
+										</NavLink>
+									</li>
+									<li>
+										<NavLink to="/uczniowie" className={navLinkClass}>
+											<PersonVcardFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+											{isExpanded && <span className="truncate">Baza Uczniów</span>}
+										</NavLink>
+									</li>
+								</>
 							)}
 
 							{/* 2. STREFA KOORDYNATORA (Koordynator + Admin) */}
@@ -121,13 +129,6 @@ export function Sidebar() {
 										<NavLink to="/grupy" className={navLinkClass}>
 											<PeopleFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
 											{isExpanded && <span className="truncate">Zarządzanie Grupami</span>}
-										</NavLink>
-									</li>
-
-									<li>
-										<NavLink to="/uczniowie" className={navLinkClass}>
-											<PersonVcardFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
-											{isExpanded && <span className="truncate">Baza Uczniów</span>}
 										</NavLink>
 									</li>
 

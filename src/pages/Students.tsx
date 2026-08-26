@@ -15,10 +15,14 @@ import {
 	SortDown,
 } from 'react-bootstrap-icons';
 import { studentService, type Student, SkillLevel } from '../api/studentService';
+import { authService } from '../api/authService';
+import { UserRole } from '../api/userService';
 import toast from 'react-hot-toast';
 
 export function Students() {
 	const navigate = useNavigate();
+	const currentUser = authService.getCurrentUser();
+	const isTrainer = currentUser?.role === UserRole.Trainer;
 
 	// Stany danych
 	const [students, setStudents] = useState<Student[]>([]);
@@ -131,20 +135,22 @@ export function Students() {
 					<p className="text-slate-500">Zarządzaj wszystkimi uczniami, dodawaj nowych i edytuj profile.</p>
 				</div>
 
-				<div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
-					<button
-						onClick={() => navigate('/uczniowie/masowo')}
-						className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-600 px-5 py-3 font-bold text-white shadow-md transition-colors hover:bg-green-700 md:w-auto"
-					>
-						<CloudArrowUpFill /> Masowy import
-					</button>
-					<button
-						onClick={() => navigate('/uczniowie/nowy')}
-						className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-3 font-bold text-white shadow-md transition-colors hover:bg-blue-700 md:w-auto"
-					>
-						<PlusLg /> Dodaj ucznia
-					</button>
-				</div>
+				{!isTrainer && (
+					<div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
+						<button
+							onClick={() => navigate('/uczniowie/masowo')}
+							className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-600 px-5 py-3 font-bold text-white shadow-md transition-colors hover:bg-green-700 md:w-auto"
+						>
+							<CloudArrowUpFill /> Masowy import
+						</button>
+						<button
+							onClick={() => navigate('/uczniowie/nowy')}
+							className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-3 font-bold text-white shadow-md transition-colors hover:bg-blue-700 md:w-auto"
+						>
+							<PlusLg /> Dodaj ucznia
+						</button>
+					</div>
+				)}
 			</div>
 
 			<div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -234,12 +240,14 @@ export function Students() {
 												>
 													<PencilFill />
 												</button>
-												<button
-													onClick={() => handleDelete(student.id, student.firstName, student.lastName)}
-													className="cursor-pointer rounded-lg bg-slate-100 p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-												>
-													<TrashFill />
-												</button>
+												{!isTrainer && (
+													<button
+														onClick={() => handleDelete(student.id, student.firstName, student.lastName)}
+														className="cursor-pointer rounded-lg bg-slate-100 p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+													>
+														<TrashFill />
+													</button>
+												)}
 											</div>
 										</td>
 									</tr>
