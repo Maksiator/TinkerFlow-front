@@ -128,14 +128,45 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 		return toPrint;
 	}, [matrixState, students, projects]);
 
-	const groupedToPrint = readyToPrint.reduce(
-		(acc, item) => {
-			if (!acc[item.studentName]) acc[item.studentName] = [];
-			acc[item.studentName].push(item.projectName);
-			return acc;
-		},
-		{} as Record<string, string[]>,
-	);
+	const combinedToPrint = useMemo(() => {
+		const result: Record<string, { name: string; isCustom: boolean }[]> = {};
+
+		// 1. Dodajemy projekty z matrycy
+		readyToPrint.forEach((item) => {
+			if (!result[item.studentName]) {
+				result[item.studentName] = [];
+			}
+			result[item.studentName].push({
+				name: item.projectName,
+				isCustom: false,
+			});
+		});
+
+		// 2. Dodajemy projekty customowe (tylko te, które mają wybranego ucznia!)
+		customJobs.forEach((job) => {
+			if (job.studentId) {
+				const student = students.find((s) => s.id === job.studentId);
+				if (student) {
+					const studentName = `${student.firstName} ${student.lastName}`;
+					if (!result[studentName]) {
+						result[studentName] = [];
+					}
+					result[studentName].push({
+						name: job.customName || 'Projekt własny',
+						isCustom: true,
+					});
+				}
+			}
+		});
+
+		// Sortujemy klucze alfabetycznie
+		return Object.keys(result)
+			.sort()
+			.reduce((acc, key) => {
+				acc[key] = result[key];
+				return acc;
+			}, {} as Record<string, { name: string; isCustom: boolean }[]>);
+	}, [readyToPrint, customJobs, students]);
 
 	const hasItemsToPrint = readyToPrint.length > 0 || customJobs.length > 0;
 
@@ -369,22 +400,34 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 								<PrinterFill /> Zleć nowe wydruki
 							</h4>
 
-							{/* 1. Wyświetlanie wydruków z matrycy (jeśli są) */}
-							{readyToPrint.length > 0 && (
+							{/* 1. Podsumowanie zawartości paczki (Z matrycy + Niestandardowe) */}
+							{Object.keys(combinedToPrint).length > 0 && (
 								<div className="mb-4 flex flex-col gap-3">
 									<h5 className="text-xs font-extrabold tracking-wider text-slate-400 uppercase">
-										Z matrycy ({readyToPrint.length})
+										Zawartość paczki ({Object.values(combinedToPrint).flat().length} modeli)
 									</h5>
-									{Object.entries(groupedToPrint).map(([studentName, projectList]) => (
-										<div key={studentName} className="rounded-lg border border-purple-100 bg-purple-50 p-3">
-											<div className="mb-2 text-sm font-extrabold text-purple-900">{studentName}</div>
+									{Object.entries(combinedToPrint).map(([studentName, projectList]) => (
+										<div key={studentName} className="rounded-lg border border-purple-100 bg-purple-50/50 p-3 shadow-sm">
+											<div className="mb-2 flex items-center justify-between">
+												<span className="text-sm font-extrabold text-purple-900">{studentName}</span>
+												<span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-black text-purple-700">
+													{projectList.length} szt.
+												</span>
+											</div>
 											<div className="flex flex-wrap gap-1.5">
 												{projectList.map((proj, idx) => (
 													<span
 														key={idx}
-														className="rounded-md border border-purple-200 bg-white px-2 py-1 text-[10px] font-bold text-purple-700 shadow-sm"
+														className={`rounded-md border px-2 py-1 text-[10px] font-bold shadow-sm flex items-center gap-1.5 ${
+															proj.isCustom 
+																? 'border-orange-200 bg-orange-50 text-orange-700' 
+																: 'border-purple-200 bg-white text-purple-700'
+														}`}
 													>
-														{proj}
+														{proj.name}
+														<span className={`text-[8px] font-black uppercase ${proj.isCustom ? 'text-orange-500' : 'text-purple-400'}`}>
+															{proj.isCustom ? 'Własny' : 'Matryca'}
+														</span>
 													</span>
 												))}
 											</div>
