@@ -191,12 +191,17 @@ export function AdminUsers() {
 		setIsSubmitting(true);
 
 		try {
+			const branchIdsToSend =
+				formData.role === UserRole.Printer || formData.role === UserRole.Admin
+					? []
+					: formData.branchIds;
+
 			if (editingUser) {
 				const updateData: UpdateUserRequest = {
 					firstName: formData.firstName,
 					lastName: formData.lastName,
 					role: formData.role,
-					branchIds: formData.branchIds,
+					branchIds: branchIdsToSend,
 				};
 				await userService.update(editingUser.id, updateData);
 				if (formData.password) {
@@ -206,7 +211,10 @@ export function AdminUsers() {
 					toast.success('Zaktualizowano dane pracownika!');
 				}
 			} else {
-				const createData: CreateUserRequest = { ...formData };
+				const createData: CreateUserRequest = {
+					...formData,
+					branchIds: branchIdsToSend,
+				};
 				// Zabezpieczenie przed atakiem typu "wstrzyknięcie wartości w ukryte pole"
 				if (isCurrentUserCoordinator) {
 					createData.role = UserRole.Trainer;
@@ -339,7 +347,15 @@ export function AdminUsers() {
 											</td>
 											<td className="p-4">
 												<div className="flex flex-wrap gap-1">
-													{user.branches.length > 0 ? (
+													{user.role === UserRole.Admin ? (
+														<span className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+															Wszystkie oddziały
+														</span>
+													) : user.role === UserRole.Printer ? (
+														<span className="rounded bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+															Wg przypisanych grup
+														</span>
+													) : user.branches.length > 0 ? (
 														user.branches.map((b) => (
 															<span
 																key={b.branchId}
@@ -592,36 +608,44 @@ export function AdminUsers() {
 								</select>
 							</div>
 
-							<div>
-								<label className="mb-1 block text-xs font-bold text-slate-500 uppercase">
-									Przypisane Oddziały {formData.role === UserRole.Admin && '(Admin widzi wszystkie)'}
-								</label>
-								<div className="grid max-h-40 grid-cols-2 gap-2 overflow-y-auto rounded-lg border bg-slate-50 p-2">
-									{visibleBranches.length === 0 ? (
-										<p className="col-span-2 p-2 text-center text-xs text-slate-400">Brak dostępnych oddziałów.</p>
-									) : (
-										visibleBranches.map((branch) => (
-											<label
-												key={branch.id}
-												className="flex cursor-pointer items-center gap-2 text-sm transition-colors hover:text-blue-600"
-											>
-												<input
-													type="checkbox"
-													checked={formData.branchIds.includes(branch.id)}
-													onChange={() => toggleBranch(branch.id)}
-													className="cursor-pointer rounded text-blue-600"
-												/>
-												<span className="truncate">{branch.name}</span>
-											</label>
-										))
-									)}
-								</div>
-								{formData.role === UserRole.Printer && (
-									<p className="mt-2 text-xs text-purple-800 bg-purple-50 p-2.5 rounded-lg border border-purple-200 leading-relaxed">
-										💡 <strong>Obsługa zleceń:</strong> Drukarz w swoim panelu widzi paczki z grup przypisanych do niego. Grupy możesz przypisać do tego drukarza pojedynczo lub masowo w zakładce <strong>Grupy</strong>.
+							{formData.role === UserRole.Printer ? (
+								<div className="rounded-xl border border-purple-200 bg-purple-50 p-3.5 text-xs text-purple-900 leading-relaxed">
+									<p className="font-bold text-sm mb-1 text-purple-800 flex items-center gap-1.5">
+										<PrinterFill size={16} /> Przypisanie przez grupy
 									</p>
-								)}
-							</div>
+									Drukarz nie wymaga ręcznego przypisywania oddziałów. Zlecenia druku są kierowane do niego automatycznie na podstawie grup przypisanych w zakładce <strong>Grupy</strong> (pojedynczo w edycji grupy lub masowo za pomocą checkboxów).
+								</div>
+							) : formData.role === UserRole.Admin ? (
+								<div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 leading-relaxed">
+									Administrator posiada pełny dostęp do wszystkich oddziałów, grup i zleceń druku w systemie.
+								</div>
+							) : (
+								<div>
+									<label className="mb-1 block text-xs font-bold text-slate-500 uppercase">
+										Przypisane Oddziały
+									</label>
+									<div className="grid max-h-40 grid-cols-2 gap-2 overflow-y-auto rounded-lg border bg-slate-50 p-2">
+										{visibleBranches.length === 0 ? (
+											<p className="col-span-2 p-2 text-center text-xs text-slate-400">Brak dostępnych oddziałów.</p>
+										) : (
+											visibleBranches.map((branch) => (
+												<label
+													key={branch.id}
+													className="flex cursor-pointer items-center gap-2 text-sm transition-colors hover:text-blue-600"
+												>
+													<input
+														type="checkbox"
+														checked={formData.branchIds.includes(branch.id)}
+														onChange={() => toggleBranch(branch.id)}
+														className="cursor-pointer rounded text-blue-600"
+													/>
+													<span className="truncate">{branch.name}</span>
+												</label>
+											))
+										)}
+									</div>
+								</div>
+							)}
 
 							<div className="mt-4 flex gap-3">
 								<button

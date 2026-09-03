@@ -65,6 +65,8 @@ export interface PrintBatchResponse {
 	status: PrintBatchState;
 	printJobs: PrintJobResponse[];
 	createdAt: string;
+	assignedPrinterId?: string | null;
+	assignedPrinterName?: string | null;
 }
 
 export interface ConfirmDeliveryRequest {

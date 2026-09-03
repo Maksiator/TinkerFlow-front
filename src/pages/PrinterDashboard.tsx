@@ -3,9 +3,14 @@ import { printBatchService, type PrintBatchResponse, PrintBatchState } from '../
 import { PrinterFill, ClockHistory, CheckCircleFill, GearFill } from 'react-bootstrap-icons';
 import { PrintBatchManagerModal } from '../components/PrintBatchManagerModal';
 import { CustomSelect } from '../components/CustomSelect';
+import { authService } from '../api/authService';
+import { UserRole } from '../api/userService';
 import toast from 'react-hot-toast';
 
 export function PrinterDashboard() {
+	const currentUser = authService.getCurrentUser();
+	const isAdmin = currentUser?.role === UserRole.Admin;
+
 	const [batches, setBatches] = useState<PrintBatchResponse[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [selectedBatch, setSelectedBatch] = useState<PrintBatchResponse | null>(null);
@@ -181,10 +186,21 @@ export function PrinterDashboard() {
 		<div className="p-6 md:p-10">
 			<div className="mb-8 flex items-center justify-between">
 				<div>
-					<h1 className="flex items-center gap-3 text-3xl font-extrabold text-slate-800">
-						<PrinterFill className="text-purple-600" /> Farma Druku
+					<h1 className="flex flex-wrap items-center gap-3 text-3xl font-extrabold text-slate-800">
+						<span className="flex items-center gap-3">
+							<PrinterFill className="text-purple-600" /> Farma Druku
+						</span>
+						{isAdmin && (
+							<span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 border border-amber-200">
+								Widok Master (Wszystkie paczki)
+							</span>
+						)}
 					</h1>
-					<p className="mt-2 text-slate-500">Zarządzaj zleceniami spływającymi od trenerów.</p>
+					<p className="mt-2 text-slate-500">
+						{isAdmin
+							? 'Jako administrator masz pełny wgląd do wszystkich paczek wydruków ze wszystkich grup i oddziałów.'
+							: 'Zarządzaj zleceniami druku spływającymi z przypisanych do Ciebie grup.'}
+					</p>
 				</div>
 				<div className="flex items-center gap-5">
 					<label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 shadow-sm transition-all hover:bg-slate-50">
@@ -393,6 +409,18 @@ export function PrinterDashboard() {
 									<div className="flex items-center gap-1.5">
 										<CheckCircleFill /> Data zajęć:{' '}
 										<span className="text-slate-700">{new Date(batch.lessonDate).toLocaleDateString()}</span>
+									</div>
+									<div className="flex items-center gap-1.5 pt-1">
+										<PrinterFill className={batch.assignedPrinterName ? "text-purple-600" : "text-slate-400"} />
+										{batch.assignedPrinterName ? (
+											<span className="font-semibold text-purple-700">
+												Drukarz: {batch.assignedPrinterName}
+											</span>
+										) : (
+											<span className="italic text-slate-400">
+												Drukarz: Brak przypisania
+											</span>
+										)}
 									</div>
 								</div>
 							</div>
