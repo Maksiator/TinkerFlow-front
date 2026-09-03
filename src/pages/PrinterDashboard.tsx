@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { printBatchService, type PrintBatchResponse, PrintBatchState } from '../api/printBatchService';
-import { PrinterFill, ClockHistory, GearFill, CalendarEvent } from 'react-bootstrap-icons';
+import { PrinterFill, ClockHistory, GearFill, CalendarEvent, ListTask, Grid3x3GapFill, ChatLeftTextFill } from 'react-bootstrap-icons';
 import { PrintBatchManagerModal } from '../components/PrintBatchManagerModal';
 import { CustomSelect } from '../components/CustomSelect';
 import { authService } from '../api/authService';
@@ -14,6 +14,16 @@ export function PrinterDashboard() {
 	const [batches, setBatches] = useState<PrintBatchResponse[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [selectedBatch, setSelectedBatch] = useState<PrintBatchResponse | null>(null);
+
+	// Widok: 'compact' (Tabela / Uproszczony) lub 'detailed' (Karty ze szczegółami)
+	const [viewMode, setViewMode] = useState<'compact' | 'detailed'>(() => {
+		return (localStorage.getItem('tinkerflow_farm_view_mode') as 'compact' | 'detailed') || 'compact';
+	});
+
+	const handleViewModeChange = (mode: 'compact' | 'detailed') => {
+		setViewMode(mode);
+		localStorage.setItem('tinkerflow_farm_view_mode', mode);
+	};
 
 	// Dodajemy trigger do ręcznego odświeżania z przycisku
 	const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -215,8 +225,34 @@ export function PrinterDashboard() {
 							: 'Zarządzaj zleceniami druku spływającymi z przypisanych do Ciebie grup.'}
 					</p>
 				</div>
-				<div className="flex items-center gap-5">
-					<label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 shadow-sm transition-all hover:bg-slate-50">
+				<div className="flex flex-wrap items-center gap-3">
+					{/* PRZEŁĄCZNIK WIDOKÓW */}
+					<div className="flex items-center rounded-xl bg-slate-100 p-1 border border-slate-200">
+						<button
+							onClick={() => handleViewModeChange('compact')}
+							className={`flex cursor-pointer items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all ${
+								viewMode === 'compact'
+									? 'bg-white text-purple-700 shadow-sm'
+									: 'text-slate-600 hover:text-slate-900'
+							}`}
+							title="Widok kompaktowy (Tabela) - szybki przegląd bez przewijania"
+						>
+							<ListTask size={16} /> Tabela
+						</button>
+						<button
+							onClick={() => handleViewModeChange('detailed')}
+							className={`flex cursor-pointer items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all ${
+								viewMode === 'detailed'
+									? 'bg-white text-purple-700 shadow-sm'
+									: 'text-slate-600 hover:text-slate-900'
+							}`}
+							title="Widok szczegółowy (Karty) - z pełną zawartością paczki"
+						>
+							<Grid3x3GapFill size={14} /> Karty
+						</button>
+					</div>
+
+					<label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 shadow-sm transition-all hover:bg-slate-50">
 						<input
 							type="checkbox"
 							checked={showCompleted}
@@ -227,12 +263,12 @@ export function PrinterDashboard() {
 							}}
 							className="h-4 w-4 rounded border-slate-300 text-purple-600 accent-purple-600 focus:ring-purple-500"
 						/>
-						Pokaż zakończone zlecenia
+						Zakończone
 					</label>
 					<button
 						onClick={handleRefresh}
 						disabled={isLoading}
-						className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
+						className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
 					>
 						{isLoading ? 'Odświeżanie...' : 'Odśwież listę'}
 					</button>
@@ -411,7 +447,116 @@ export function PrinterDashboard() {
 					<p className="text-lg font-bold text-slate-500">Brak aktywnych zleceń druku spełniających kryteria.</p>
 					<p className="text-sm text-slate-400">Spróbuj zmienić parametry filtrów lub odświeżyć listę.</p>
 				</div>
+			) : viewMode === 'compact' ? (
+				/* WIDOK KOMPAKTOWY (TABELA) */
+				<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+					<div className="overflow-x-auto">
+						<table className="w-full border-collapse text-left text-sm">
+							<thead className="bg-slate-50 text-slate-500 border-b border-slate-200 font-bold text-xs uppercase tracking-wider">
+								<tr>
+									<th className="p-4">Status</th>
+									<th className="p-4">Szkoła / Grupa</th>
+									<th className="p-4">Dzień zajęć</th>
+									<th className="p-4 text-center">Zawartość</th>
+									<th className="p-4">Złożono</th>
+									<th className="p-4">Termin oddania</th>
+									{isAdmin && <th className="p-4">Drukarz</th>}
+									<th className="p-4 text-center">Notatka</th>
+									<th className="p-4 text-right">Akcja</th>
+								</tr>
+							</thead>
+							<tbody className="divide-y divide-slate-100">
+								{filteredAndSortedBatches.map((batch) => {
+									const uniqueStudentsCount = new Set(batch.printJobs.map((j) => j.studentId)).size;
+									const isDeadlineSoon = new Date(batch.deadline).getTime() - Date.now() < 24 * 60 * 60 * 1000;
+
+									return (
+										<tr
+											key={batch.id}
+											onClick={() => setSelectedBatch(batch)}
+											className="cursor-pointer transition-colors hover:bg-purple-50/50"
+										>
+											<td className="p-4 whitespace-nowrap">
+												{getStatusBadge(batch.status)}
+											</td>
+											<td className="p-4">
+												<div className="font-bold text-slate-800">{batch.groupName}</div>
+												<div className="text-xs font-semibold text-purple-600">{batch.branchName}</div>
+											</td>
+											<td className="p-4 whitespace-nowrap">
+												<span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+													<CalendarEvent size={12} /> {getDayName(batch.classDayOfWeek)}
+												</span>
+											</td>
+											<td className="p-4 text-center whitespace-nowrap">
+												<div className="inline-flex flex-col items-center">
+													<span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-bold text-purple-800">
+														{batch.printJobs.length} {batch.printJobs.length === 1 ? 'model' : 'modeli'}
+													</span>
+													<span className="text-[10px] text-slate-400 font-medium mt-0.5">
+														{uniqueStudentsCount} {uniqueStudentsCount === 1 ? 'uczeń' : 'uczniów'}
+													</span>
+												</div>
+											</td>
+											<td className="p-4 whitespace-nowrap text-xs text-slate-600">
+												<div className="font-semibold text-slate-700">
+													{new Date(batch.createdAt).toLocaleDateString('pl-PL')}
+												</div>
+												<div className="text-[10px] text-slate-400">
+													{new Date(batch.createdAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+												</div>
+											</td>
+											<td className="p-4 whitespace-nowrap text-xs">
+												<span
+													className={`font-bold px-2 py-1 rounded-md border ${
+														isDeadlineSoon
+															? 'text-red-700 bg-red-50 border-red-200'
+															: 'text-slate-700 bg-slate-50 border-slate-200'
+													}`}
+												>
+													{new Date(batch.deadline).toLocaleDateString('pl-PL')}
+												</span>
+											</td>
+											{isAdmin && (
+												<td className="p-4 whitespace-nowrap text-xs">
+													{batch.assignedPrinterName ? (
+														<span className="font-semibold text-purple-700">
+															{batch.assignedPrinterName}
+														</span>
+													) : (
+														<span className="italic text-slate-400">Brak</span>
+													)}
+												</td>
+											)}
+											<td className="p-4 text-center whitespace-nowrap">
+												{batch.notes ? (
+													<span
+														className="inline-flex items-center justify-center rounded-lg bg-yellow-100 p-1.5 text-yellow-800 hover:bg-yellow-200 transition-colors"
+														title={`Notatka trenera:\n${batch.notes}`}
+													>
+														<ChatLeftTextFill size={14} />
+													</span>
+												) : (
+													<span className="text-slate-300 text-xs">—</span>
+												)}
+											</td>
+											<td className="p-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+												<button
+													onClick={() => setSelectedBatch(batch)}
+													className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-purple-700"
+												>
+													<GearFill size={12} /> Zarządzaj
+												</button>
+											</td>
+										</tr>
+									);
+								})}
+							</tbody>
+						</table>
+					</div>
+				</div>
 			) : (
+				/* WIDOK SZCZEGÓŁOWY (KARTY) */
 				<div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
 					{filteredAndSortedBatches.map((batch) => (
 						<div
@@ -508,7 +653,7 @@ export function PrinterDashboard() {
 							{/* Karta paczki - Stopka */}
 							<div className="border-t border-slate-100 bg-slate-50 p-3">
 								<button
-									onClick={() => setSelectedBatch(batch)} // <-- DODANO onClick
+									onClick={() => setSelectedBatch(batch)}
 									className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-purple-600 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-purple-700"
 								>
 									<GearFill /> Zarządzaj paczką
