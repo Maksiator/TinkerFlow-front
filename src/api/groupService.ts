@@ -7,6 +7,8 @@ export interface Group {
 	branchName: string;
 	primaryTrainerId: string | null;
 	primaryTrainerName: string | null;
+	assignedPrinterId?: string | null;
+	assignedPrinterName?: string | null;
 	studentCount: number;
 	classDayOfWeek?: number | null;
 	isArchived?: boolean;
@@ -17,6 +19,7 @@ export interface CreateGroup {
 	name: string;
 	branchId: string;
 	primaryTrainerId?: string | null;
+	assignedPrinterId?: string | null;
 	classDayOfWeek?: number | null;
 }
 
@@ -24,6 +27,7 @@ export interface UpdateGroup {
 	name: string;
 	branchId: string;
 	primaryTrainerId?: string | null;
+	assignedPrinterId?: string | null;
 	classDayOfWeek?: number | null;
 }
 
@@ -92,6 +96,16 @@ export const groupService = {
 			return res.data;
 		} catch (error) {
 			console.error('Błąd masowej zmiany oddziału grup:', error);
+			throw error;
+		}
+	},
+
+	assignPrinterBulk: async (groupIds: string[], printerId: string | null) => {
+		try {
+			const res = await apiClient.post<{ count: number; message: string }>('/groups/bulk-assign-printer', { groupIds, printerId });
+			return res.data;
+		} catch (error) {
+			console.error('Błąd przypisywania drukarza do grup:', error);
 			throw error;
 		}
 	},

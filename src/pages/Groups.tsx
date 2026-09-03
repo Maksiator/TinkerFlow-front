@@ -14,6 +14,7 @@ import {
 } from 'react-bootstrap-icons';
 import { groupService, type Group } from '../api/groupService';
 import { branchService, type Branch } from '../api/branchService';
+import { userService, type User, UserRole } from '../api/userService';
 import toast from 'react-hot-toast';
 
 export function Groups() {
@@ -37,6 +38,10 @@ export function Groups() {
 	// Dane do modalu zmiany oddziału
 	const [branches, setBranches] = useState<Branch[]>([]);
 	const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+
+	// Dane do modalu przypisania do drukarza
+	const [printers, setPrinters] = useState<User[]>([]);
+	const [selectedPrinterId, setSelectedPrinterId] = useState<string>('');
 
 	// IDEALNY USE_EFFECT (Zgodnie z Twoim wzorcem)
 	useEffect(() => {
@@ -214,6 +219,51 @@ export function Groups() {
 		}
 	};
 
+	// Masowe przypisanie do drukarza
+	const openBulkPrinterModal = async () => {
+		try {
+			const fetchedUsersResponse = await userService.getAll(undefined, 1, 9999);
+			const fetchedUsers = Array.isArray(fetchedUsersResponse)
+				? fetchedUsersResponse
+				: ((fetchedUsersResponse as { items?: User[] }).items ?? []);
+
+			const availablePrinters = fetchedUsers.filter((u: User) => u.role === UserRole.Printer);
+			setPrinters(availablePrinters);
+			setSelectedPrinterId('');
+			setIsBulkPrinterModalOpen(true);
+		} catch (error) {
+			console.error(error);
+			toast.error('Nie udało się pobrać listy drukarzy.');
+		}
+	};
+
+	const handleConfirmBulkAssignPrinter = async () => {
+		if (selectedGroupIds.length === 0) return;
+		setIsSubmittingBulk(true);
+		try {
+			const printerId = selectedPrinterId === '' ? null : selectedPrinterId;
+			const result = await groupService.assignPrinterBulk(selectedGroupIds, printerId);
+			const chosenPrinter = printers.find((p) => p.id === printerId);
+			const printerName = chosenPrinter ? `${chosenPrinter.firstName} ${chosenPrinter.lastName}`.trim() : null;
+
+			toast.success(result.message || 'Pomyślnie zaktualizowano przypisanego drukarza.');
+			setAllGroups((prev) =>
+				prev.map((g) =>
+					selectedGroupIds.includes(g.id)
+						? { ...g, assignedPrinterId: printerId, assignedPrinterName: printerName }
+						: g
+				)
+			);
+			setSelectedGroupIds([]);
+			setIsBulkPrinterModalOpen(false);
+		} catch (error: any) {
+			const msg = error.response?.data?.message || 'Nie udało się przypisać drukarza.';
+			toast.error(msg);
+		} finally {
+			setIsSubmittingBulk(false);
+		}
+	};
+
 	const handleDelete = async (id: string, name: string) => {
 		if (!window.confirm(`Czy na pewno chcesz usunąć grupę "${name}"? Spowoduje to odpięcie przypisanych uczniów!`))
 			return;
@@ -322,7 +372,7 @@ export function Groups() {
 						</button>
 
 						<button
-							onClick={() => setIsBulkPrinterModalOpen(true)}
+							onClick={openBulkPrinterModal}
 							className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-purple-300 bg-white px-3.5 py-2 text-xs font-bold text-purple-700 shadow-sm transition-colors hover:bg-purple-50"
 						>
 							<PrinterFill size={14} /> Przypisz do drukarza
@@ -403,6 +453,12 @@ export function Groups() {
 													<PeopleFill className="text-blue-500" size={16} />
 													{group.name}
 												</div>
+												{group.assignedPrinterName && (
+													<span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 mt-0.5">
+														<PrinterFill size={10} className="text-purple-500" />
+														Drukarz: {group.assignedPrinterName}
+													</span>
+												)}
 												{group.isArchived && (
 													<span className="text-xs font-bold text-red-500 mt-1">
 														Zarchiwizowana ({group.archivedAcademicYear})
@@ -618,7 +674,7 @@ export function Groups() {
 				</div>
 			)}
 
-			{/* MODAL PRZYPISANIA DO DRUKARZA (PRZYGOTOWANY) */}
+			{/* MODAL MASOWEGO PRZYPISANIA DO DRUKARZA */}
 			{isBulkPrinterModalOpen && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
 					<div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
@@ -627,22 +683,49 @@ export function Groups() {
 								<PrinterFill size={24} />
 							</div>
 							<div>
-								<h3 className="text-lg font-extrabold text-slate-800">Przypisanie do drukarza</h3>
-								<p className="text-xs text-slate-500">Zaznaczono {selectedGroupIds.length} grup</p>
+								<h3 className="text-lg font-extrabold text-slate-800">Przypisz do drukarza</h3>
+								<p className="text-xs text-slate-500">Dotyczy {selectedGroupIds.length} zaznaczonych grup</p>
 							</div>
 						</div>
 
-						<div className="mb-6 rounded-xl border border-purple-200 bg-purple-50 p-4 text-xs text-purple-900 leading-relaxed">
-							<p className="font-bold mb-1">Sekcja przygotowana pod integrację z drukarzem:</p>
-							Interfejs i selekcja grup są gotowe. W następnym kroku zdefiniujemy reguły kierowania wydruków bezpośrednio do dedykowanych kont drukarzy.
+						<div className="mb-4">
+							<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">
+								Wybierz drukarza
+							</label>
+							<select
+								value={selectedPrinterId}
+								onChange={(e) => setSelectedPrinterId(e.target.value)}
+								className="w-full rounded-xl border border-slate-300 p-3 text-sm font-medium outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+							>
+								<option value="">-- Brak przypisanego drukarza (usuń przypisanie) --</option>
+								{printers.map((p) => (
+									<option key={p.id} value={p.id}>
+										{p.firstName} {p.lastName} ({p.email})
+									</option>
+								))}
+							</select>
 						</div>
 
-						<button
-							onClick={() => setIsBulkPrinterModalOpen(false)}
-							className="w-full cursor-pointer rounded-xl bg-purple-600 py-2.5 text-sm font-bold text-white shadow-md hover:bg-purple-700"
-						>
-							Rozumiem
-						</button>
+						<div className="mb-6 rounded-xl border border-purple-200 bg-purple-50 p-3 text-xs text-purple-800">
+							Wybrany drukarz w swoim panelu zleceń druku będzie widział wyłącznie paczki z przypisanych do siebie grup.
+						</div>
+
+						<div className="flex gap-3">
+							<button
+								onClick={() => setIsBulkPrinterModalOpen(false)}
+								disabled={isSubmittingBulk}
+								className="flex-1 cursor-pointer rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+							>
+								Anuluj
+							</button>
+							<button
+								onClick={handleConfirmBulkAssignPrinter}
+								disabled={isSubmittingBulk}
+								className="flex-1 cursor-pointer rounded-xl bg-purple-600 py-2.5 text-sm font-bold text-white shadow-md hover:bg-purple-700 disabled:opacity-50"
+							>
+								{isSubmittingBulk ? 'Zapisywanie...' : 'Zastosuj'}
+							</button>
+						</div>
 					</div>
 				</div>
 			)}

@@ -616,6 +616,11 @@ export function AdminUsers() {
 										))
 									)}
 								</div>
+								{formData.role === UserRole.Printer && (
+									<p className="mt-2 text-xs text-purple-800 bg-purple-50 p-2.5 rounded-lg border border-purple-200 leading-relaxed">
+										💡 <strong>Obsługa zleceń:</strong> Drukarz w swoim panelu widzi paczki z grup przypisanych do niego. Grupy możesz przypisać do tego drukarza pojedynczo lub masowo w zakładce <strong>Grupy</strong>.
+									</p>
+								)}
 							</div>
 
 							<div className="mt-4 flex gap-3">

@@ -15,9 +15,10 @@ export function GroupForm() {
 	const isEditMode = Boolean(id) && id !== 'nowa';
 
 	// --- STAN: DANE GRUPY I LISTY WYBORU ---
-	const [formData, setFormData] = useState<CreateGroup>({ name: '', branchId: '', primaryTrainerId: null, classDayOfWeek: null });
+	const [formData, setFormData] = useState<CreateGroup>({ name: '', branchId: '', primaryTrainerId: null, assignedPrinterId: null, classDayOfWeek: null });
 	const [branches, setBranches] = useState<Branch[]>([]);
 	const [trainers, setTrainers] = useState<User[]>([]);
+	const [printers, setPrinters] = useState<User[]>([]);
 
 	const [isSaving, setIsSaving] = useState(false);
 	const [isLoading, setIsLoading] = useState(true); // Na start true, bo zawsze musimy pobrać Branches
@@ -55,6 +56,7 @@ export function GroupForm() {
 							name: group.name,
 							branchId: group.branchId,
 							primaryTrainerId: group.primaryTrainerId,
+							assignedPrinterId: group.assignedPrinterId ?? null,
 							classDayOfWeek: group.classDayOfWeek ?? null,
 						});
 						setIsGroupArchived(group.isArchived ?? false);
@@ -95,6 +97,11 @@ export function GroupForm() {
 					(u: User) => u.role === UserRole.Trainer || u.role === UserRole.Coordinator,
 				);
 
+				// Wyłuskujemy drukarzy
+				const availablePrinters = fetchedUsers.filter(
+					(u: User) => u.role === UserRole.Printer,
+				);
+
 				if (isMounted) {
 					// FILTROWANIE ODDZIAŁÓW DLA KOORDYNATORA
 					const currentUserToken = authService.getCurrentUser();
@@ -110,6 +117,7 @@ export function GroupForm() {
 
 					setBranches(availableBranches);
 					setTrainers(availableTrainers);
+					setPrinters(availablePrinters);
 
 					// Jeśli tworzymy nową grupę, ustawmy domyślnie pierwszy oddział na liście
 					if (!isEditMode && availableBranches.length > 0) {
@@ -143,10 +151,11 @@ export function GroupForm() {
 
 		setIsSaving(true);
 		try {
-			// Transformujemy puste stringi z selecta trenera na null
+			// Transformujemy puste stringi z selectów na null
 			const payload = {
 				...formData,
 				primaryTrainerId: formData.primaryTrainerId === '' ? null : formData.primaryTrainerId,
+				assignedPrinterId: formData.assignedPrinterId === '' ? null : formData.assignedPrinterId,
 			};
 
 			if (isEditMode && id) {
@@ -325,6 +334,25 @@ export function GroupForm() {
 								</select>
 								<p className="mt-1 text-[10px] text-slate-400">
 									Trener automatycznie uzyska dostęp do matrycy tej grupy.
+								</p>
+							</div>
+
+							<div>
+								<label className="mb-1 block text-sm font-bold text-slate-700">Dedykowany Drukarz (Opcjonalnie)</label>
+								<select
+									value={formData.assignedPrinterId || ''}
+									onChange={(e) => setFormData({ ...formData, assignedPrinterId: e.target.value })}
+									className="w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+								>
+									<option value="">Nie przypisano (Brak)</option>
+									{printers.map((p) => (
+										<option key={p.id} value={p.id}>
+											{p.firstName} {p.lastName} ({p.email})
+										</option>
+									))}
+								</select>
+								<p className="mt-1 text-[10px] text-slate-400">
+									Drukarz będzie widział w swoim panelu paczki zlecone z tej grupy.
 								</p>
 							</div>
 
