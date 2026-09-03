@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { printBatchService, type PrintBatchResponse, PrintBatchState } from '../api/printBatchService';
-import { PrinterFill, ClockHistory, CheckCircleFill, GearFill } from 'react-bootstrap-icons';
+import { PrinterFill, ClockHistory, GearFill, CalendarEvent } from 'react-bootstrap-icons';
 import { PrintBatchManagerModal } from '../components/PrintBatchManagerModal';
 import { CustomSelect } from '../components/CustomSelect';
 import { authService } from '../api/authService';
@@ -19,7 +19,10 @@ export function PrinterDashboard() {
 	const [refreshTrigger, setRefreshTrigger] = useState(0);
 
 	// Filtry i sortowanie
-	const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
+	const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+	const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false);
+	const [groupSearch, setGroupSearch] = useState('');
+	const [dayOfWeekFilter, setDayOfWeekFilter] = useState<string>('all');
 	const [statusFilter, setStatusFilter] = useState<string>('all');
 	
 	// Czy pokazywać zakończone (domyślnie false, zapisywane w localStorage)
@@ -30,15 +33,13 @@ export function PrinterDashboard() {
 	const [dateFilterType, setDateFilterType] = useState<'all' | 'today' | 'yesterday' | 'thisWeek' | 'custom'>('all');
 	const [customDateValue, setCustomDateValue] = useState<string>('');
 	const [sortBy, setSortBy] = useState<'createdAtDesc' | 'createdAtAsc' | 'deadlineAsc'>('createdAtDesc');
-	const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
-	const [branchSearch, setBranchSearch] = useState('');
 
 	// Zamykanie dropdowna przy kliknięciu poza nim
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
 			const target = event.target as HTMLElement;
-			if (!target.closest('#branch-select-container')) {
-				setIsBranchDropdownOpen(false);
+			if (!target.closest('#group-select-container')) {
+				setIsGroupDropdownOpen(false);
 			}
 		};
 		document.addEventListener('mousedown', handleClickOutside);
@@ -101,14 +102,28 @@ export function PrinterDashboard() {
 		}
 	};
 
-	const uniqueBranches = useMemo(() => {
-		const map = new Map<string, string>();
+	// Pomocnicza funkcja do tłumaczenia dnia tygodnia
+	const getDayName = (day: number | null | undefined) => {
+		switch (day) {
+			case 1: return 'Poniedziałek';
+			case 2: return 'Wtorek';
+			case 3: return 'Środa';
+			case 4: return 'Czwartek';
+			case 5: return 'Piątek';
+			case 6: return 'Sobota';
+			case 0: return 'Niedziela';
+			default: return 'Nieokreślony';
+		}
+	};
+
+	const uniqueGroups = useMemo(() => {
+		const map = new Map<string, { id: string; name: string; branchName: string }>();
 		batches.forEach((b) => {
-			if (b.branchId && b.branchName) {
-				map.set(b.branchId, b.branchName);
+			if (b.groupId && b.groupName) {
+				map.set(b.groupId, { id: b.groupId, name: b.groupName, branchName: b.branchName });
 			}
 		});
-		return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+		return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 	}, [batches]);
 
 	const filteredAndSortedBatches = useMemo(() => {
@@ -119,12 +134,19 @@ export function PrinterDashboard() {
 			result = result.filter((b) => b.status === Number(statusFilter));
 		}
 
-		// 2. Filtrowanie szkoły (oddziału) - multi-select
-		if (selectedBranchIds.length > 0) {
-			result = result.filter((b) => selectedBranchIds.includes(b.branchId));
+		// 2. Filtrowanie szkoły / grupy - multi-select
+		if (selectedGroupIds.length > 0) {
+			result = result.filter((b) => selectedGroupIds.includes(b.groupId));
 		}
 
-		// 3. Filtrowanie po dacie lekcji (zakresy)
+		// 3. Filtrowanie po dniu tygodnia odbywania się zajęć
+		if (dayOfWeekFilter !== 'all') {
+			result = result.filter(
+				(b) => b.classDayOfWeek !== null && b.classDayOfWeek !== undefined && b.classDayOfWeek === Number(dayOfWeekFilter)
+			);
+		}
+
+		// 4. Filtrowanie po dacie złożenia zlecenia (CreatedAt)
 		if (dateFilterType !== 'all') {
 			const todayStr = new Date().toISOString().split('T')[0];
 
@@ -133,25 +155,16 @@ export function PrinterDashboard() {
 			const yesterdayStr = yesterday.toISOString().split('T')[0];
 
 			result = result.filter((b) => {
-				const bDate = new Date(b.lessonDate).toISOString().split('T')[0];
+				const bDate = new Date(b.createdAt).toISOString().split('T')[0];
 				
 				if (dateFilterType === 'today') {
 					return bDate === todayStr;
 				} else if (dateFilterType === 'yesterday') {
 					return bDate === yesterdayStr;
 				} else if (dateFilterType === 'thisWeek') {
-					const d = new Date(b.lessonDate);
-					const now = new Date();
-					const day = now.getDay();
-					const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-					const monday = new Date(now.setDate(diff));
-					monday.setHours(0, 0, 0, 0);
-
-					const sunday = new Date(monday);
-					sunday.setDate(monday.getDate() + 6);
-					sunday.setHours(23, 59, 59, 999);
-
-					return d >= monday && d <= sunday;
+					const bTime = new Date(b.createdAt).getTime();
+					const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+					return bTime >= sevenDaysAgo;
 				} else if (dateFilterType === 'custom' && customDateValue) {
 					return bDate === customDateValue;
 				}
@@ -159,7 +172,7 @@ export function PrinterDashboard() {
 			});
 		}
 
-		// 4. Sortowanie
+		// 5. Sortowanie
 		result.sort((a, b) => {
 			if (sortBy === 'createdAtDesc') {
 				return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -172,7 +185,7 @@ export function PrinterDashboard() {
 		});
 
 		return result;
-	}, [batches, statusFilter, selectedBranchIds, dateFilterType, customDateValue, sortBy]);
+	}, [batches, statusFilter, selectedGroupIds, dayOfWeekFilter, dateFilterType, customDateValue, sortBy]);
 
 	if (isLoading && batches.length === 0) {
 		return (
@@ -228,75 +241,94 @@ export function PrinterDashboard() {
 
 			{/* SEKCA FILTRÓW */}
 			<div className="mb-8 flex flex-wrap gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-				{/* CUSTOM SELECT SZKOŁY */}
-				<div className="relative flex-1 min-w-[200px]" id="branch-select-container">
-					<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Szkoła / Oddział</label>
+				{/* CUSTOM SELECT SZKOŁY / GRUPY */}
+				<div className="relative flex-1 min-w-[220px]" id="group-select-container">
+					<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Szkoła / Grupa</label>
 					<button
 						type="button"
-						onClick={() => setIsBranchDropdownOpen(!isBranchDropdownOpen)}
+						onClick={() => setIsGroupDropdownOpen(!isGroupDropdownOpen)}
 						className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-slate-300 focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500"
 					>
 						<span className="truncate">
-							{selectedBranchIds.length === 0
-								? 'Wszystkie szkoły'
-								: selectedBranchIds.length === 1
-									? uniqueBranches.find(b => b.id === selectedBranchIds[0])?.name || '1 szkoła'
-									: `Wybrano: ${selectedBranchIds.length} szkół`}
+							{selectedGroupIds.length === 0
+								? 'Wszystkie szkoły / grupy'
+								: selectedGroupIds.length === 1
+									? uniqueGroups.find(g => g.id === selectedGroupIds[0])?.name || '1 grupa'
+									: `Wybrano: ${selectedGroupIds.length} grup`}
 						</span>
 						<span className="ml-2 text-slate-400 text-[10px]">▼</span>
 					</button>
 
-					{isBranchDropdownOpen && (
-						<div className="absolute left-0 right-0 z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-xl animate-in fade-in slide-in-from-top-1 duration-100">
+					{isGroupDropdownOpen && (
+						<div className="absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-xl animate-in fade-in slide-in-from-top-1 duration-100">
 							<input
 								type="text"
-								placeholder="Szukaj..."
-								value={branchSearch}
-								onChange={(e) => setBranchSearch(e.target.value)}
+								placeholder="Szukaj grupy / szkoły..."
+								value={groupSearch}
+								onChange={(e) => setGroupSearch(e.target.value)}
 								className="mb-2.5 w-full rounded-lg border border-slate-200 p-2 text-xs outline-none focus:border-purple-500"
 							/>
-							<div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-1">
-								{uniqueBranches
-									.filter(b => b.name.toLowerCase().includes(branchSearch.toLowerCase()))
-									.map((branch) => {
-										const isChecked = selectedBranchIds.includes(branch.id);
+							<div className="flex flex-col gap-1 max-h-44 overflow-y-auto pr-1">
+								{uniqueGroups
+									.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase()) || g.branchName.toLowerCase().includes(groupSearch.toLowerCase()))
+									.map((group) => {
+										const isChecked = selectedGroupIds.includes(group.id);
 										return (
 											<label
-												key={branch.id}
+												key={group.id}
 												className="flex cursor-pointer items-center gap-2 rounded-lg p-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
 											>
 												<input
 													type="checkbox"
 													checked={isChecked}
 													onChange={() => {
-														setSelectedBranchIds(prev =>
+														setSelectedGroupIds(prev =>
 															isChecked
-																? prev.filter(id => id !== branch.id)
-																: [...prev, branch.id]
+																? prev.filter(id => id !== group.id)
+																: [...prev, group.id]
 														);
 													}}
 													className="accent-purple-600"
 												/>
-												<span className="truncate">{branch.name}</span>
+												<span className="truncate font-bold">{group.name}</span>
+												<span className="text-[10px] text-slate-400">({group.branchName})</span>
 											</label>
 										);
 									})}
-								{uniqueBranches.length === 0 && (
-									<div className="py-2 text-center text-xs text-slate-400 italic">Brak szkół do wyboru</div>
+								{uniqueGroups.length === 0 && (
+									<div className="py-2 text-center text-xs text-slate-400 italic">Brak grup w zleceniach</div>
 								)}
 							</div>
-							{selectedBranchIds.length > 0 && (
+							{selectedGroupIds.length > 0 && (
 								<button
 									type="button"
-									onClick={() => setSelectedBranchIds([])}
+									onClick={() => setSelectedGroupIds([])}
 									className="mt-2.5 w-full cursor-pointer rounded-lg bg-slate-100 py-1.5 text-center text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
 								>
-									Wyczyść zaznaczenie
+									Wyczyść zaznaczenie ({selectedGroupIds.length})
 								</button>
 							)}
 						</div>
 					)}
 				</div>
+
+				{/* FILTR DNIA TYGODNIA ZAJĘĆ */}
+				<CustomSelect
+					label="Dzień zajęć"
+					value={dayOfWeekFilter}
+					onChange={setDayOfWeekFilter}
+					options={[
+						{ value: 'all', label: 'Wszystkie dni' },
+						{ value: '1', label: 'Poniedziałek' },
+						{ value: '2', label: 'Wtorek' },
+						{ value: '3', label: 'Środa' },
+						{ value: '4', label: 'Czwartek' },
+						{ value: '5', label: 'Piątek' },
+						{ value: '6', label: 'Sobota' },
+						{ value: '0', label: 'Niedziela' },
+					]}
+					className="flex-1 min-w-[150px]"
+				/>
 
 				{/* FILTR STATUSU */}
 				<CustomSelect
@@ -304,7 +336,7 @@ export function PrinterDashboard() {
 					value={statusFilter}
 					onChange={setStatusFilter}
 					options={[
-						{ value: 'all', label: 'Wszystkie' },
+						{ value: 'all', label: 'Wszystkie statusy' },
 						{ value: '0', label: 'Oczekujące' },
 						{ value: '1', label: 'W druku' },
 						{ value: '2', label: 'Do odbioru' },
@@ -313,17 +345,17 @@ export function PrinterDashboard() {
 					className="flex-1 min-w-[150px]"
 				/>
 
-				{/* FILTR DATY LEKCJI */}
+				{/* FILTR DATY ZŁOŻENIA */}
 				<CustomSelect
-					label="Data lekcji"
+					label="Złożono zlecenia"
 					value={dateFilterType}
 					onChange={(val) => setDateFilterType(val as any)}
 					options={[
 						{ value: 'all', label: 'Wszystkie daty' },
 						{ value: 'today', label: 'Dzisiaj' },
 						{ value: 'yesterday', label: 'Wczoraj' },
-						{ value: 'thisWeek', label: 'Ten tydzień' },
-						{ value: 'custom', label: 'Inna data...' },
+						{ value: 'thisWeek', label: 'Ostatnie 7 dni' },
+						{ value: 'custom', label: 'Wybrany dzień...' },
 					]}
 					className="flex-1 min-w-[150px]"
 				/>
@@ -331,7 +363,7 @@ export function PrinterDashboard() {
 				{/* INNA DATA (OPCJONALNIE) */}
 				{dateFilterType === 'custom' && (
 					<div className="flex-1 min-w-[150px] animate-in fade-in slide-in-from-left-2 duration-200">
-						<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Wybierz datę</label>
+						<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Wybierz dzień</label>
 						<input
 							type="date"
 							value={customDateValue}
@@ -355,11 +387,12 @@ export function PrinterDashboard() {
 				/>
 
 				{/* WYCZYŚĆ FILTRY */}
-				{(selectedBranchIds.length > 0 || statusFilter !== 'all' || dateFilterType !== 'all' || sortBy !== 'createdAtDesc') && (
+				{(selectedGroupIds.length > 0 || dayOfWeekFilter !== 'all' || statusFilter !== 'all' || dateFilterType !== 'all' || sortBy !== 'createdAtDesc') && (
 					<div className="flex items-end">
 						<button
 							onClick={() => {
-								setSelectedBranchIds([]);
+								setSelectedGroupIds([]);
+								setDayOfWeekFilter('all');
 								setStatusFilter('all');
 								setDateFilterType('all');
 								setCustomDateValue('');
@@ -398,17 +431,16 @@ export function PrinterDashboard() {
 								</div>
 
 								<div className="flex flex-col gap-1 text-xs text-slate-500 mt-2">
+									<div className="flex items-center gap-1.5 font-semibold text-slate-800">
+										<CalendarEvent className="text-blue-600" /> Dzień zajęć: {getDayName(batch.classDayOfWeek)}
+									</div>
 									<div className="flex items-center gap-1.5 text-slate-700">
-										<ClockHistory /> Zlecono:{' '}
+										<ClockHistory /> Złożono:{' '}
 										<strong>{new Date(batch.createdAt).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })}</strong>
 									</div>
 									<div className="flex items-center gap-1.5">
 										<ClockHistory /> Termin oddania:{' '}
 										<strong className="text-red-600">{new Date(batch.deadline).toLocaleDateString()}</strong>
-									</div>
-									<div className="flex items-center gap-1.5">
-										<CheckCircleFill /> Data zajęć:{' '}
-										<span className="text-slate-700">{new Date(batch.lessonDate).toLocaleDateString()}</span>
 									</div>
 									<div className="flex items-center gap-1.5 pt-1">
 										<PrinterFill className={batch.assignedPrinterName ? "text-purple-600" : "text-slate-400"} />

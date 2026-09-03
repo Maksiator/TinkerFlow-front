@@ -67,6 +67,7 @@ export interface PrintBatchResponse {
 	createdAt: string;
 	assignedPrinterId?: string | null;
 	assignedPrinterName?: string | null;
+	classDayOfWeek?: number | null;
 }
 
 export interface ConfirmDeliveryRequest {
