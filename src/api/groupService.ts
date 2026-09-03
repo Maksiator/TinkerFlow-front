@@ -76,6 +76,26 @@ export const groupService = {
 		}
 	},
 
+	deleteBulk: async (groupIds: string[]) => {
+		try {
+			const res = await apiClient.post<{ count: number; message: string }>('/groups/bulk-delete', { groupIds });
+			return res.data;
+		} catch (error) {
+			console.error('Błąd masowego usuwania grup:', error);
+			throw error;
+		}
+	},
+
+	changeBranchBulk: async (groupIds: string[], branchId: string) => {
+		try {
+			const res = await apiClient.post<{ count: number; message: string }>('/groups/bulk-change-branch', { groupIds, branchId });
+			return res.data;
+		} catch (error) {
+			console.error('Błąd masowej zmiany oddziału grup:', error);
+			throw error;
+		}
+	},
+
 	archive: async (id: string, academicYear: string) => {
 		try {
 			const res = await apiClient.post(`/groups/${id}/archive?academicYear=${encodeURIComponent(academicYear)}`);

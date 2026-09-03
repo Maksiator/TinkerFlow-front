@@ -106,6 +106,23 @@ export const studentService = {
 		await apiClient.delete(`/students/${id}`);
 	},
 
+	deleteBulk: async (studentIds: string[]) => {
+		const res = await apiClient.post<{ count: number; message: string }>('/students/bulk-delete', { studentIds });
+		return res.data;
+	},
+
+	changeGroupBulk: async (studentIds: string[], groupId: string | null, options?: { recordHistory?: boolean; isMidYear?: boolean; academicYear?: string }) => {
+		const payload = {
+			studentIds,
+			groupId,
+			recordHistory: options?.recordHistory ?? true,
+			isMidYear: options?.isMidYear ?? false,
+			academicYear: options?.academicYear
+		};
+		const res = await apiClient.post<{ count: number; message: string }>('/students/bulk-change-group', payload);
+		return res.data;
+	},
+
 	getHistory: async (studentId: string) => {
 		const res = await apiClient.get<StudentHistoryResponse>(`/students/${studentId}/history`);
 		return res.data;

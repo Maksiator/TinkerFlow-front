@@ -9,8 +9,11 @@ import {
 	PeopleFill,
 	ChevronLeft,
 	ChevronRight,
+	PrinterFill,
+	ExclamationTriangleFill,
 } from 'react-bootstrap-icons';
 import { groupService, type Group } from '../api/groupService';
+import { branchService, type Branch } from '../api/branchService';
 import toast from 'react-hot-toast';
 
 export function Groups() {
@@ -23,6 +26,17 @@ export function Groups() {
 	const [currentPage, setCurrentPage] = useState(1);
 	const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
 	const ITEMS_PER_PAGE = 15;
+
+	// Stany operacji masowych
+	const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+	const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+	const [isBulkBranchModalOpen, setIsBulkBranchModalOpen] = useState(false);
+	const [isBulkPrinterModalOpen, setIsBulkPrinterModalOpen] = useState(false);
+	const [isSubmittingBulk, setIsSubmittingBulk] = useState(false);
+
+	// Dane do modalu zmiany oddziału
+	const [branches, setBranches] = useState<Branch[]>([]);
+	const [selectedBranchId, setSelectedBranchId] = useState<string>('');
 
 	// IDEALNY USE_EFFECT (Zgodnie z Twoim wzorcem)
 	useEffect(() => {
@@ -91,11 +105,113 @@ export function Groups() {
 	}, [filteredGroups, currentPage]);
 
 	const handlePrevPage = () => {
-		if (currentPage > 1) setCurrentPage((prev) => prev - 1);
+		if (currentPage > 1) {
+			setCurrentPage((prev) => prev - 1);
+			setSelectedGroupIds([]);
+		}
 	};
 
 	const handleNextPage = () => {
-		if (currentPage < totalPages) setCurrentPage((prev) => prev + 1);
+		if (currentPage < totalPages) {
+			setCurrentPage((prev) => prev + 1);
+			setSelectedGroupIds([]);
+		}
+	};
+
+	// Obsługa zaznaczania
+	const isAllPageSelected =
+		displayedGroups.length > 0 && displayedGroups.every((g) => selectedGroupIds.includes(g.id));
+
+	const toggleSelectAllPage = () => {
+		if (isAllPageSelected) {
+			const pageIds = new Set(displayedGroups.map((g) => g.id));
+			setSelectedGroupIds((prev) => prev.filter((id) => !pageIds.has(id)));
+		} else {
+			const pageIds = displayedGroups.map((g) => g.id);
+			setSelectedGroupIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+		}
+	};
+
+	const toggleSelectGroup = (id: string) => {
+		setSelectedGroupIds((prev) =>
+			prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+		);
+	};
+
+	// Zaznaczone grupy i ich podział na puste vs ze studentami
+	const selectedGroups = useMemo(() => {
+		return allGroups.filter((g) => selectedGroupIds.includes(g.id));
+	}, [allGroups, selectedGroupIds]);
+
+	const groupsWithStudents = useMemo(() => {
+		return selectedGroups.filter((g) => g.studentCount > 0);
+	}, [selectedGroups]);
+
+	const emptySelectedGroups = useMemo(() => {
+		return selectedGroups.filter((g) => g.studentCount === 0);
+	}, [selectedGroups]);
+
+	// Masowe usuwanie
+	const handleConfirmBulkDelete = async (onlyEmpty: boolean = false) => {
+		const targetIds = onlyEmpty
+			? emptySelectedGroups.map((g) => g.id)
+			: selectedGroupIds;
+
+		if (targetIds.length === 0) return;
+		setIsSubmittingBulk(true);
+		try {
+			const result = await groupService.deleteBulk(targetIds);
+			toast.success(result.message || `Pomyślnie usunięto ${targetIds.length} grup.`);
+			setAllGroups((prev) => prev.filter((g) => !targetIds.includes(g.id)));
+			setSelectedGroupIds((prev) => prev.filter((id) => !targetIds.includes(id)));
+			setIsBulkDeleteModalOpen(false);
+		} catch (error: any) {
+			const msg = error.response?.data?.message || 'Nie udało się usunąć wybranych grup.';
+			toast.error(msg);
+		} finally {
+			setIsSubmittingBulk(false);
+		}
+	};
+
+	// Masowa zmiana oddziału
+	const openBulkBranchModal = async () => {
+		try {
+			const branchList = await branchService.getAll();
+			setBranches(branchList);
+			if (branchList.length > 0) {
+				setSelectedBranchId(branchList[0].id);
+			}
+			setIsBulkBranchModalOpen(true);
+		} catch (error) {
+			console.error(error);
+			toast.error('Nie udało się pobrać listy oddziałów.');
+		}
+	};
+
+	const handleConfirmBulkChangeBranch = async () => {
+		if (selectedGroupIds.length === 0 || !selectedBranchId) return;
+		setIsSubmittingBulk(true);
+		try {
+			const result = await groupService.changeBranchBulk(selectedGroupIds, selectedBranchId);
+			const chosenBranch = branches.find((b) => b.id === selectedBranchId);
+			const branchName = chosenBranch ? chosenBranch.name : '';
+
+			toast.success(result.message || 'Pomyślnie zmieniono oddział.');
+			setAllGroups((prev) =>
+				prev.map((g) =>
+					selectedGroupIds.includes(g.id)
+						? { ...g, branchId: selectedBranchId, branchName }
+						: g
+				)
+			);
+			setSelectedGroupIds([]);
+			setIsBulkBranchModalOpen(false);
+		} catch (error: any) {
+			const msg = error.response?.data?.message || 'Nie udało się zmienić oddziału.';
+			toast.error(msg);
+		} finally {
+			setIsSubmittingBulk(false);
+		}
 	};
 
 	const handleDelete = async (id: string, name: string) => {
@@ -107,14 +223,15 @@ export function Groups() {
 			toast.success('Grupa została usunięta z systemu.');
 
 			setAllGroups((prev) => prev.filter((g) => g.id !== id));
+			setSelectedGroupIds((prev) => prev.filter((item) => item !== id));
 
-			// NOWE: Zabezpieczenie paginacji (zamiast useEffect)
 			// Jeśli to była ostatnia widoczna grupa na tej stronie, cofamy się o 1.
 			if (displayedGroups.length === 1 && currentPage > 1) {
 				setCurrentPage((prev) => prev - 1);
 			}
-		} catch (error) {
-			toast.error('Nie udało się usunąć grupy.');
+		} catch (error: any) {
+			const msg = error.response?.data?.message || 'Nie udało się usunąć grupy.';
+			toast.error(msg);
 			console.error(error);
 		}
 	};
@@ -142,7 +259,10 @@ export function Groups() {
 			<div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
 				<div className="mb-4 flex gap-4 border-b border-slate-100 pb-4">
 					<button
-						onClick={() => setViewMode('active')}
+						onClick={() => {
+							setViewMode('active');
+							setSelectedGroupIds([]);
+						}}
 						className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors cursor-pointer ${
 							viewMode === 'active' 
 								? 'bg-blue-100 text-blue-700' 
@@ -152,7 +272,10 @@ export function Groups() {
 						Aktywne grupy
 					</button>
 					<button
-						onClick={() => setViewMode('archived')}
+						onClick={() => {
+							setViewMode('archived');
+							setSelectedGroupIds([]);
+						}}
 						className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors cursor-pointer ${
 							viewMode === 'archived' 
 								? 'bg-red-100 text-red-700' 
@@ -170,6 +293,7 @@ export function Groups() {
 						onChange={(e) => {
 							setSearchTerm(e.target.value);
 							setCurrentPage(1);
+							setSelectedGroupIds([]);
 						}}
 						placeholder="Szukaj grupy po nazwie lub oddziale..."
 						className="w-full rounded-lg border border-slate-300 py-3 pr-4 pl-10 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -177,12 +301,65 @@ export function Groups() {
 				</div>
 			</div>
 
+			{/* PASEK OPERACJI MASOWYCH */}
+			{selectedGroupIds.length > 0 && (
+				<div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/90 p-4 shadow-sm backdrop-blur-sm">
+					<div className="flex items-center gap-3">
+						<span className="inline-flex h-7 items-center justify-center rounded-full bg-blue-600 px-3 text-xs font-black text-white shadow-sm">
+							{selectedGroupIds.length}
+						</span>
+						<span className="text-sm font-bold text-slate-800">
+							Zaznaczono {selectedGroupIds.length === 1 ? 'grupę' : 'grup'}
+						</span>
+					</div>
+
+					<div className="flex flex-wrap items-center gap-2">
+						<button
+							onClick={openBulkBranchModal}
+							className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-blue-300 bg-white px-3.5 py-2 text-xs font-bold text-blue-700 shadow-sm transition-colors hover:bg-blue-50"
+						>
+							<BuildingFill size={14} /> Zmień oddział
+						</button>
+
+						<button
+							onClick={() => setIsBulkPrinterModalOpen(true)}
+							className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-purple-300 bg-white px-3.5 py-2 text-xs font-bold text-purple-700 shadow-sm transition-colors hover:bg-purple-50"
+						>
+							<PrinterFill size={14} /> Przypisz do drukarza
+						</button>
+
+						<button
+							onClick={() => setIsBulkDeleteModalOpen(true)}
+							className="flex cursor-pointer items-center gap-1.5 rounded-xl bg-red-600 px-3.5 py-2 text-xs font-bold text-white shadow-md transition-colors hover:bg-red-700"
+						>
+							<TrashFill size={14} /> Usuń ({selectedGroupIds.length})
+						</button>
+
+						<button
+							onClick={() => setSelectedGroupIds([])}
+							className="cursor-pointer rounded-xl px-3 py-2 text-xs font-bold text-slate-500 hover:bg-blue-100/70 hover:text-slate-800"
+						>
+							Odznacz wszystko
+						</button>
+					</div>
+				</div>
+			)}
+
 			{/* TABELA Z DANYMI */}
 			<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 				<div className="overflow-x-auto">
 					<table className="w-full border-collapse text-left text-sm">
 						<thead className="bg-slate-50 text-slate-500">
 							<tr>
+								<th className="w-12 border-b border-slate-200 p-4 text-center">
+									<input
+										type="checkbox"
+										checked={isAllPageSelected}
+										onChange={toggleSelectAllPage}
+										title="Zaznacz wszystkie na tej stronie"
+										className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+									/>
+								</th>
 								<th className="border-b border-slate-200 p-4 font-bold">Nazwa grupy</th>
 								<th className="border-b border-slate-200 p-4 font-bold">Przypisany Oddział</th>
 								<th className="border-b border-slate-200 p-4 font-bold">Prowadzący</th>
@@ -194,13 +371,13 @@ export function Groups() {
 						<tbody>
 							{isLoading ? (
 								<tr>
-									<td colSpan={3} className="p-8 text-center font-bold text-slate-400">
+									<td colSpan={7} className="p-8 text-center font-bold text-slate-400">
 										Ładowanie grup...
 									</td>
 								</tr>
 							) : displayedGroups.length === 0 ? (
 								<tr>
-									<td colSpan={3} className="p-8 text-center text-slate-500">
+									<td colSpan={7} className="p-8 text-center text-slate-500">
 										Brak grup spełniających kryteria.
 									</td>
 								</tr>
@@ -208,8 +385,18 @@ export function Groups() {
 								displayedGroups.map((group) => (
 									<tr
 										key={group.id}
-										className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50"
+										className={`border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50 ${
+											selectedGroupIds.includes(group.id) ? 'bg-blue-50/50' : ''
+										}`}
 									>
+										<td className="w-12 p-4 text-center">
+											<input
+												type="checkbox"
+												checked={selectedGroupIds.includes(group.id)}
+												onChange={() => toggleSelectGroup(group.id)}
+												className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+											/>
+										</td>
 										<td className="p-4">
 											<div className="flex flex-col">
 												<div className="flex items-center gap-2 font-bold text-slate-800">
@@ -296,6 +483,169 @@ export function Groups() {
 					</div>
 				)}
 			</div>
+
+			{/* MODAL MASOWEGO USUWANIA GRUP */}
+			{isBulkDeleteModalOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+					<div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+						<div className="mb-4 flex items-center gap-3 text-red-600">
+							<div className="rounded-full bg-red-100 p-3">
+								<ExclamationTriangleFill size={24} />
+							</div>
+							<div>
+								<h3 className="text-lg font-extrabold text-slate-800">Usuń zaznaczone grupy</h3>
+								<p className="text-xs text-slate-500">Operacja jest nieodwracalna</p>
+							</div>
+						</div>
+
+						{groupsWithStudents.length > 0 ? (
+							<div className="mb-4">
+								<p className="mb-2 text-sm text-slate-700">
+									Niektóre z zaznaczonych grup mają przypisanych uczniów i nie mogą zostać usunięte:
+								</p>
+								<div className="max-h-36 overflow-y-auto rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+									<ul className="list-disc pl-4 space-y-1">
+										{groupsWithStudents.map((g) => (
+											<li key={g.id}>
+												<strong>{g.name}</strong> ({g.studentCount} uczniów)
+											</li>
+										))}
+									</ul>
+								</div>
+								{emptySelectedGroups.length > 0 && (
+									<p className="mt-3 text-xs text-slate-500">
+										Możesz usunąć tylko te grupy, które są obecnie puste ({emptySelectedGroups.length} grup).
+									</p>
+								)}
+							</div>
+						) : (
+							<p className="mb-4 text-sm text-slate-600">
+								Czy na pewno chcesz usunąć <strong>{selectedGroupIds.length}</strong> zaznaczonych grup? Wszystkie te grupy są puste.
+							</p>
+						)}
+
+						<div className="flex gap-3">
+							<button
+								onClick={() => setIsBulkDeleteModalOpen(false)}
+								disabled={isSubmittingBulk}
+								className="flex-1 cursor-pointer rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+							>
+								Anuluj
+							</button>
+							{groupsWithStudents.length > 0 ? (
+								emptySelectedGroups.length > 0 ? (
+									<button
+										onClick={() => handleConfirmBulkDelete(true)}
+										disabled={isSubmittingBulk}
+										className="flex-1 cursor-pointer rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white shadow-md hover:bg-red-700 disabled:opacity-50"
+									>
+										{isSubmittingBulk ? 'Usuwanie...' : `Usuń tylko puste (${emptySelectedGroups.length})`}
+									</button>
+								) : (
+									<button
+										disabled
+										className="flex-1 cursor-not-allowed rounded-xl bg-slate-300 py-2.5 text-sm font-bold text-slate-500"
+									>
+										Brak pustych grup
+									</button>
+								)
+							) : (
+								<button
+									onClick={() => handleConfirmBulkDelete(false)}
+									disabled={isSubmittingBulk}
+									className="flex-1 cursor-pointer rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white shadow-md hover:bg-red-700 disabled:opacity-50"
+								>
+									{isSubmittingBulk ? 'Usuwanie...' : `Usuń (${selectedGroupIds.length})`}
+								</button>
+							)}
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* MODAL MASOWEJ ZMIANY ODDZIAŁU */}
+			{isBulkBranchModalOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+					<div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+						<div className="mb-4 flex items-center gap-3 text-blue-600">
+							<div className="rounded-full bg-blue-100 p-3">
+								<BuildingFill size={24} />
+							</div>
+							<div>
+								<h3 className="text-lg font-extrabold text-slate-800">Masowa zmiana oddziału</h3>
+								<p className="text-xs text-slate-500">Dotyczy {selectedGroupIds.length} zaznaczonych grup</p>
+							</div>
+						</div>
+
+						<div className="mb-4">
+							<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">
+								Docelowy oddział
+							</label>
+							<select
+								value={selectedBranchId}
+								onChange={(e) => setSelectedBranchId(e.target.value)}
+								className="w-full rounded-xl border border-slate-300 p-3 text-sm font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+							>
+								{branches.map((b) => (
+									<option key={b.id} value={b.id}>
+										{b.name}
+									</option>
+								))}
+							</select>
+						</div>
+
+						<div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+							Przypisanie tych grup do nowego oddziału spowoduje również zaktualizowanie oddziału dla wszystkich przypisanych do nich uczniów.
+						</div>
+
+						<div className="flex gap-3">
+							<button
+								onClick={() => setIsBulkBranchModalOpen(false)}
+								disabled={isSubmittingBulk}
+								className="flex-1 cursor-pointer rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+							>
+								Anuluj
+							</button>
+							<button
+								onClick={handleConfirmBulkChangeBranch}
+								disabled={isSubmittingBulk || !selectedBranchId}
+								className="flex-1 cursor-pointer rounded-xl bg-blue-600 py-2.5 text-sm font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50"
+							>
+								{isSubmittingBulk ? 'Zapisywanie...' : 'Zmień oddział'}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* MODAL PRZYPISANIA DO DRUKARZA (PRZYGOTOWANY) */}
+			{isBulkPrinterModalOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+					<div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+						<div className="mb-4 flex items-center gap-3 text-purple-600">
+							<div className="rounded-full bg-purple-100 p-3">
+								<PrinterFill size={24} />
+							</div>
+							<div>
+								<h3 className="text-lg font-extrabold text-slate-800">Przypisanie do drukarza</h3>
+								<p className="text-xs text-slate-500">Zaznaczono {selectedGroupIds.length} grup</p>
+							</div>
+						</div>
+
+						<div className="mb-6 rounded-xl border border-purple-200 bg-purple-50 p-4 text-xs text-purple-900 leading-relaxed">
+							<p className="font-bold mb-1">Sekcja przygotowana pod integrację z drukarzem:</p>
+							Interfejs i selekcja grup są gotowe. W następnym kroku zdefiniujemy reguły kierowania wydruków bezpośrednio do dedykowanych kont drukarzy.
+						</div>
+
+						<button
+							onClick={() => setIsBulkPrinterModalOpen(false)}
+							className="w-full cursor-pointer rounded-xl bg-purple-600 py-2.5 text-sm font-bold text-white shadow-md hover:bg-purple-700"
+						>
+							Rozumiem
+						</button>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }
