@@ -14,6 +14,7 @@ import {
 	BuildingFill,
 	Calendar2EventFill,
 	PrinterFill,
+	JournalText,
 } from 'react-bootstrap-icons';
 import { authService } from '../api/authService';
 import { UserRole } from '../api/userService';
@@ -185,6 +186,13 @@ export function Sidebar() {
 										<NavLink to="/admin/ustawienia" className={navLinkClass}>
 											<GearFill size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
 											{isExpanded && <span className="truncate">Ustawienia Globalne</span>}
+										</NavLink>
+									</li>
+
+									<li>
+										<NavLink to="/admin/logi" className={navLinkClass}>
+											<JournalText size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+											{isExpanded && <span className="truncate">Dziennik Zdarzeń</span>}
 										</NavLink>
 									</li>
 								</>
