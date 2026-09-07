@@ -22,6 +22,7 @@ const AdminBranches = lazy(() => import('./pages/AdminBranches').then(m => ({ de
 const Substitutes = lazy(() => import('./pages/Substitutes').then(m => ({ default: m.Substitutes })));
 const AdminSettings = lazy(() => import('./pages/AdminSettings').then(m => ({ default: m.AdminSettings })));
 const AdminAuditLogs = lazy(() => import('./pages/AdminAuditLogs').then(m => ({ default: m.AdminAuditLogs })));
+const AdminMaintenance = lazy(() => import('./pages/AdminMaintenance').then(m => ({ default: m.AdminMaintenance })));
 const PrinterDashboard = lazy(() => import('./pages/PrinterDashboard').then(m => ({ default: m.PrinterDashboard })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 
@@ -155,6 +156,7 @@ function App() {
 								<Route path="admin/oddzialy" element={<AdminBranches />} />
 								<Route path="admin/ustawienia" element={<AdminSettings />} />
 								<Route path="admin/logi" element={<AdminAuditLogs />} />
+								<Route path="admin/konserwacja" element={<AdminMaintenance />} />
 							</Route>
 							{/* === POZIOM 4: DOSTĘP DLA DRUKARZA I ADMINA === */}
 							<Route element={<RoleGuard allowedRoles={[UserRole.Admin, UserRole.Printer]} />}>

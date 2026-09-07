@@ -15,6 +15,7 @@ import {
 	Calendar2EventFill,
 	PrinterFill,
 	JournalText,
+	DatabaseCheck,
 } from 'react-bootstrap-icons';
 import { authService } from '../api/authService';
 import { UserRole } from '../api/userService';
@@ -193,6 +194,13 @@ export function Sidebar() {
 										<NavLink to="/admin/logi" className={navLinkClass}>
 											<JournalText size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
 											{isExpanded && <span className="truncate">Dziennik Zdarzeń</span>}
+										</NavLink>
+									</li>
+
+									<li>
+										<NavLink to="/admin/konserwacja" className={navLinkClass}>
+											<DatabaseCheck size={20} className={isExpanded ? 'mr-3 shrink-0' : 'mx-auto shrink-0'} />
+											{isExpanded && <span className="truncate">Integralność Bazy</span>}
 										</NavLink>
 									</li>
 								</>
