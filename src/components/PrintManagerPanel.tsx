@@ -56,12 +56,6 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 		localStorage.setItem(`custom_jobs_${groupId}`, JSON.stringify(customJobs));
 	}, [customJobs, groupId]);
 
-	// STANY DLA BRAKU WYDRUKÓW NA ZAJĘCIACH
-	const [selectedNoPrintReason, setSelectedNoPrintReason] = useState<string>('');
-	const [isCustomNoPrintReason, setIsCustomNoPrintReason] = useState(false);
-	const [customNoPrintReason, setCustomNoPrintReason] = useState('');
-	const [noPrintNotes, setNoPrintNotes] = useState('');
-
 	// STANY DLA ZAKŁADKI HISTORII
 	const [historyBatches, setHistoryBatches] = useState<PrintBatchResponse[]>([]);
 	const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -336,26 +330,15 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 
 	// AKCJA 4: ZGŁOSZENIE BRAKU WYDRUKÓW NA ZAJĘCIACH
 	const handleReportNoPrints = async () => {
-		const finalReason = isCustomNoPrintReason ? customNoPrintReason.trim() : selectedNoPrintReason.trim();
-		if (!finalReason) {
-			toast.error('Wybierz lub wpisz powód braku wydruków.');
-			return;
-		}
-
 		setIsSubmitting(true);
 		try {
 			const res = await printBatchService.reportNoPrints({
 				groupId,
 				lessonDate,
-				reason: finalReason,
-				additionalNotes: noPrintNotes.trim() ? noPrintNotes.trim() : undefined,
+				reason: 'Inna technologia (brak wydruków)',
 			});
 
 			toast.success(res.message || 'Poinformowano drukarza o braku projektów.');
-			setSelectedNoPrintReason('');
-			setIsCustomNoPrintReason(false);
-			setCustomNoPrintReason('');
-			setNoPrintNotes('');
 
 			// Odśwież historię paczek
 			const updatedHistory = await printBatchService.getBatchHistoryForGroup(groupId);
@@ -546,7 +529,7 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 									<div className="flex items-center justify-between">
 										<div className="flex items-center gap-2 font-bold text-slate-700">
 											<SlashCircle className="text-slate-500" size={15} />
-											<span>Brak wydruków na zajęciach</span>
+											<span>Dzisiaj inna technologia (brak wydruków)</span>
 										</div>
 										<button
 											type="button"
@@ -557,7 +540,7 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 										</button>
 									</div>
 									<p className="mt-1 text-[11px] text-slate-500">
-										Drukarz wie, aby nie czekać na tę grupę.{todayNoPrintsBatch.notes ? ` (${todayNoPrintsBatch.notes})` : ''}
+										Drukarz wie, aby nie czekać na tę grupę w tym tygodniu.
 									</p>
 								</div>
 							)}
@@ -573,79 +556,20 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 									<div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-3.5 text-xs shadow-xs">
 										<div className="flex items-center gap-1.5 font-bold text-amber-900">
 											<SlashCircle className="text-amber-600" size={14} />
-											<span>Brak projektów na dzisiejszych zajęciach?</span>
+											<span>Na dzisiejszych zajęciach była inna technologia?</span>
 										</div>
 										<p className="mt-1 text-[11px] text-amber-800/80">
-											Poinformuj drukarza, aby nie czekał ze startem farmy na tę grupę.
+											Poinformuj drukarza jednym kliknięciem, że dzisiaj nie ma projektów 3D do druku, aby nie czekał na zlecenie.
 										</p>
-
-										<div className="mt-2.5 flex flex-wrap gap-1.5">
-											{[
-												{ label: 'Okulary VR', icon: '🥽' },
-												{ label: 'Długopisy 3D', icon: '🖊️' },
-												{ label: 'Robotyka', icon: '🤖' },
-												{ label: 'Teoria / Inne', icon: '🧩' },
-											].map((p) => (
-												<button
-													key={p.label}
-													type="button"
-													onClick={() => {
-														setSelectedNoPrintReason(p.label);
-														setIsCustomNoPrintReason(false);
-													}}
-													className={`cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
-														selectedNoPrintReason === p.label && !isCustomNoPrintReason
-															? 'bg-amber-600 text-white shadow-xs'
-															: 'bg-white text-amber-900 border border-amber-200 hover:bg-amber-100/70'
-													}`}
-												>
-													{p.icon} {p.label}
-												</button>
-											))}
-											<button
-												type="button"
-												onClick={() => {
-													setIsCustomNoPrintReason(true);
-													setSelectedNoPrintReason('');
-												}}
-												className={`cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
-													isCustomNoPrintReason
-														? 'bg-amber-600 text-white shadow-xs'
-														: 'bg-white text-amber-900 border border-amber-200 hover:bg-amber-100/70'
-												}`}
-											>
-												✏️ Inny...
-											</button>
-										</div>
-
-										{(selectedNoPrintReason || isCustomNoPrintReason) && (
-											<div className="mt-2.5 space-y-2 animate-in fade-in duration-150">
-												{isCustomNoPrintReason && (
-													<input
-														type="text"
-														placeholder="Wpisz powód (np. Turniej, Dzień otwarty)..."
-														value={customNoPrintReason}
-														onChange={(e) => setCustomNoPrintReason(e.target.value)}
-														className="w-full rounded-md border border-amber-300 bg-white p-1.5 text-xs text-slate-800 outline-none focus:border-amber-500"
-													/>
-												)}
-												<input
-													type="text"
-													placeholder="Dodatkowa notatka (opcjonalnie)..."
-													value={noPrintNotes}
-													onChange={(e) => setNoPrintNotes(e.target.value)}
-													className="w-full rounded-md border border-amber-200 bg-white p-1.5 text-[11px] text-slate-700 outline-none focus:border-amber-500"
-												/>
-												<button
-													type="button"
-													onClick={handleReportNoPrints}
-													disabled={isSubmitting || (isCustomNoPrintReason && !customNoPrintReason.trim())}
-													className="w-full cursor-pointer rounded-lg bg-amber-700 hover:bg-amber-800 py-1.5 text-xs font-bold text-white shadow-xs transition-colors disabled:opacity-50"
-												>
-													{isSubmitting ? 'Zgłaszanie...' : 'Poinformuj drukarza o braku wydruków'}
-												</button>
-											</div>
-										)}
+										<button
+											type="button"
+											onClick={handleReportNoPrints}
+											disabled={isSubmitting}
+											className="mt-3 w-full cursor-pointer flex items-center justify-center gap-2 rounded-lg bg-amber-600 hover:bg-amber-700 py-2 text-xs font-bold text-white shadow-xs transition-colors disabled:opacity-50"
+										>
+											<SlashCircle size={13} />
+											{isSubmitting ? 'Zgłaszanie...' : 'Dzisiaj inna technologia (brak wydruków)'}
+										</button>
 									</div>
 								</div>
 							)}

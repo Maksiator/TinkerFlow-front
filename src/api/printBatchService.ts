@@ -48,7 +48,7 @@ export interface UpdatePrintBatchRequest {
 export interface ReportNoPrintsRequest {
 	groupId: string;
 	lessonDate: string;
-	reason: string;
+	reason?: string;
 	additionalNotes?: string | null;
 }
 
