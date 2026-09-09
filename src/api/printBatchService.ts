@@ -10,6 +10,7 @@ export const PrintBatchState = {
 	Printing: 1,
 	ReadyForCollection: 2,
 	Completed: 3,
+	NoPrints: 4,
 } as const;
 export type PrintBatchState = (typeof PrintBatchState)[keyof typeof PrintBatchState];
 
@@ -42,6 +43,13 @@ export interface UpdatePrintBatchRequest {
 	lessonDate: string;
 	notes?: string | null;
 	projectsToPrint: PrintJobRequest[];
+}
+
+export interface ReportNoPrintsRequest {
+	groupId: string;
+	lessonDate: string;
+	reason: string;
+	additionalNotes?: string | null;
 }
 
 export interface PrintJobResponse {
@@ -112,6 +120,18 @@ export const printBatchService = {
 			return response.data;
 		} catch (error) {
 			throw new Error(extractErrorMessage(error, 'Wystąpił błąd podczas wysyłania paczki na farmę.'));
+		}
+	},
+
+	reportNoPrints: async (data: ReportNoPrintsRequest) => {
+		try {
+			const response = await apiClient.post<{ message: string; batchId: string }>(
+				'/printbatches/report-no-prints',
+				data,
+			);
+			return response.data;
+		} catch (error) {
+			throw new Error(extractErrorMessage(error, 'Wystąpił błąd podczas zgłaszania braku wydruków.'));
 		}
 	},
 

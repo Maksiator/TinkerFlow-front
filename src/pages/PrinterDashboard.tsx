@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { printBatchService, type PrintBatchResponse, PrintBatchState } from '../api/printBatchService';
-import { PrinterFill, ClockHistory, GearFill, CalendarEvent, ListTask, Grid3x3GapFill, ChatLeftTextFill } from 'react-bootstrap-icons';
+import { PrinterFill, ClockHistory, GearFill, CalendarEvent, ListTask, Grid3x3GapFill, ChatLeftTextFill, SlashCircle } from 'react-bootstrap-icons';
 import { PrintBatchManagerModal } from '../components/PrintBatchManagerModal';
 import { CustomSelect } from '../components/CustomSelect';
 import { authService } from '../api/authService';
@@ -107,6 +107,12 @@ export function PrinterDashboard() {
 				);
 			case PrintBatchState.Completed:
 				return <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-800">Zakończone</span>;
+			case PrintBatchState.NoPrints:
+				return (
+					<span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 border border-slate-200">
+						<SlashCircle size={11} /> Brak wydruków
+					</span>
+				);
 			default:
 				return <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-800">Nieznany</span>;
 		}
@@ -125,6 +131,11 @@ export function PrinterDashboard() {
 			default: return 'Nieokreślony';
 		}
 	};
+
+	// Zgłoszenia braku wydruków (do górnego paska informacyjnego)
+	const noPrintBatches = useMemo(() => {
+		return batches.filter((b) => b.status === PrintBatchState.NoPrints);
+	}, [batches]);
 
 	const uniqueGroups = useMemo(() => {
 		const map = new Map<string, { id: string; name: string; branchName: string }>();
@@ -275,6 +286,59 @@ export function PrinterDashboard() {
 				</div>
 			</div>
 
+			{/* BANER INFORMACYJNY: ZGŁOSZENIA BRAKU WYDRUKÓW NA ZAJĘCIACH */}
+			{noPrintBatches.length > 0 && (
+				<div className="mb-6 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs">
+					<div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+						<div className="flex items-center gap-2.5">
+							<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 font-bold border border-slate-200">
+								<SlashCircle size={16} />
+							</span>
+							<div>
+								<div className="flex items-center gap-2">
+									<h2 className="text-xs font-black uppercase tracking-wider text-slate-700">
+										Zgłoszony brak wydruków
+									</h2>
+									<span className="rounded-full bg-slate-100 px-2 py-0.2 text-[10px] font-bold text-slate-600 border border-slate-200">
+										{noPrintBatches.length} {noPrintBatches.length === 1 ? 'grupa' : 'grupy'}
+									</span>
+								</div>
+								<p className="text-[11px] text-slate-400 font-medium">
+									Te grupy nie realizowały projektów 3D na ostatnich zajęciach (nie czekaj na pliki).
+								</p>
+							</div>
+						</div>
+
+						{/* Lista pastylek grup */}
+						<div className="flex flex-wrap items-center gap-1.5">
+							{noPrintBatches.map((b) => (
+								<button
+									key={b.id}
+									type="button"
+									onClick={() => setSelectedBatch(b)}
+									className="group inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:border-purple-300 hover:bg-purple-50/50 transition-all"
+									title={`Data zajęć: ${new Date(b.lessonDate).toLocaleDateString()}\nNotatka: ${b.notes || 'Brak'}`}
+								>
+									<span className="font-bold text-slate-900 group-hover:text-purple-700 transition-colors">
+										{b.groupName}
+									</span>
+									{b.classDayOfWeek !== null && b.classDayOfWeek !== undefined && (
+										<span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+											{getDayName(b.classDayOfWeek)}
+										</span>
+									)}
+									{b.notes && (
+										<span className="text-[11px] font-medium text-slate-500 max-w-[160px] truncate">
+											• {b.notes}
+										</span>
+									)}
+								</button>
+							))}
+						</div>
+					</div>
+				</div>
+			)}
+
 			{/* SEKCA FILTRÓW */}
 			<div className="mb-8 flex flex-wrap gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 				{/* CUSTOM SELECT SZKOŁY / GRUPY */}
@@ -377,6 +441,7 @@ export function PrinterDashboard() {
 						{ value: '1', label: 'W druku' },
 						{ value: '2', label: 'Do odbioru' },
 						{ value: '3', label: 'Zakończone' },
+						{ value: '4', label: 'Brak wydruków' },
 					]}
 					className="flex-1 min-w-[150px]"
 				/>
@@ -489,14 +554,18 @@ export function PrinterDashboard() {
 												</span>
 											</td>
 											<td className="p-4 text-center whitespace-nowrap">
-												<div className="inline-flex flex-col items-center">
-													<span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-bold text-purple-800">
-														{batch.printJobs.length} {batch.printJobs.length === 1 ? 'model' : 'modeli'}
-													</span>
-													<span className="text-[10px] text-slate-400 font-medium mt-0.5">
-														{uniqueStudentsCount} {uniqueStudentsCount === 1 ? 'uczeń' : 'uczniów'}
-													</span>
-												</div>
+												{batch.status === PrintBatchState.NoPrints ? (
+													<span className="text-xs font-bold text-slate-400 italic">0 (Brak)</span>
+												) : (
+													<div className="inline-flex flex-col items-center">
+														<span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-bold text-purple-800">
+															{batch.printJobs.length} {batch.printJobs.length === 1 ? 'model' : 'modeli'}
+														</span>
+														<span className="text-[10px] text-slate-400 font-medium mt-0.5">
+															{uniqueStudentsCount} {uniqueStudentsCount === 1 ? 'uczeń' : 'uczniów'}
+														</span>
+													</div>
+												)}
 											</td>
 											<td className="p-4 whitespace-nowrap text-xs text-slate-600">
 												<div className="font-semibold text-slate-700">
@@ -507,15 +576,19 @@ export function PrinterDashboard() {
 												</div>
 											</td>
 											<td className="p-4 whitespace-nowrap text-xs">
-												<span
-													className={`font-bold px-2 py-1 rounded-md border ${
-														isDeadlineSoon
-															? 'text-red-700 bg-red-50 border-red-200'
-															: 'text-slate-700 bg-slate-50 border-slate-200'
-													}`}
-												>
-													{new Date(batch.deadline).toLocaleDateString('pl-PL')}
-												</span>
+												{batch.status === PrintBatchState.NoPrints ? (
+													<span className="text-slate-400 font-medium">—</span>
+												) : (
+													<span
+														className={`font-bold px-2 py-1 rounded-md border ${
+															isDeadlineSoon
+																? 'text-red-700 bg-red-50 border-red-200'
+																: 'text-slate-700 bg-slate-50 border-slate-200'
+														}`}
+													>
+														{new Date(batch.deadline).toLocaleDateString('pl-PL')}
+													</span>
+												)}
 											</td>
 											{isAdmin && (
 												<td className="p-4 whitespace-nowrap text-xs">
@@ -543,9 +616,21 @@ export function PrinterDashboard() {
 											<td className="p-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
 												<button
 													onClick={() => setSelectedBatch(batch)}
-													className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-purple-700"
+													className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold shadow-xs transition-colors ${
+														batch.status === PrintBatchState.NoPrints
+															? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+															: 'bg-purple-600 text-white hover:bg-purple-700'
+													}`}
 												>
-													<GearFill size={12} /> Zarządzaj
+													{batch.status === PrintBatchState.NoPrints ? (
+														<>
+															<SlashCircle size={12} /> Szczegóły
+														</>
+													) : (
+														<>
+															<GearFill size={12} /> Zarządzaj
+														</>
+													)}
 												</button>
 											</td>
 										</tr>
@@ -604,49 +689,66 @@ export function PrinterDashboard() {
 
 							{/* Karta paczki - Zawartość (Projekty) */}
 							<div className="flex-1 p-4">
-								<h3 className="mb-3 text-xs font-extrabold tracking-wider text-slate-400 uppercase">
-									Zawartość paczki ({batch.printJobs.length})
-								</h3>
-								
-								{(() => {
-									const groupedJobs = batch.printJobs.reduce(
-										(acc, job) => {
-											if (!acc[job.studentName]) acc[job.studentName] = [];
-											acc[job.studentName].push(job.projectName);
-											return acc;
-										},
-										{} as Record<string, string[]>,
-									);
-
-									return (
-										<div className="flex flex-col gap-2.5">
-											{Object.entries(groupedJobs).map(([studentName, projectNames]) => (
-												<div
-													key={studentName}
-													className="flex flex-col rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-sm"
-												>
-													<span className="mb-1.5 font-bold text-slate-700">{studentName}</span>
-													<div className="flex flex-wrap gap-1">
-														{projectNames.map((proj, idx) => (
-															<span
-																key={idx}
-																className="rounded border border-purple-100 bg-white px-2 py-0.5 text-xs font-bold text-purple-700 shadow-sm"
-															>
-																{proj}
-															</span>
-														))}
-													</div>
-												</div>
-											))}
-										</div>
-									);
-								})()}
-
-								{batch.notes && (
-									<div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
-										<strong>Notatka od trenera:</strong>
-										<p className="mt-1 italic">{batch.notes}</p>
+								{batch.status === PrintBatchState.NoPrints ? (
+									<div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+										<SlashCircle className="mx-auto mb-2 text-slate-400" size={20} />
+										<p className="text-xs font-bold text-slate-700">Brak modeli do druku</p>
+										<p className="text-[11px] text-slate-500 mt-0.5">
+											Trener zgłosił brak wydruków na tych zajęciach.
+										</p>
+										{batch.notes && (
+											<div className="mt-2.5 rounded-lg border border-slate-200 bg-white p-2 text-xs font-semibold text-slate-800">
+												Powód: {batch.notes}
+											</div>
+										)}
 									</div>
+								) : (
+									<>
+										<h3 className="mb-3 text-xs font-extrabold tracking-wider text-slate-400 uppercase">
+											Zawartość paczki ({batch.printJobs.length})
+										</h3>
+										
+										{(() => {
+											const groupedJobs = batch.printJobs.reduce(
+												(acc, job) => {
+													if (!acc[job.studentName]) acc[job.studentName] = [];
+													acc[job.studentName].push(job.projectName);
+													return acc;
+												},
+												{} as Record<string, string[]>,
+											);
+
+											return (
+												<div className="flex flex-col gap-2.5">
+													{Object.entries(groupedJobs).map(([studentName, projectNames]) => (
+														<div
+															key={studentName}
+															className="flex flex-col rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-sm"
+														>
+															<span className="mb-1.5 font-bold text-slate-700">{studentName}</span>
+															<div className="flex flex-wrap gap-1">
+																{projectNames.map((proj, idx) => (
+																	<span
+																		key={idx}
+																		className="rounded border border-purple-100 bg-white px-2 py-0.5 text-xs font-bold text-purple-700 shadow-sm"
+																	>
+																		{proj}
+																	</span>
+																))}
+															</div>
+														</div>
+													))}
+												</div>
+											);
+										})()}
+
+										{batch.notes && (
+											<div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+												<strong>Notatka od trenera:</strong>
+												<p className="mt-1 italic">{batch.notes}</p>
+											</div>
+										)}
+									</>
 								)}
 							</div>
 
@@ -654,9 +756,21 @@ export function PrinterDashboard() {
 							<div className="border-t border-slate-100 bg-slate-50 p-3">
 								<button
 									onClick={() => setSelectedBatch(batch)}
-									className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-purple-600 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-purple-700"
+									className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold shadow-xs transition-colors ${
+										batch.status === PrintBatchState.NoPrints
+											? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+											: 'bg-purple-600 text-white hover:bg-purple-700'
+									}`}
 								>
-									<GearFill /> Zarządzaj paczką
+									{batch.status === PrintBatchState.NoPrints ? (
+										<>
+											<SlashCircle /> Szczegóły zgłoszenia
+										</>
+									) : (
+										<>
+											<GearFill /> Zarządzaj paczką
+										</>
+									)}
 								</button>
 							</div>
 						</div>

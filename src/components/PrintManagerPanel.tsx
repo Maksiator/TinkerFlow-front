@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { PrinterFill, XCircleFill, BoxSeamFill, InfoCircleFill, PlusLg, Trash } from 'react-bootstrap-icons';
+import { PrinterFill, XCircleFill, BoxSeamFill, InfoCircleFill, PlusLg, Trash, SlashCircle } from 'react-bootstrap-icons';
 import {
 	printBatchService,
 	type PrintJobRequest,
@@ -56,6 +56,12 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 		localStorage.setItem(`custom_jobs_${groupId}`, JSON.stringify(customJobs));
 	}, [customJobs, groupId]);
 
+	// STANY DLA BRAKU WYDRUKÓW NA ZAJĘCIACH
+	const [selectedNoPrintReason, setSelectedNoPrintReason] = useState<string>('');
+	const [isCustomNoPrintReason, setIsCustomNoPrintReason] = useState(false);
+	const [customNoPrintReason, setCustomNoPrintReason] = useState('');
+	const [noPrintNotes, setNoPrintNotes] = useState('');
+
 	// STANY DLA ZAKŁADKI HISTORII
 	const [historyBatches, setHistoryBatches] = useState<PrintBatchResponse[]>([]);
 	const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -77,27 +83,25 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 		};
 	}, [groupId]);
 
-	// POBIERANIE HISTORII
+	// POBIERANIE HISTORII (Na start grupy i przy zmianie zakładki)
 	useEffect(() => {
 		let isMounted = true;
-		if (activeTab === 'history') {
-			const fetchHistory = async () => {
-				setIsLoadingHistory(true);
-				try {
-					const data = await printBatchService.getBatchHistoryForGroup(groupId);
-					if (isMounted) setHistoryBatches(data);
-				} catch (error) {
-					console.error(error);
-				} finally {
-					if (isMounted) setIsLoadingHistory(false);
-				}
-			};
-			fetchHistory();
-		}
+		const fetchHistory = async () => {
+			setIsLoadingHistory(true);
+			try {
+				const data = await printBatchService.getBatchHistoryForGroup(groupId);
+				if (isMounted) setHistoryBatches(data);
+			} catch (error) {
+				console.error(error);
+			} finally {
+				if (isMounted) setIsLoadingHistory(false);
+			}
+		};
+		fetchHistory();
 		return () => {
 			isMounted = false;
 		};
-	}, [groupId, activeTab]);
+	}, [groupId]);
 
 	// LOGIKA WYLICZANIA PROJEKTÓW DO DRUKU Z MATRYCY
 	const readyToPrint = useMemo(() => {
@@ -330,6 +334,46 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 		}
 	};
 
+	// AKCJA 4: ZGŁOSZENIE BRAKU WYDRUKÓW NA ZAJĘCIACH
+	const handleReportNoPrints = async () => {
+		const finalReason = isCustomNoPrintReason ? customNoPrintReason.trim() : selectedNoPrintReason.trim();
+		if (!finalReason) {
+			toast.error('Wybierz lub wpisz powód braku wydruków.');
+			return;
+		}
+
+		setIsSubmitting(true);
+		try {
+			const res = await printBatchService.reportNoPrints({
+				groupId,
+				lessonDate,
+				reason: finalReason,
+				additionalNotes: noPrintNotes.trim() ? noPrintNotes.trim() : undefined,
+			});
+
+			toast.success(res.message || 'Poinformowano drukarza o braku projektów.');
+			setSelectedNoPrintReason('');
+			setIsCustomNoPrintReason(false);
+			setCustomNoPrintReason('');
+			setNoPrintNotes('');
+
+			// Odśwież historię paczek
+			const updatedHistory = await printBatchService.getBatchHistoryForGroup(groupId);
+			setHistoryBatches(updatedHistory);
+		} catch (error: unknown) {
+			const errorMessage = error instanceof Error ? error.message : 'Błąd podczas zgłaszania.';
+			toast.error(errorMessage);
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	// Weryfikacja czy dla dzisiejszej daty zgłoszono brak wydruków
+	const todayLessonDateStr = new Date(lessonDate).toISOString().split('T')[0];
+	const todayNoPrintsBatch = historyBatches.find(
+		(b) => b.status === PrintBatchState.NoPrints && new Date(b.lessonDate).toISOString().split('T')[0] === todayLessonDateStr
+	);
+
 	// POMOCNICZE TŁUMACZENIA STATUSÓW
 	const getStatusBadge = (status: PrintBatchState) => {
 		switch (status) {
@@ -344,6 +388,12 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 			case PrintBatchState.Completed:
 				return (
 					<span className="rounded bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-800">Zakończone</span>
+				);
+			case PrintBatchState.NoPrints:
+				return (
+					<span className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 border border-slate-200">
+						<SlashCircle size={10} /> Brak wydruków
+					</span>
 				);
 			default:
 				return null;
@@ -490,11 +540,114 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 								</div>
 							)}
 
+							{/* Jeśli dzisiaj zgłoszono brak wydruków */}
+							{todayNoPrintsBatch && (
+								<div className="mb-4 rounded-xl border border-slate-200 bg-slate-100/90 p-3.5 text-xs shadow-xs">
+									<div className="flex items-center justify-between">
+										<div className="flex items-center gap-2 font-bold text-slate-700">
+											<SlashCircle className="text-slate-500" size={15} />
+											<span>Brak wydruków na zajęciach</span>
+										</div>
+										<button
+											type="button"
+											onClick={() => handleCancelBatch(todayNoPrintsBatch.id)}
+											className="cursor-pointer font-bold text-rose-600 hover:text-rose-700 text-[11px] underline"
+										>
+											Anuluj
+										</button>
+									</div>
+									<p className="mt-1 text-[11px] text-slate-500">
+										Drukarz wie, aby nie czekać na tę grupę.{todayNoPrintsBatch.notes ? ` (${todayNoPrintsBatch.notes})` : ''}
+									</p>
+								</div>
+							)}
+
 							{/* Jeśli kompletnie nic nie ma wybranego/dodanego */}
-							{readyToPrint.length === 0 && customJobs.length === 0 && (
-								<p className="mb-4 text-xs text-slate-400 italic">
-									Zaznacz na matrycy status "Do druku" przy wybranych modelach lub dodaj wydruki niestandardowe poniżej.
-								</p>
+							{!hasItemsToPrint && !todayNoPrintsBatch && (
+								<div className="mb-4 space-y-3">
+									<p className="text-xs text-slate-400 italic">
+										Zaznacz na matrycy status "Do druku" przy wybranych modelach lub dodaj wydruki niestandardowe poniżej.
+									</p>
+
+									{/* Subtelna sekcja zgłoszenia braku wydruków */}
+									<div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-3.5 text-xs shadow-xs">
+										<div className="flex items-center gap-1.5 font-bold text-amber-900">
+											<SlashCircle className="text-amber-600" size={14} />
+											<span>Brak projektów na dzisiejszych zajęciach?</span>
+										</div>
+										<p className="mt-1 text-[11px] text-amber-800/80">
+											Poinformuj drukarza, aby nie czekał ze startem farmy na tę grupę.
+										</p>
+
+										<div className="mt-2.5 flex flex-wrap gap-1.5">
+											{[
+												{ label: 'Okulary VR', icon: '🥽' },
+												{ label: 'Długopisy 3D', icon: '🖊️' },
+												{ label: 'Robotyka', icon: '🤖' },
+												{ label: 'Teoria / Inne', icon: '🧩' },
+											].map((p) => (
+												<button
+													key={p.label}
+													type="button"
+													onClick={() => {
+														setSelectedNoPrintReason(p.label);
+														setIsCustomNoPrintReason(false);
+													}}
+													className={`cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
+														selectedNoPrintReason === p.label && !isCustomNoPrintReason
+															? 'bg-amber-600 text-white shadow-xs'
+															: 'bg-white text-amber-900 border border-amber-200 hover:bg-amber-100/70'
+													}`}
+												>
+													{p.icon} {p.label}
+												</button>
+											))}
+											<button
+												type="button"
+												onClick={() => {
+													setIsCustomNoPrintReason(true);
+													setSelectedNoPrintReason('');
+												}}
+												className={`cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
+													isCustomNoPrintReason
+														? 'bg-amber-600 text-white shadow-xs'
+														: 'bg-white text-amber-900 border border-amber-200 hover:bg-amber-100/70'
+												}`}
+											>
+												✏️ Inny...
+											</button>
+										</div>
+
+										{(selectedNoPrintReason || isCustomNoPrintReason) && (
+											<div className="mt-2.5 space-y-2 animate-in fade-in duration-150">
+												{isCustomNoPrintReason && (
+													<input
+														type="text"
+														placeholder="Wpisz powód (np. Turniej, Dzień otwarty)..."
+														value={customNoPrintReason}
+														onChange={(e) => setCustomNoPrintReason(e.target.value)}
+														className="w-full rounded-md border border-amber-300 bg-white p-1.5 text-xs text-slate-800 outline-none focus:border-amber-500"
+													/>
+												)}
+												<input
+													type="text"
+													placeholder="Dodatkowa notatka (opcjonalnie)..."
+													value={noPrintNotes}
+													onChange={(e) => setNoPrintNotes(e.target.value)}
+													className="w-full rounded-md border border-amber-200 bg-white p-1.5 text-[11px] text-slate-700 outline-none focus:border-amber-500"
+												/>
+												<button
+													type="button"
+													onClick={handleReportNoPrints}
+													disabled={isSubmitting || (isCustomNoPrintReason && !customNoPrintReason.trim())}
+													className="w-full cursor-pointer rounded-lg bg-amber-700 hover:bg-amber-800 py-1.5 text-xs font-bold text-white shadow-xs transition-colors disabled:opacity-50"
+												>
+													{isSubmitting ? 'Zgłaszanie...' : 'Poinformuj drukarza o braku wydruków'}
+												</button>
+											</div>
+										)}
+									</div>
+								</div>
 							)}
 
 							{/* 3. Panel wprowadzania i szybkiego dodawania wydruków niestandardowych (Zawsze dostępny!) */}
@@ -571,6 +724,39 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 							<p className="text-center text-sm text-slate-400">Ta grupa nie ma jeszcze historii wydruków.</p>
 						) : (
 							historyBatches.map((batch) => {
+								if (batch.status === PrintBatchState.NoPrints) {
+									return (
+										<div key={batch.id} className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-xs">
+											<div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-3">
+												<span className="text-xs font-bold text-slate-500">
+													Zajęcia z: {new Date(batch.lessonDate).toLocaleDateString()}
+												</span>
+												{getStatusBadge(batch.status)}
+											</div>
+											<div className="p-3 text-xs text-slate-600 space-y-2">
+												<div className="flex items-center gap-1.5 font-bold text-slate-800">
+													<SlashCircle className="text-slate-500" size={13} />
+													<span>Brak wydruków na farmę</span>
+												</div>
+												{batch.notes && (
+													<p className="rounded-lg bg-slate-50 p-2 text-slate-700 border border-slate-100 text-xs font-medium">
+														Powód: <strong className="text-slate-900">{batch.notes}</strong>
+													</p>
+												)}
+												<div className="border-t border-slate-100 pt-2">
+													<button
+														type="button"
+														onClick={() => handleCancelBatch(batch.id)}
+														className="w-full cursor-pointer rounded-lg border border-red-200 bg-red-50 py-1 text-xs font-bold text-red-600 transition-colors hover:bg-red-100"
+													>
+														Usuń wpis
+													</button>
+												</div>
+											</div>
+										</div>
+									);
+								}
+
 								// Grupowanie zleceń w locie (wewnątrz renderowania paczki)
 								const groupedHistoryJobs = batch.printJobs.reduce(
 									(acc, job) => {

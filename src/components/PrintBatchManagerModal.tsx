@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { XCircleFill, PrinterFill, BoxSeamFill, ExclamationTriangleFill, TrashFill } from 'react-bootstrap-icons';
+import { XCircleFill, PrinterFill, BoxSeamFill, ExclamationTriangleFill, TrashFill, SlashCircle } from 'react-bootstrap-icons';
 import { printBatchService, type PrintBatchResponse, PrintBatchState, PrintJobsStates } from '../api/printBatchService';
 
 interface PrintBatchManagerModalProps {
@@ -182,88 +182,109 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 						</div>
 					)}
 
-					<h3 className="mb-3 text-sm font-bold text-slate-700">Wydruki w tej paczce ({localJobs.length})</h3>
-
-					{localJobs.length === 0 ? (
-						<div className="rounded-lg border border-dashed border-red-300 bg-red-50 p-6 text-center text-red-600">
-							<ExclamationTriangleFill className="mx-auto mb-2 text-3xl" />
-							<p className="font-bold">Ta paczka jest pusta!</p>
-							<p className="text-sm">Użyj czerwonego kosza w prawym górnym rogu, aby ją usunąć.</p>
+					{batch.status === PrintBatchState.NoPrints ? (
+						<div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">
+							<div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 text-slate-600">
+								<SlashCircle size={24} />
+							</div>
+							<h3 className="text-base font-extrabold text-slate-800">Brak modeli do druku</h3>
+							<p className="mt-1 text-xs text-slate-500 max-w-md mx-auto">
+								Trener oznaczył, że na tych zajęciach nie realizowano projektów do druku 3D. Farma nie musi czekać na pliki z tej grupy.
+							</p>
+							{batch.notes && (
+								<div className="mt-4 inline-block rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs">
+									Powód / Notatka: <span className="text-slate-900 font-bold">{batch.notes}</span>
+								</div>
+							)}
 						</div>
 					) : (
-						<div className="flex flex-col gap-4">
-							{Object.entries(groupedJobs).map(([studentName, jobs]) => (
-								<div
-									key={studentName}
-									className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm flex flex-col gap-3"
-								>
-									{/* Nagłówek Ucznia */}
-									<div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
-										<span className="font-extrabold text-slate-800 text-sm">{studentName}</span>
-										<span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[10px] font-black text-purple-700">
-											{jobs.length} {jobs.length === 1 ? 'model' : jobs.length < 5 ? 'modele' : 'modeli'}
-										</span>
-									</div>
+						<>
+							<h3 className="mb-3 text-sm font-bold text-slate-700">Wydruki w tej paczce ({localJobs.length})</h3>
 
-									{/* Projekty Ucznia */}
-									<div className="flex flex-col gap-2">
-										{jobs.map((job) => (
-											<div
-												key={job.id}
-												className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm transition-colors hover:border-purple-300"
-											>
-												<span className="text-xs font-semibold text-slate-700">{job.projectName}</span>
-
-												<select
-													value={job.status}
-													onChange={(e) => handleJobStatusChange(job.id, Number(e.target.value) as PrintJobsStates)}
-													disabled={isSubmitting || localBatchStatus === PrintBatchState.ReadyForCollection}
-													className={`cursor-pointer rounded-lg border p-1.5 text-xs font-semibold transition-colors outline-none focus:ring-2 focus:ring-purple-500 ${getJobStatusSelectClass(job.status)}`}
-												>
-													<option value={PrintJobsStates.Pending}>W kolejce</option>
-													<option value={PrintJobsStates.Printing}>Drukuje się</option>
-													<option value={PrintJobsStates.Printed}>Wydrukowano</option>
-													<option value={PrintJobsStates.Failed}>Błąd druku (Zepsute)</option>
-												</select>
-											</div>
-										))}
-									</div>
+							{localJobs.length === 0 ? (
+								<div className="rounded-lg border border-dashed border-red-300 bg-red-50 p-6 text-center text-red-600">
+									<ExclamationTriangleFill className="mx-auto mb-2 text-3xl" />
+									<p className="font-bold">Ta paczka jest pusta!</p>
+									<p className="text-sm">Użyj czerwonego kosza w prawym górnym rogu, aby ją usunąć.</p>
 								</div>
-							))}
-						</div>
+							) : (
+								<div className="flex flex-col gap-4">
+									{Object.entries(groupedJobs).map(([studentName, jobs]) => (
+										<div
+											key={studentName}
+											className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm flex flex-col gap-3"
+										>
+											{/* Nagłówek Ucznia */}
+											<div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+												<span className="font-extrabold text-slate-800 text-sm">{studentName}</span>
+												<span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[10px] font-black text-purple-700">
+													{jobs.length} {jobs.length === 1 ? 'model' : jobs.length < 5 ? 'modele' : 'modeli'}
+												</span>
+											</div>
+
+											{/* Projekty Ucznia */}
+											<div className="flex flex-col gap-2">
+												{jobs.map((job) => (
+													<div
+														key={job.id}
+														className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm transition-colors hover:border-purple-300"
+													>
+														<span className="text-xs font-semibold text-slate-700">{job.projectName}</span>
+
+														<select
+															value={job.status}
+															onChange={(e) => handleJobStatusChange(job.id, Number(e.target.value) as PrintJobsStates)}
+															disabled={isSubmitting || localBatchStatus === PrintBatchState.ReadyForCollection}
+															className={`cursor-pointer rounded-lg border p-1.5 text-xs font-semibold transition-colors outline-none focus:ring-2 focus:ring-purple-500 ${getJobStatusSelectClass(job.status)}`}
+														>
+															<option value={PrintJobsStates.Pending}>W kolejce</option>
+															<option value={PrintJobsStates.Printing}>Drukuje się</option>
+															<option value={PrintJobsStates.Printed}>Wydrukowano</option>
+															<option value={PrintJobsStates.Failed}>Błąd druku (Zepsute)</option>
+														</select>
+													</div>
+												))}
+											</div>
+										</div>
+									))}
+								</div>
+							)}
+						</>
 					)}
 				</div>
 
-				{/* MASOWE AKCJE - "BULK UPDATE" */}
-				<div className="border-t border-slate-100 bg-slate-50 p-5">
-					<h3 className="mb-3 text-center text-xs font-bold tracking-wider text-slate-500 uppercase">
-						Masowa aktualizacja (Bulk Update)
-					</h3>
-					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-						<button
-							onClick={() => handleBatchStatusChange(PrintBatchState.Printing)}
-							disabled={
-								isSubmitting ||
-								localBatchStatus === PrintBatchState.Printing ||
-								localBatchStatus === PrintBatchState.ReadyForCollection ||
-								localJobs.length === 0
-							}
-							className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-600 p-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							<PrinterFill /> Przekaż do druku
-						</button>
+				{/* MASOWE AKCJE - "BULK UPDATE" (Tylko dla zwykłych paczek z wydrukami) */}
+				{batch.status !== PrintBatchState.NoPrints && (
+					<div className="border-t border-slate-100 bg-slate-50 p-5">
+						<h3 className="mb-3 text-center text-xs font-bold tracking-wider text-slate-500 uppercase">
+							Masowa aktualizacja (Bulk Update)
+						</h3>
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+							<button
+								onClick={() => handleBatchStatusChange(PrintBatchState.Printing)}
+								disabled={
+									isSubmitting ||
+									localBatchStatus === PrintBatchState.Printing ||
+									localBatchStatus === PrintBatchState.ReadyForCollection ||
+									localJobs.length === 0
+								}
+								className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-600 p-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+							>
+								<PrinterFill /> Przekaż do druku
+							</button>
 
-						<button
-							onClick={() => handleBatchStatusChange(PrintBatchState.ReadyForCollection)}
-							disabled={
-								isSubmitting || localBatchStatus === PrintBatchState.ReadyForCollection || localJobs.length === 0
-							}
-							className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-600 p-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							<BoxSeamFill /> Gotowe do odbioru
-						</button>
+							<button
+								onClick={() => handleBatchStatusChange(PrintBatchState.ReadyForCollection)}
+								disabled={
+									isSubmitting || localBatchStatus === PrintBatchState.ReadyForCollection || localJobs.length === 0
+								}
+								className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-600 p-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+							>
+								<BoxSeamFill /> Gotowe do odbioru
+							</button>
+						</div>
 					</div>
-				</div>
+				)}
 			</div>
 		</div>
 	);
