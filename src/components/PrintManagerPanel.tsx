@@ -328,13 +328,29 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 		}
 	};
 
+	// STANY DLA ZGŁOSZENIA INNEJ TECHNOLOGII (BRAKU WYDRUKÓW)
+	const [noPrintsDate, setNoPrintsDate] = useState<string>(() => {
+		return lessonDate ? new Date(lessonDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+	});
+
+	useEffect(() => {
+		if (lessonDate) {
+			setNoPrintsDate(new Date(lessonDate).toISOString().split('T')[0]);
+		}
+	}, [lessonDate]);
+
 	// AKCJA 4: ZGŁOSZENIE BRAKU WYDRUKÓW NA ZAJĘCIACH
 	const handleReportNoPrints = async () => {
+		if (!noPrintsDate) {
+			toast.error('Wybierz datę zajęć.');
+			return;
+		}
+
 		setIsSubmitting(true);
 		try {
 			const res = await printBatchService.reportNoPrints({
 				groupId,
-				lessonDate,
+				lessonDate: noPrintsDate,
 				reason: 'Inna technologia (brak wydruków)',
 			});
 
@@ -351,11 +367,18 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 		}
 	};
 
-	// Weryfikacja czy dla dzisiejszej daty zgłoszono brak wydruków
-	const todayLessonDateStr = new Date(lessonDate).toISOString().split('T')[0];
-	const todayNoPrintsBatch = historyBatches.find(
-		(b) => b.status === PrintBatchState.NoPrints && new Date(b.lessonDate).toISOString().split('T')[0] === todayLessonDateStr
+	// Weryfikacja czy dla wybranej w polu daty zgłoszono brak wydruków
+	const selectedDateNoPrintsBatch = historyBatches.find(
+		(b) => b.status === PrintBatchState.NoPrints && new Date(b.lessonDate).toISOString().split('T')[0] === noPrintsDate
 	);
+
+	// Nadchodzące zgłoszenia innej technologii w tej grupie
+	const upcomingNoPrintsBatches = useMemo(() => {
+		const todayStr = new Date().toISOString().split('T')[0];
+		return historyBatches
+			.filter((b) => b.status === PrintBatchState.NoPrints && new Date(b.lessonDate).toISOString().split('T')[0] >= todayStr)
+			.sort((a, b) => new Date(a.lessonDate).getTime() - new Date(b.lessonDate).getTime());
+	}, [historyBatches]);
 
 	// POMOCNICZE TŁUMACZENIA STATUSÓW
 	const getStatusBadge = (status: PrintBatchState) => {
@@ -523,53 +546,92 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 								</div>
 							)}
 
-							{/* Jeśli dzisiaj zgłoszono brak wydruków */}
-							{todayNoPrintsBatch && (
-								<div className="mb-4 rounded-xl border border-slate-200 bg-slate-100/90 p-3.5 text-xs shadow-xs">
-									<div className="flex items-center justify-between">
-										<div className="flex items-center gap-2 font-bold text-slate-700">
-											<SlashCircle className="text-slate-500" size={15} />
-											<span>Dzisiaj inna technologia (brak wydruków)</span>
-										</div>
-										<button
-											type="button"
-											onClick={() => handleCancelBatch(todayNoPrintsBatch.id)}
-											className="cursor-pointer font-bold text-rose-600 hover:text-rose-700 text-[11px] underline"
-										>
-											Anuluj
-										</button>
-									</div>
-									<p className="mt-1 text-[11px] text-slate-500">
-										Drukarz wie, aby nie czekać na tę grupę w tym tygodniu.
-									</p>
-								</div>
-							)}
-
-							{/* Jeśli kompletnie nic nie ma wybranego/dodanego */}
-							{!hasItemsToPrint && !todayNoPrintsBatch && (
+							{/* Sekcja innej technologii (gdy brak projektów z matrycy/custom) */}
+							{!hasItemsToPrint && (
 								<div className="mb-4 space-y-3">
 									<p className="text-xs text-slate-400 italic">
 										Zaznacz na matrycy status "Do druku" przy wybranych modelach lub dodaj wydruki niestandardowe poniżej.
 									</p>
 
-									{/* Subtelna sekcja zgłoszenia braku wydruków */}
-									<div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-3.5 text-xs shadow-xs">
+									<div className="rounded-2xl border border-amber-200/80 bg-amber-50/50 p-3.5 text-xs shadow-xs">
 										<div className="flex items-center gap-1.5 font-bold text-amber-900">
 											<SlashCircle className="text-amber-600" size={14} />
-											<span>Na dzisiejszych zajęciach była inna technologia?</span>
+											<span>Inna technologia na zajęciach?</span>
 										</div>
 										<p className="mt-1 text-[11px] text-amber-800/80">
-											Poinformuj drukarza jednym kliknięciem, że dzisiaj nie ma projektów 3D do druku, aby nie czekał na zlecenie.
+											Jeśli w danym terminie grupa realizuje inne moduły (VR, długopisy 3D, teoria), poinformuj drukarza, aby nie czekał na zlecenia.
 										</p>
-										<button
-											type="button"
-											onClick={handleReportNoPrints}
-											disabled={isSubmitting}
-											className="mt-3 w-full cursor-pointer flex items-center justify-center gap-2 rounded-lg bg-amber-600 hover:bg-amber-700 py-2 text-xs font-bold text-white shadow-xs transition-colors disabled:opacity-50"
-										>
-											<SlashCircle size={13} />
-											{isSubmitting ? 'Zgłaszanie...' : 'Dzisiaj inna technologia (brak wydruków)'}
-										</button>
+
+										{/* WYBÓR DATY ZAJĘĆ */}
+										<div className="mt-3 rounded-xl bg-white/90 p-2.5 border border-amber-200">
+											<label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+												Termin zajęć
+											</label>
+											<input
+												type="date"
+												value={noPrintsDate}
+												onChange={(e) => setNoPrintsDate(e.target.value)}
+												className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500"
+											/>
+										</div>
+
+										{/* PRZYCISK ZGŁOSZENIA LUB INFORMACJA O JUŻ ZGŁOSZONYM TERMINIE */}
+										{selectedDateNoPrintsBatch ? (
+											<div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-100 p-2.5">
+												<div className="flex items-center justify-between">
+													<span className="font-bold text-slate-700 text-[11px]">
+														Zgłoszono brak druku na {new Date(noPrintsDate).toLocaleDateString('pl-PL')}
+													</span>
+													<button
+														type="button"
+														onClick={() => handleCancelBatch(selectedDateNoPrintsBatch.id)}
+														className="cursor-pointer font-bold text-rose-600 hover:text-rose-700 text-[11px] underline"
+													>
+														Anuluj
+													</button>
+												</div>
+											</div>
+										) : (
+											<button
+												type="button"
+												onClick={handleReportNoPrints}
+												disabled={isSubmitting || !noPrintsDate}
+												className="mt-2.5 w-full cursor-pointer flex items-center justify-center gap-2 rounded-lg bg-amber-600 hover:bg-amber-700 py-2 text-xs font-bold text-white shadow-xs transition-colors disabled:opacity-50"
+											>
+												<SlashCircle size={13} />
+												{isSubmitting
+													? 'Zgłaszanie...'
+													: `Zgłoś brak wydruków na ${new Date(noPrintsDate).toLocaleDateString('pl-PL')}`}
+											</button>
+										)}
+
+										{/* LISTA ZAPLANOWANYCH INNYCH TECHNOLOGII W TEJ GRUPIE */}
+										{upcomingNoPrintsBatches.length > 0 && (
+											<div className="mt-3 border-t border-amber-200/60 pt-2.5 space-y-1.5">
+												<span className="text-[10px] font-black uppercase tracking-wider text-amber-900/70 block">
+													Zaplanowane w tej grupie ({upcomingNoPrintsBatches.length}):
+												</span>
+												<div className="space-y-1">
+													{upcomingNoPrintsBatches.map((b) => (
+														<div
+															key={b.id}
+															className="flex items-center justify-between rounded-lg bg-white/80 px-2 py-1 text-[11px] border border-amber-100 shadow-2xs"
+														>
+															<span className="font-semibold text-slate-700">
+																{new Date(b.lessonDate).toLocaleDateString('pl-PL')}
+															</span>
+															<button
+																type="button"
+																onClick={() => handleCancelBatch(b.id)}
+																className="cursor-pointer text-[10px] font-bold text-rose-600 hover:text-rose-700 underline"
+															>
+																Anuluj
+															</button>
+														</div>
+													))}
+												</div>
+											</div>
+										)}
 									</div>
 								</div>
 							)}

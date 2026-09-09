@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { printBatchService, type PrintBatchResponse, PrintBatchState } from '../api/printBatchService';
 import { PrinterFill, ClockHistory, GearFill, CalendarEvent, ListTask, Grid3x3GapFill, ChatLeftTextFill, SlashCircle } from 'react-bootstrap-icons';
 import { PrintBatchManagerModal } from '../components/PrintBatchManagerModal';
+import { NoPrintsScheduleModal } from '../components/NoPrintsScheduleModal';
 import { CustomSelect } from '../components/CustomSelect';
 import { authService } from '../api/authService';
 import { UserRole } from '../api/userService';
@@ -43,7 +44,7 @@ export function PrinterDashboard() {
 	const [dateFilterType, setDateFilterType] = useState<'all' | 'today' | 'yesterday' | 'thisWeek' | 'custom'>('all');
 	const [customDateValue, setCustomDateValue] = useState<string>('');
 	const [sortBy, setSortBy] = useState<'createdAtDesc' | 'createdAtAsc' | 'deadlineAsc'>('createdAtDesc');
-	const [isNoPrintsBannerOpen, setIsNoPrintsBannerOpen] = useState(true);
+	const [isNoPrintsModalOpen, setIsNoPrintsModalOpen] = useState(false);
 
 	// Zamykanie dropdowna przy kliknięciu poza nim
 	useEffect(() => {
@@ -133,9 +134,28 @@ export function PrinterDashboard() {
 		}
 	};
 
-	// Zgłoszenia braku wydruków (do górnego paska informacyjnego)
-	const noPrintBatches = useMemo(() => {
-		return batches.filter((b) => b.status === PrintBatchState.NoPrints);
+
+
+	// Liczba zgłoszeń w bieżącym tygodniu (dla badge'a na przycisku)
+	const thisWeekNoPrintsCount = useMemo(() => {
+		const baseMonday = new Date();
+		const day = baseMonday.getDay();
+		const diff = baseMonday.getDate() - day + (day === 0 ? -6 : 1);
+		baseMonday.setDate(diff);
+		baseMonday.setHours(0, 0, 0, 0);
+
+		const baseSunday = new Date(baseMonday);
+		baseSunday.setDate(baseSunday.getDate() + 6);
+		baseSunday.setHours(23, 59, 59, 999);
+
+		const mTime = baseMonday.getTime();
+		const sTime = baseSunday.getTime();
+
+		return batches.filter((b) => {
+			if (b.status !== PrintBatchState.NoPrints) return false;
+			const bTime = new Date(b.lessonDate).getTime();
+			return bTime >= mTime && bTime <= sTime;
+		}).length;
 	}, [batches]);
 
 	const uniqueGroups = useMemo(() => {
@@ -267,6 +287,22 @@ export function PrinterDashboard() {
 						</button>
 					</div>
 
+					{/* PRZYCISK HARMONOGRAMU INNYCH TECHNOLOGII */}
+					<button
+						type="button"
+						onClick={() => setIsNoPrintsModalOpen(true)}
+						className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50"
+						title="Otwórz harmonogram grup bez wydruków (inna technologia)"
+					>
+						<SlashCircle className="text-amber-600" size={15} />
+						<span>Inna technologia</span>
+						{thisWeekNoPrintsCount > 0 && (
+							<span className="rounded-full bg-amber-100 px-2 py-0.2 text-xs font-black text-amber-800 border border-amber-200">
+								{thisWeekNoPrintsCount}
+							</span>
+						)}
+					</button>
+
 					<label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 shadow-sm transition-all hover:bg-slate-50">
 						<input
 							type="checkbox"
@@ -289,89 +325,6 @@ export function PrinterDashboard() {
 					</button>
 				</div>
 			</div>
-
-			{/* BANER INFORMACYJNY: ZGŁOSZENIA BRAKU WYDRUKÓW NA ZAJĘCIACH (W TYM TYGODNIU) */}
-			{noPrintBatches.length > 0 && (
-				isNoPrintsBannerOpen ? (
-					<div className="mb-6 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs">
-						<div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-2.5">
-									<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 font-bold border border-slate-200">
-										<SlashCircle size={16} />
-									</span>
-									<div>
-										<div className="flex items-center gap-2">
-											<h2 className="text-xs font-black uppercase tracking-wider text-slate-700">
-												W tym tygodniu bez wydruków
-											</h2>
-											<span className="rounded-full bg-slate-100 px-2 py-0.2 text-[10px] font-bold text-slate-600 border border-slate-200">
-												{noPrintBatches.length} {noPrintBatches.length === 1 ? 'grupa' : 'grup'}
-											</span>
-										</div>
-										<p className="text-[11px] text-slate-400 font-medium">
-											Na ostatnich zajęciach była inna technologia (nie czekaj na pliki od tych grup).
-										</p>
-									</div>
-								</div>
-								<button
-									type="button"
-									onClick={() => setIsNoPrintsBannerOpen(false)}
-									className="cursor-pointer lg:hidden text-xs font-semibold text-slate-400 hover:text-slate-600 px-2 py-1"
-								>
-									Zwiń
-								</button>
-							</div>
-
-							<div className="flex items-center gap-2">
-								{/* Lista pastylek grup */}
-								<div className="flex flex-wrap items-center gap-1.5">
-									{noPrintBatches.map((b) => (
-										<button
-											key={b.id}
-											type="button"
-											onClick={() => setSelectedBatch(b)}
-											className="group inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:border-purple-300 hover:bg-purple-50/50 transition-all"
-											title={`Data zajęć: ${new Date(b.lessonDate).toLocaleDateString()}\nStatus: ${b.notes || 'Inna technologia (brak wydruków)'}`}
-										>
-											<span className="font-bold text-slate-900 group-hover:text-purple-700 transition-colors">
-												{b.groupName}
-											</span>
-											{b.classDayOfWeek !== null && b.classDayOfWeek !== undefined && (
-												<span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
-													{getDayName(b.classDayOfWeek)}
-												</span>
-											)}
-										</button>
-									))}
-								</div>
-								<button
-									type="button"
-									onClick={() => setIsNoPrintsBannerOpen(false)}
-									className="cursor-pointer hidden lg:inline-flex text-xs font-semibold text-slate-400 hover:text-slate-700 px-2.5 py-1 rounded-lg border border-transparent hover:border-slate-200 hover:bg-slate-50 transition-colors"
-									title="Zwiń pasek"
-								>
-									Zwiń
-								</button>
-							</div>
-						</div>
-					</div>
-				) : (
-					<div className="mb-6 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-500 shadow-xs">
-						<div className="flex items-center gap-2">
-							<SlashCircle size={13} className="text-slate-400" />
-							<span>W tym tygodniu bez wydruków (inna technologia): <strong className="text-slate-800">{noPrintBatches.length} {noPrintBatches.length === 1 ? 'grupa' : 'grup'}</strong></span>
-						</div>
-						<button
-							type="button"
-							onClick={() => setIsNoPrintsBannerOpen(true)}
-							className="cursor-pointer font-bold text-purple-600 hover:text-purple-700 text-[11px]"
-						>
-							Pokaż grupy
-						</button>
-					</div>
-				)
-			)}
 
 			{/* SEKCA FILTRÓW */}
 			<div className="mb-8 flex flex-wrap gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -823,6 +776,17 @@ export function PrinterDashboard() {
 					}}
 				/>
 			)}
+
+			{/* MODAL HARMONOGRAMU INNYCH TECHNOLOGII */}
+			<NoPrintsScheduleModal
+				isOpen={isNoPrintsModalOpen}
+				onClose={() => setIsNoPrintsModalOpen(false)}
+				batches={batches}
+				onSelectBatch={(batch) => {
+					setIsNoPrintsModalOpen(false);
+					setSelectedBatch(batch);
+				}}
+			/>
 		</div>
 	);
 }
