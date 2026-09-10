@@ -1,7 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { XCircleFill, PrinterFill, BoxSeamFill, ExclamationTriangleFill, TrashFill, SlashCircle } from 'react-bootstrap-icons';
+import { XCircleFill, PrinterFill, BoxSeamFill, ExclamationTriangleFill, TrashFill, SlashCircle, Scissors } from 'react-bootstrap-icons';
 import { printBatchService, type PrintBatchResponse, PrintBatchState, PrintJobsStates } from '../api/printBatchService';
+import { authService } from '../api/authService';
+import { UserRole } from '../api/userService';
+import { PrintLabelsModal } from './PrintLabelsModal';
 
 interface PrintBatchManagerModalProps {
 	batch: PrintBatchResponse;
@@ -16,7 +19,11 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 	onClose,
 	onRefreshNeeded,
 }) => {
+	const currentUser = authService.getCurrentUser();
+	const isAdmin = currentUser?.role === UserRole.Admin;
+
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [isLabelsModalOpen, setIsLabelsModalOpen] = useState(false);
 
 	// Stan lokalny dla wydruków (żeby dropdowny zmieniały się na żywo)
 	const [localJobs, setLocalJobs] = useState(batch.printJobs);
@@ -155,6 +162,17 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 						</p>
 					</div>
 					<div className="flex items-center gap-2">
+						{isAdmin && batch.status !== PrintBatchState.NoPrints && localJobs.length > 0 && (
+							<button
+								type="button"
+								onClick={() => setIsLabelsModalOpen(true)}
+								disabled={isSubmitting}
+								title="Drukuj etykiety do woreczków (Tylko Admin)"
+								className="cursor-pointer flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 transition-colors hover:bg-purple-100 disabled:opacity-50"
+							>
+								<Scissors size={14} /> Etykiety do woreczków
+							</button>
+						)}
 						<button
 							onClick={handleDeleteBatch}
 							disabled={isSubmitting}
@@ -286,6 +304,18 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 					</div>
 				)}
 			</div>
+
+			{/* MODAL DRUKOWANIA ETYKIET A4 (TYLKO DLA ADMINA) */}
+			{isAdmin && isLabelsModalOpen && (
+				<PrintLabelsModal
+					isOpen={isLabelsModalOpen}
+					onClose={() => setIsLabelsModalOpen(false)}
+					batch={{
+						...batch,
+						printJobs: localJobs,
+					}}
+				/>
+			)}
 		</div>
 	);
 };

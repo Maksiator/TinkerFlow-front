@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { printBatchService, type PrintBatchResponse, PrintBatchState } from '../api/printBatchService';
-import { PrinterFill, ClockHistory, GearFill, CalendarEvent, ListTask, Grid3x3GapFill, ChatLeftTextFill, SlashCircle } from 'react-bootstrap-icons';
+import { PrinterFill, ClockHistory, GearFill, CalendarEvent, ListTask, Grid3x3GapFill, ChatLeftTextFill, SlashCircle, Scissors } from 'react-bootstrap-icons';
 import { PrintBatchManagerModal } from '../components/PrintBatchManagerModal';
 import { NoPrintsScheduleModal } from '../components/NoPrintsScheduleModal';
 import { CustomSelect } from '../components/CustomSelect';
+import { PrintLabelsModal } from '../components/PrintLabelsModal';
 import { authService } from '../api/authService';
 import { UserRole } from '../api/userService';
 import toast from 'react-hot-toast';
@@ -15,6 +16,7 @@ export function PrinterDashboard() {
 	const [batches, setBatches] = useState<PrintBatchResponse[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [selectedBatch, setSelectedBatch] = useState<PrintBatchResponse | null>(null);
+	const [batchForLabels, setBatchForLabels] = useState<PrintBatchResponse | null>(null);
 
 	// Widok: 'compact' (Tabela / Uproszczony) lub 'detailed' (Karty ze szczegółami)
 	const [viewMode, setViewMode] = useState<'compact' | 'detailed'>(() => {
@@ -601,24 +603,37 @@ export function PrinterDashboard() {
 												)}
 											</td>
 											<td className="p-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-												<button
-													onClick={() => setSelectedBatch(batch)}
-													className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold shadow-xs transition-colors ${
-														batch.status === PrintBatchState.NoPrints
-															? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-															: 'bg-purple-600 text-white hover:bg-purple-700'
-													}`}
-												>
-													{batch.status === PrintBatchState.NoPrints ? (
-														<>
-															<SlashCircle size={12} /> Szczegóły
-														</>
-													) : (
-														<>
-															<GearFill size={12} /> Zarządzaj
-														</>
+												<div className="inline-flex items-center gap-1.5">
+													{isAdmin && batch.status !== PrintBatchState.NoPrints && (
+														<button
+															type="button"
+															onClick={() => setBatchForLabels(batch)}
+															className="cursor-pointer inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 px-2.5 py-1.5 text-xs font-bold text-purple-700 transition-colors hover:bg-purple-100"
+															title="Drukuj etykiety do woreczków (Tylko Admin)"
+														>
+															<Scissors size={13} />
+															Etykiety
+														</button>
 													)}
-												</button>
+													<button
+														onClick={() => setSelectedBatch(batch)}
+														className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold shadow-xs transition-colors ${
+															batch.status === PrintBatchState.NoPrints
+																? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+																: 'bg-purple-600 text-white hover:bg-purple-700'
+														}`}
+													>
+														{batch.status === PrintBatchState.NoPrints ? (
+															<>
+																<SlashCircle size={12} /> Szczegóły
+															</>
+														) : (
+															<>
+																<GearFill size={12} /> Zarządzaj
+															</>
+														)}
+													</button>
+												</div>
 											</td>
 										</tr>
 									);
@@ -740,10 +755,20 @@ export function PrinterDashboard() {
 							</div>
 
 							{/* Karta paczki - Stopka */}
-							<div className="border-t border-slate-100 bg-slate-50 p-3">
+							<div className="border-t border-slate-100 bg-slate-50 p-3 flex items-center gap-2">
+								{isAdmin && batch.status !== PrintBatchState.NoPrints && (
+									<button
+										type="button"
+										onClick={() => setBatchForLabels(batch)}
+										className="cursor-pointer inline-flex items-center justify-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 py-2.5 px-3 text-sm font-bold text-purple-700 transition-colors hover:bg-purple-100"
+										title="Drukuj etykiety do woreczków (Tylko Admin)"
+									>
+										<Scissors size={15} /> Etykiety
+									</button>
+								)}
 								<button
 									onClick={() => setSelectedBatch(batch)}
-									className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold shadow-xs transition-colors ${
+									className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold shadow-xs transition-colors ${
 										batch.status === PrintBatchState.NoPrints
 											? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
 											: 'bg-purple-600 text-white hover:bg-purple-700'
@@ -787,6 +812,15 @@ export function PrinterDashboard() {
 					setSelectedBatch(batch);
 				}}
 			/>
+
+			{/* MODAL DRUKOWANIA ETYKIET DO WORECZKÓW (TYLKO DLA ADMINA) */}
+			{isAdmin && batchForLabels && (
+				<PrintLabelsModal
+					isOpen={Boolean(batchForLabels)}
+					onClose={() => setBatchForLabels(null)}
+					batch={batchForLabels}
+				/>
+			)}
 		</div>
 	);
 }
