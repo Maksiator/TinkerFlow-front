@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { groupService, type CreateGroup } from '../api/groupService';
 import { studentService, type Student, type StudentHistoryItem } from '../api/studentService';
@@ -9,6 +9,7 @@ import { ArrowLeft, PlusLg, TrashFill, Search, PersonFillAdd, CloudArrowUpFill, 
 import toast from 'react-hot-toast';
 import { authService } from '../api/authService';
 import { TransferStudentModal } from '../components/TransferStudentModal';
+import { CustomSelect } from '../components/CustomSelect';
 
 export function GroupForm() {
 	const { id } = useParams<{ id: string }>();
@@ -40,6 +41,35 @@ export function GroupForm() {
 	const [studentToTransfer, setStudentToTransfer] = useState<Student | null>(null);
 	const [removeReason, setRemoveReason] = useState<'midyear' | 'mistake'>('midyear');
 	const [isRemoving, setIsRemoving] = useState(false);
+
+	// Dynamiczne filtrowanie trenerów dla wybranego oddziału
+	const availableTrainers = useMemo(() => {
+		if (!formData.branchId) return [];
+		return trainers.filter((t) => {
+			if (t.id === formData.primaryTrainerId) return true;
+			if (t.role === UserRole.Admin) return true;
+			return t.branches && t.branches.some((b) => b.branchId === formData.branchId);
+		});
+	}, [trainers, formData.branchId, formData.primaryTrainerId]);
+
+	const handleBranchChange = (newBranchId: string) => {
+		setFormData((prev) => {
+			const branchTrainers = trainers.filter(
+				(t) =>
+					t.role === UserRole.Admin ||
+					(t.branches && t.branches.some((b) => b.branchId === newBranchId))
+			);
+			const isCurrentTrainerValid =
+				prev.primaryTrainerId &&
+				branchTrainers.some((t) => t.id === prev.primaryTrainerId);
+
+			return {
+				...prev,
+				branchId: newBranchId,
+				primaryTrainerId: isCurrentTrainerValid ? prev.primaryTrainerId : null,
+			};
+		});
+	};
 
 	// ZAKTUALIZOWANY EFEKT: Bezpieczne pobieranie danych
 	useEffect(() => {
@@ -148,6 +178,11 @@ export function GroupForm() {
 
 		if (!formData.branchId) {
 			toast.error('Musisz wybrać oddział dla grupy!');
+			return;
+		}
+
+		if (!formData.name.trim()) {
+			toast.error('Podaj nazwę grupy!');
 			return;
 		}
 
@@ -287,100 +322,116 @@ export function GroupForm() {
 					<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
 						<h2 className="mb-6 text-xl font-bold text-slate-800">{isEditMode ? 'Dane grupy' : 'Utwórz nową grupę'}</h2>
 						<form onSubmit={handleSubmit} className="flex flex-col gap-5">
+							{/* 1. ODDZIAŁ / LOKALIZACJA - WYBIERANY NAJPIERW */}
+							<CustomSelect
+								label="Oddział / Lokalizacja"
+								required
+								color="blue"
+								searchable={branches.length > 5}
+								value={formData.branchId}
+								onChange={handleBranchChange}
+								disabled={branches.length === 1}
+								placeholder="Wybierz oddział..."
+								options={branches.map((b) => ({
+									value: b.id,
+									label: b.name,
+								}))}
+								helperText={
+									branches.length === 1
+										? 'Twój jedyny przypisany oddział (wybrany automatycznie).'
+										: undefined
+								}
+							/>
+
+							{/* 2. NAZWA GRUPY */}
 							<div>
-								<label className="mb-1 block text-sm font-bold text-slate-700">Nazwa grupy</label>
+								<label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+									Nazwa grupy <span className="text-red-500">*</span>
+								</label>
 								<input
 									type="text"
 									required
 									value={formData.name}
 									onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-									className="w-full rounded-lg border border-slate-300 p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+									className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-800 shadow-sm transition-all outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-400"
 									placeholder="np. Czwartki 16:00"
 								/>
 							</div>
 
-							{/* ZMIANA 1: Lista rozwijana Oddziałów */}
-							<div>
-								<label className="mb-1 block text-sm font-bold text-slate-700">Oddział / Lokalizacja</label>
-								<select
-									required
-									value={formData.branchId}
-									onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
-									disabled={branches.length === 1} // Jeśli jest tylko 1 opcja, zablokuj pole
-									className="w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
-								>
-									<option value="" disabled>
-										Wybierz oddział...
-									</option>
-									{branches.map((b) => (
-										<option key={b.id} value={b.id}>
-											{b.name}
-										</option>
-									))}
-								</select>
-							</div>
+							{/* 3. GŁÓWNY PROWADZĄCY - DYNAMICZNIE FILTROWANI TRENERZY DLA ODDZIAŁU */}
+							<CustomSelect
+								label="Główny Prowadzący (Trener)"
+								color="blue"
+								searchable={availableTrainers.length > 5}
+								disabled={!formData.branchId}
+								value={formData.primaryTrainerId || ''}
+								onChange={(val) => setFormData({ ...formData, primaryTrainerId: val || null })}
+								placeholder={
+									!formData.branchId
+										? 'Najpierw wybierz oddział...'
+										: availableTrainers.length === 0
+										? 'Brak trenerów w tym oddziale'
+										: 'Wybierz prowadzącego...'
+								}
+								options={[
+									{ value: '', label: 'Nie przypisano' },
+									...availableTrainers.map((t) => ({
+										value: t.id,
+										label: `${t.firstName} ${t.lastName}`,
+										sublabel: t.role === UserRole.Admin ? 'Administrator' : undefined,
+									})),
+								]}
+								helperText={
+									!formData.branchId
+										? 'Wybierz oddział powyżej, aby zobaczyć przypisanych do niego trenerów.'
+										: availableTrainers.length === 0
+										? 'Brak aktywnych trenerów przypisanych do tego oddziału.'
+										: `Dostępni trenerzy w tym oddziale (${availableTrainers.length}). Uzyska dostęp do matrycy.`
+								}
+							/>
 
-							<div>
-								<label className="mb-1 block text-sm font-bold text-slate-700">Główny Prowadzący</label>
-								<select
-									value={formData.primaryTrainerId || ''}
-									onChange={(e) => setFormData({ ...formData, primaryTrainerId: e.target.value })}
-									className="w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-								>
-									<option value="">Nie przypisano</option>
-									{trainers.map((t) => (
-										<option key={t.id} value={t.id}>
-											{t.firstName} {t.lastName}
-										</option>
-									))}
-								</select>
-								<p className="mt-1 text-[10px] text-slate-400">
-									Trener automatycznie uzyska dostęp do matrycy tej grupy.
-								</p>
-							</div>
+							{/* 4. DEDYKOWANY DRUKARZ (OPCJONALNIE) */}
+							<CustomSelect
+								label="Dedykowany Drukarz (Opcjonalnie)"
+								color="blue"
+								searchable={printers.length > 5}
+								value={formData.assignedPrinterId || ''}
+								onChange={(val) => setFormData({ ...formData, assignedPrinterId: val || null })}
+								placeholder="Wybierz drukarza..."
+								options={[
+									{ value: '', label: 'Nie przypisano (Brak)' },
+									...printers.map((p) => ({
+										value: p.id,
+										label: `${p.firstName} ${p.lastName}`,
+										sublabel: p.email,
+									})),
+								]}
+								helperText="Drukarz będzie widział w swoim panelu paczki zlecone z tej grupy."
+							/>
 
-							<div>
-								<label className="mb-1 block text-sm font-bold text-slate-700">Dedykowany Drukarz (Opcjonalnie)</label>
-								<select
-									value={formData.assignedPrinterId || ''}
-									onChange={(e) => setFormData({ ...formData, assignedPrinterId: e.target.value })}
-									className="w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-								>
-									<option value="">Nie przypisano (Brak)</option>
-									{printers.map((p) => (
-										<option key={p.id} value={p.id}>
-											{p.firstName} {p.lastName} ({p.email})
-										</option>
-									))}
-								</select>
-								<p className="mt-1 text-[10px] text-slate-400">
-									Drukarz będzie widział w swoim panelu paczki zlecone z tej grupy.
-								</p>
-							</div>
-
-							{/* Dzień tygodnia */}
-							<div>
-								<label className="mb-1 block text-sm font-bold text-slate-700">Dzień zajęć</label>
-								<select
-									value={formData.classDayOfWeek === null ? '' : formData.classDayOfWeek}
-									onChange={(e) => setFormData({ ...formData, classDayOfWeek: e.target.value === '' ? null : parseInt(e.target.value, 10) })}
-									className="w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-								>
-									<option value="">Nie wybrano</option>
-									<option value="1">Poniedziałek</option>
-									<option value="2">Wtorek</option>
-									<option value="3">Środa</option>
-									<option value="4">Czwartek</option>
-									<option value="5">Piątek</option>
-									<option value="6">Sobota</option>
-									<option value="0">Niedziela</option>
-								</select>
-							</div>
+							{/* 5. DZIEŃ ZAJĘĆ */}
+							<CustomSelect
+								label="Dzień zajęć"
+								color="blue"
+								value={formData.classDayOfWeek === null || formData.classDayOfWeek === undefined ? '' : String(formData.classDayOfWeek)}
+								onChange={(val) => setFormData({ ...formData, classDayOfWeek: val === '' ? null : parseInt(val, 10) })}
+								placeholder="Wybierz dzień..."
+								options={[
+									{ value: '', label: 'Nie wybrano' },
+									{ value: '1', label: 'Poniedziałek' },
+									{ value: '2', label: 'Wtorek' },
+									{ value: '3', label: 'Środa' },
+									{ value: '4', label: 'Czwartek' },
+									{ value: '5', label: 'Piątek' },
+									{ value: '6', label: 'Sobota' },
+									{ value: '0', label: 'Niedziela' },
+								]}
+							/>
 
 							<button
 								type="submit"
 								disabled={isSaving}
-								className="mt-2 w-full cursor-pointer rounded-lg bg-blue-600 p-3 font-bold text-white transition-colors hover:bg-blue-700 active:scale-95 disabled:bg-slate-400"
+								className="mt-2 w-full cursor-pointer rounded-xl bg-blue-600 p-3 font-bold text-white shadow-md transition-all hover:bg-blue-700 active:scale-95 disabled:bg-slate-400 disabled:cursor-not-allowed"
 							>
 								{isSaving ? 'Zapisywanie...' : 'Zapisz dane'}
 							</button>
