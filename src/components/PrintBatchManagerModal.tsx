@@ -310,10 +310,13 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 				<PrintLabelsModal
 					isOpen={isLabelsModalOpen}
 					onClose={() => setIsLabelsModalOpen(false)}
-					batch={{
-						...batch,
-						printJobs: localJobs,
-					}}
+					allBatches={[
+						{
+							...batch,
+							printJobs: localJobs,
+						},
+					]}
+					selectedBatchIds={[batch.id]}
 				/>
 			)}
 		</div>

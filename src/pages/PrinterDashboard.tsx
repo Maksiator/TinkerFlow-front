@@ -16,7 +16,8 @@ export function PrinterDashboard() {
 	const [batches, setBatches] = useState<PrintBatchResponse[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [selectedBatch, setSelectedBatch] = useState<PrintBatchResponse | null>(null);
-	const [batchForLabels, setBatchForLabels] = useState<PrintBatchResponse | null>(null);
+	const [isLabelsModalOpen, setIsLabelsModalOpen] = useState(false);
+	const [selectedBatchIdsForLabels, setSelectedBatchIdsForLabels] = useState<string[]>([]);
 
 	// Widok: 'compact' (Tabela / Uproszczony) lub 'detailed' (Karty ze szczegółami)
 	const [viewMode, setViewMode] = useState<'compact' | 'detailed'>(() => {
@@ -304,6 +305,25 @@ export function PrinterDashboard() {
 							</span>
 						)}
 					</button>
+
+					{/* PRZYCISK DRUKOWANIA ETYKIET A4 (TYLKO DLA ADMINA) */}
+					{isAdmin && (
+						<button
+							type="button"
+							onClick={() => {
+								const eligibleIds = filteredAndSortedBatches
+									.filter((b) => b.status !== PrintBatchState.NoPrints && (b.printJobs?.length ?? 0) > 0)
+									.map((b) => b.id);
+								setSelectedBatchIdsForLabels(eligibleIds);
+								setIsLabelsModalOpen(true);
+							}}
+							className="flex cursor-pointer items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-3.5 py-2 text-sm font-bold text-purple-700 shadow-sm transition-all hover:bg-purple-100"
+							title="Drukuj etykiety do woreczków na kartce A4 (zbiorczo lub pojedynczo)"
+						>
+							<Scissors className="text-purple-600" size={15} />
+							<span>Drukuj etykiety (A4)</span>
+						</button>
+					)}
 
 					<label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 shadow-sm transition-all hover:bg-slate-50">
 						<input
@@ -607,7 +627,10 @@ export function PrinterDashboard() {
 													{isAdmin && batch.status !== PrintBatchState.NoPrints && (
 														<button
 															type="button"
-															onClick={() => setBatchForLabels(batch)}
+															onClick={() => {
+																setSelectedBatchIdsForLabels([batch.id]);
+																setIsLabelsModalOpen(true);
+															}}
 															className="cursor-pointer inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 px-2.5 py-1.5 text-xs font-bold text-purple-700 transition-colors hover:bg-purple-100"
 															title="Drukuj etykiety do woreczków (Tylko Admin)"
 														>
@@ -759,7 +782,10 @@ export function PrinterDashboard() {
 								{isAdmin && batch.status !== PrintBatchState.NoPrints && (
 									<button
 										type="button"
-										onClick={() => setBatchForLabels(batch)}
+										onClick={() => {
+											setSelectedBatchIdsForLabels([batch.id]);
+											setIsLabelsModalOpen(true);
+										}}
 										className="cursor-pointer inline-flex items-center justify-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 py-2.5 px-3 text-sm font-bold text-purple-700 transition-colors hover:bg-purple-100"
 										title="Drukuj etykiety do woreczków (Tylko Admin)"
 									>
@@ -814,11 +840,13 @@ export function PrinterDashboard() {
 			/>
 
 			{/* MODAL DRUKOWANIA ETYKIET DO WORECZKÓW (TYLKO DLA ADMINA) */}
-			{isAdmin && batchForLabels && (
+			{isAdmin && isLabelsModalOpen && (
 				<PrintLabelsModal
-					isOpen={Boolean(batchForLabels)}
-					onClose={() => setBatchForLabels(null)}
-					batch={batchForLabels}
+					isOpen={isLabelsModalOpen}
+					onClose={() => setIsLabelsModalOpen(false)}
+					allBatches={batches}
+					selectedBatchIds={selectedBatchIdsForLabels}
+					onBatchIdsChange={setSelectedBatchIdsForLabels}
 				/>
 			)}
 		</div>
