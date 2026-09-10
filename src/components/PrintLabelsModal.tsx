@@ -24,8 +24,6 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 	const isAdmin = currentUser?.role === UserRole.Admin;
 
 	const [activeBatchIds, setActiveBatchIds] = useState<string[]>(selectedBatchIds);
-	const [includeProjects, setIncludeProjects] = useState(false);
-	const [oneLabelPerModel, setOneLabelPerModel] = useState(false);
 
 	useEffect(() => {
 		if (isOpen) {
@@ -51,54 +49,30 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 		onBatchIdsChange?.([]);
 	};
 
-	// Przygotowanie listy etykiet ze wszystkich zaznaczonych paczek
+	// Przygotowanie listy etykiet ze wszystkich zaznaczonych paczek (1 na ucznia)
 	const labels = useMemo(() => {
-		const currentBatches = activeBatches;
 		const list: Array<{
 			id: string;
 			studentName: string;
 			groupName: string;
-			projects: string[];
 		}> = [];
 
-		for (const batch of currentBatches) {
-			if (oneLabelPerModel) {
-				for (const job of batch.printJobs) {
-					list.push({
-						id: `${batch.id}-${job.id}`,
-						studentName: job.studentName,
-						groupName: batch.groupName,
-						projects: [job.projectName],
-					});
-				}
-			} else {
-				// 1 etykieta na ucznia w danej paczce
-				const map = new Map<string, { studentName: string; projects: string[] }>();
-				for (const job of batch.printJobs) {
-					const existing = map.get(job.studentName);
-					if (existing) {
-						existing.projects.push(job.projectName);
-					} else {
-						map.set(job.studentName, {
-							studentName: job.studentName,
-							projects: [job.projectName],
-						});
-					}
-				}
-				const sorted = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b, 'pl'));
-				for (const [studentName, data] of sorted) {
-					list.push({
-						id: `${batch.id}-${studentName}`,
-						studentName: data.studentName,
-						groupName: batch.groupName,
-						projects: data.projects,
-					});
-				}
+		for (const batch of activeBatches) {
+			const studentNames = Array.from(
+				new Set(batch.printJobs.map((job) => job.studentName.trim()).filter(Boolean))
+			).sort((a, b) => a.localeCompare(b, 'pl'));
+
+			for (const studentName of studentNames) {
+				list.push({
+					id: `${batch.id}-${studentName}`,
+					studentName,
+					groupName: batch.groupName,
+				});
 			}
 		}
 
 		return list;
-	}, [activeBatches, oneLabelPerModel]);
+	}, [activeBatches]);
 
 	if (!isOpen || !isAdmin) return null;
 
@@ -120,7 +94,7 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 				border: '1.5px dashed #000000',
 				borderRadius: '2px',
 				boxSizing: 'border-box',
-				padding: isPrint ? '2mm 3mm' : '8px 10px',
+				padding: isPrint ? '2mm 3mm' : '10px 12px',
 				display: 'flex',
 				flexDirection: 'column',
 				justifyContent: 'center',
@@ -134,12 +108,12 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 			{/* Imię i Nazwisko */}
 			<div
 				style={{
-					fontSize: isPrint ? '13px' : '13px',
+					fontSize: isPrint ? '14px' : '14px',
 					fontWeight: '900',
 					textTransform: 'uppercase',
 					color: '#000000',
-					lineHeight: '1.15',
-					letterSpacing: '0.3px',
+					lineHeight: '1.2',
+					letterSpacing: '0.4px',
 					wordBreak: 'break-word',
 					maxWidth: '100%',
 				}}
@@ -150,37 +124,17 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 			{/* Nazwa grupy */}
 			<div
 				style={{
-					fontSize: isPrint ? '10px' : '11px',
+					fontSize: isPrint ? '11px' : '12px',
 					fontWeight: '700',
-					color: '#222222',
-					marginTop: '3px',
-					lineHeight: '1.15',
+					color: '#333333',
+					marginTop: '4px',
+					lineHeight: '1.2',
 					wordBreak: 'break-word',
 					maxWidth: '100%',
 				}}
 			>
 				{label.groupName}
 			</div>
-
-			{/* Opcjonalne nazwy projektów */}
-			{includeProjects && label.projects.length > 0 && (
-				<div
-					style={{
-						fontSize: isPrint ? '8px' : '9px',
-						fontWeight: '500',
-						color: '#555555',
-						marginTop: '2px',
-						fontStyle: 'italic',
-						lineHeight: '1.1',
-						overflow: 'hidden',
-						textOverflow: 'ellipsis',
-						whiteSpace: 'nowrap',
-						maxWidth: '100%',
-					}}
-				>
-					{label.projects.join(', ')}
-				</div>
-			)}
 		</div>
 	);
 
@@ -329,28 +283,10 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 						</div>
 					)}
 
-					{/* PASEK OPCJI I PRZYCISK DRUKU */}
+					{/* PASEK Z PODSUMOWANIEM I PRZYCISKIEM DRUKU */}
 					<div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-slate-50 px-6 py-3">
-						<div className="flex flex-wrap items-center gap-5 text-xs text-slate-700 font-medium">
-							<label className="flex cursor-pointer items-center gap-2 select-none">
-								<input
-									type="checkbox"
-									checked={oneLabelPerModel}
-									onChange={(e) => setOneLabelPerModel(e.target.checked)}
-									className="h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 accent-purple-600"
-								/>
-								<span>Etykieta na każdy model (zamiast 1 na ucznia)</span>
-							</label>
-
-							<label className="flex cursor-pointer items-center gap-2 select-none">
-								<input
-									type="checkbox"
-									checked={includeProjects}
-									onChange={(e) => setIncludeProjects(e.target.checked)}
-									className="h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 accent-purple-600"
-								/>
-								<span>Dołącz nazwy projektów na karteczce</span>
-							</label>
+						<div className="text-xs font-semibold text-slate-500">
+							Układ A4 (pion): 1 etykieta na dziecko • 3 kolumny po 60×30 mm
 						</div>
 
 						<div className="flex items-center gap-3">

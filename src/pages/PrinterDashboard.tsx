@@ -351,38 +351,6 @@ export function PrinterDashboard() {
 						)}
 					</button>
 
-					{/* PRZYCISK DRUKOWANIA ETYKIET A4 (TYLKO DLA ADMINA) */}
-					{isAdmin && (
-						<button
-							type="button"
-							onClick={() => {
-								if (selectedBatchIdsForLabels.length === 0) {
-									toast('Zaznacz checkboxy przy grupach, które chcesz wydrukować na arkuszu.', {
-										icon: 'ℹ️',
-									});
-									return;
-								}
-								setIsLabelsModalOpen(true);
-							}}
-							className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-bold shadow-sm transition-all ${
-								selectedBatchIdsForLabels.length > 0
-									? 'border-purple-300 bg-purple-600 text-white hover:bg-purple-700 shadow-purple-200'
-									: 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
-							}`}
-							title={
-								selectedBatchIdsForLabels.length > 0
-									? `Drukuj etykiety dla ${selectedBatchIdsForLabels.length} zaznaczonych grup`
-									: 'Zaznacz checkboxy przy grupach, aby wydrukować etykiety'
-							}
-						>
-							<Scissors size={15} className={selectedBatchIdsForLabels.length > 0 ? 'text-white' : 'text-purple-600'} />
-							<span>
-								{selectedBatchIdsForLabels.length > 0
-									? `Drukuj etykiety (${selectedBatchIdsForLabels.length})`
-									: 'Drukuj etykiety (A4)'}
-							</span>
-						</button>
-					)}
 
 					<label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 shadow-sm transition-all hover:bg-slate-50">
 						<input
