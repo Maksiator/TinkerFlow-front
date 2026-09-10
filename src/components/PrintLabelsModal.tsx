@@ -74,6 +74,15 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 		return list;
 	}, [activeBatches]);
 
+	// Podział na wiersze po 3 etykiety (do siatki tabeli ze wspólnymi ramkami cięcia)
+	const labelRows = useMemo(() => {
+		const rows: Array<typeof labels> = [];
+		for (let i = 0; i < labels.length; i += 3) {
+			rows.push(labels.slice(i, i + 3));
+		}
+		return rows;
+	}, [labels]);
+
 	if (!isOpen || !isAdmin) return null;
 
 	const handlePrint = () => {
@@ -82,65 +91,9 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 
 	const sheetsCount = Math.ceil(labels.length / 24) || 1;
 
-	const renderCardContent = (label: (typeof labels)[0], isPrint: boolean) => (
-		<div
-			key={label.id}
-			className="label-card-print"
-			style={{
-				width: isPrint ? '60mm' : '100%',
-				height: isPrint ? '30mm' : 'auto',
-				minHeight: '30mm',
-				maxHeight: isPrint ? '30mm' : 'none',
-				border: '1.5px dashed #000000',
-				borderRadius: '2px',
-				boxSizing: 'border-box',
-				padding: isPrint ? '2mm 3mm' : '10px 12px',
-				display: 'flex',
-				flexDirection: 'column',
-				justifyContent: 'center',
-				alignItems: 'center',
-				textAlign: 'center',
-				backgroundColor: '#ffffff',
-				pageBreakInside: 'avoid',
-				breakInside: 'avoid',
-			}}
-		>
-			{/* Imię i Nazwisko */}
-			<div
-				style={{
-					fontSize: isPrint ? '14px' : '14px',
-					fontWeight: '900',
-					textTransform: 'uppercase',
-					color: '#000000',
-					lineHeight: '1.2',
-					letterSpacing: '0.4px',
-					wordBreak: 'break-word',
-					maxWidth: '100%',
-				}}
-			>
-				{label.studentName}
-			</div>
-
-			{/* Nazwa grupy */}
-			<div
-				style={{
-					fontSize: isPrint ? '11px' : '12px',
-					fontWeight: '700',
-					color: '#333333',
-					marginTop: '4px',
-					lineHeight: '1.2',
-					wordBreak: 'break-word',
-					maxWidth: '100%',
-				}}
-			>
-				{label.groupName}
-			</div>
-		</div>
-	);
-
 	return (
 		<>
-			{/* STYLE DRUKU - WYPEŁNIAJĄ DOKŁADNIE A4 PORTRAIT */}
+			{/* STYLE DRUKU - WYPEŁNIAJĄ DOKŁADNIE A4 PORTRAIT ZE WSPÓLNYMI RAMKAMI */}
 			<style>{`
 				@media screen {
 					#labels-print-portal {
@@ -150,7 +103,7 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 				@media print {
 					@page {
 						size: A4 portrait !important;
-						margin: 10mm !important;
+						margin: 10mm 15mm !important;
 					}
 					html, body {
 						background: #ffffff !important;
@@ -165,7 +118,7 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 					}
 					#labels-print-portal {
 						display: block !important;
-						width: 190mm !important;
+						width: 180mm !important;
 						margin: 0 auto !important;
 						padding: 0 !important;
 						background: #ffffff !important;
@@ -174,25 +127,50 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 						-webkit-print-color-adjust: exact !important;
 						print-color-adjust: exact !important;
 					}
-					.labels-grid-print {
-						display: grid !important;
-						grid-template-columns: 60mm 60mm 60mm !important;
-						column-gap: 5mm !important;
-						row-gap: 4mm !important;
-						width: 190mm !important;
-						justify-content: start !important;
-						align-content: start !important;
+					.labels-table-print {
+						width: 180mm !important;
+						border-collapse: collapse !important;
+						table-layout: fixed !important;
+						margin: 0 auto !important;
+						border: 1.5px dashed #000000 !important;
 					}
-					.label-card-print {
+					.labels-table-print tr {
+						page-break-inside: avoid !important;
+						break-inside: avoid !important;
+						height: 30mm !important;
+					}
+					.label-cell-print {
 						width: 60mm !important;
+						min-width: 60mm !important;
+						max-width: 60mm !important;
 						height: 30mm !important;
 						min-height: 30mm !important;
 						max-height: 30mm !important;
 						border: 1.5px dashed #000000 !important;
 						box-sizing: border-box !important;
-						page-break-inside: avoid !important;
-						break-inside: avoid !important;
+						text-align: center !important;
+						vertical-align: middle !important;
+						padding: 2mm 3mm !important;
 						background: #ffffff !important;
+					}
+					.student-name-print {
+						font-size: 13px !important;
+						font-weight: 900 !important;
+						text-transform: uppercase !important;
+						color: #000000 !important;
+						line-height: 1.2 !important;
+						letter-spacing: 0.3px !important;
+						word-break: break-word !important;
+						max-width: 100% !important;
+					}
+					.group-name-print {
+						font-size: 10px !important;
+						font-weight: 700 !important;
+						color: #222222 !important;
+						margin-top: 3px !important;
+						line-height: 1.2 !important;
+						word-break: break-word !important;
+						max-width: 100% !important;
 					}
 				}
 			`}</style>
@@ -200,9 +178,25 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 			{/* PORTAL DRUKU (DOCZEPIONY DO BODY, AKTYWOWANY W @media print) */}
 			{createPortal(
 				<div id="labels-print-portal">
-					<div className="labels-grid-print">
-						{labels.map((label) => renderCardContent(label, true))}
-					</div>
+					<table className="labels-table-print">
+						<tbody>
+							{labelRows.map((row, rIdx) => (
+								<tr key={rIdx}>
+									{row.map((label) => (
+										<td key={label.id} className="label-cell-print">
+											<div className="student-name-print">{label.studentName}</div>
+											<div className="group-name-print">{label.groupName}</div>
+										</td>
+									))}
+									{Array.from({ length: 3 - row.length }).map((_, cIdx) => (
+										<td key={`empty-print-${rIdx}-${cIdx}`} className="label-cell-print">
+											&nbsp;
+										</td>
+									))}
+								</tr>
+							))}
+						</tbody>
+					</table>
 				</div>,
 				document.body
 			)}
@@ -332,21 +326,60 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 							<div className="mx-auto max-w-[210mm] rounded-xl border border-slate-300 bg-white p-6 shadow-xl">
 								<div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-2 text-[11px] text-slate-400 font-medium">
 									<span className="flex items-center gap-1.5">
-										<EyeFill size={12} /> Podgląd układu arkusza A4 pionowego (3 równe kolumny, linie przerywane wskazują cięcie gilotyną)
+										<EyeFill size={12} /> Podgląd arkusza A4 (połączona tabela ze wspólnymi liniami cięcia dla gilotyny)
 									</span>
-									<span className="font-bold text-slate-600">Rozmiar: 60 × 30 mm</span>
+									<span className="font-bold text-slate-600">Rozmiar etykiety: 60 × 30 mm</span>
 								</div>
 
-								{/* SIATKA PODGLĄDU 3 KOLUMNY */}
-								<div
+								{/* TABELA PODGLĄDU ZE WSPÓLNYMI RAMKAMI (BORDER-COLLAPSE) */}
+								<table
 									style={{
-										display: 'grid',
-										gridTemplateColumns: 'repeat(3, 1fr)',
-										gap: '12px',
+										width: '100%',
+										borderCollapse: 'collapse',
+										tableLayout: 'fixed',
+										border: '1.5px dashed #000000',
 									}}
 								>
-									{labels.map((label) => renderCardContent(label, false))}
-								</div>
+									<tbody>
+										{labelRows.map((row, rIdx) => (
+											<tr key={rIdx} style={{ height: '76px' }}>
+												{row.map((label) => (
+													<td
+														key={label.id}
+														style={{
+															width: '33.333%',
+															border: '1.5px dashed #000000',
+															padding: '8px 12px',
+															textAlign: 'center',
+															verticalAlign: 'middle',
+															boxSizing: 'border-box',
+															backgroundColor: '#ffffff',
+														}}
+													>
+														<div className="text-[13px] font-black uppercase tracking-wide text-black leading-tight">
+															{label.studentName}
+														</div>
+														<div className="mt-1 text-[11px] font-bold text-slate-700 leading-tight">
+															{label.groupName}
+														</div>
+													</td>
+												))}
+												{Array.from({ length: 3 - row.length }).map((_, cIdx) => (
+													<td
+														key={`empty-${rIdx}-${cIdx}`}
+														style={{
+															width: '33.333%',
+															border: '1.5px dashed #000000',
+															backgroundColor: '#ffffff',
+														}}
+													>
+														&nbsp;
+													</td>
+												))}
+											</tr>
+										))}
+									</tbody>
+								</table>
 							</div>
 						)}
 					</div>
