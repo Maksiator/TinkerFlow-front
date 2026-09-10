@@ -29,39 +29,31 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 
 	useEffect(() => {
 		if (isOpen) {
-			setActiveBatchIds(selectedBatchIds.length > 0 ? selectedBatchIds : allBatches.filter(b => b.status !== PrintBatchState.NoPrints && b.printJobs.length > 0).slice(0, 1).map(b => b.id));
+			setActiveBatchIds(selectedBatchIds);
 		}
-	}, [isOpen, selectedBatchIds, allBatches]);
+	}, [isOpen, selectedBatchIds]);
 
-	// Filtrujemy tylko paczki, które mają jakiekolwiek modele do druku
-	const printableBatches = useMemo(() => {
+	// Paczki, które są aktualnie wybrane i mają wydruki
+	const activeBatches = useMemo(() => {
 		return allBatches.filter(
-			(b) => b.status !== PrintBatchState.NoPrints && b.printJobs && b.printJobs.length > 0
+			(b) => activeBatchIds.includes(b.id) && b.status !== PrintBatchState.NoPrints && (b.printJobs?.length ?? 0) > 0
 		);
-	}, [allBatches]);
+	}, [allBatches, activeBatchIds]);
 
-	const toggleBatch = (batchId: string) => {
-		setActiveBatchIds((prev) => {
-			const next = prev.includes(batchId) ? prev.filter((id) => id !== batchId) : [...prev, batchId];
-			onBatchIdsChange?.(next);
-			return next;
-		});
+	const removeBatch = (batchId: string) => {
+		const next = activeBatchIds.filter((id) => id !== batchId);
+		setActiveBatchIds(next);
+		onBatchIdsChange?.(next);
 	};
 
-	const selectAllBatches = () => {
-		const allIds = printableBatches.map((b) => b.id);
-		setActiveBatchIds(allIds);
-		onBatchIdsChange?.(allIds);
-	};
-
-	const clearBatches = () => {
+	const clearAllSelected = () => {
 		setActiveBatchIds([]);
 		onBatchIdsChange?.([]);
 	};
 
 	// Przygotowanie listy etykiet ze wszystkich zaznaczonych paczek
 	const labels = useMemo(() => {
-		const currentBatches = printableBatches.filter((b) => activeBatchIds.includes(b.id));
+		const currentBatches = activeBatches;
 		const list: Array<{
 			id: string;
 			studentName: string;
@@ -106,7 +98,7 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 		}
 
 		return list;
-	}, [printableBatches, activeBatchIds, oneLabelPerModel]);
+	}, [activeBatches, oneLabelPerModel]);
 
 	if (!isOpen || !isAdmin) return null;
 
@@ -291,60 +283,51 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 						</button>
 					</div>
 
-					{/* WYBÓR PACZEK (ŁĄCZENIE / BULK - OSZCZĘDZANIE PAPIERU) */}
-					<div className="border-b border-slate-200 bg-purple-50/50 p-4">
-						<div className="mb-2 flex items-center justify-between">
-							<div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
-								<LayersFill className="text-purple-600" />
-								Łączenie paczek na jednym arkuszu (oszczędność papieru):
-							</div>
-							<div className="flex gap-2">
-								<button
-									type="button"
-									onClick={selectAllBatches}
-									className="text-[11px] font-bold text-purple-700 hover:underline cursor-pointer"
-								>
-									Zaznacz wszystkie
-								</button>
-								<span className="text-slate-300">|</span>
-								<button
-									type="button"
-									onClick={clearBatches}
-									className="text-[11px] font-medium text-slate-500 hover:underline cursor-pointer"
-								>
-									Wyczyść
-								</button>
-							</div>
-						</div>
-
-						<div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-1">
-							{printableBatches.map((b) => {
-								const isChecked = activeBatchIds.includes(b.id);
-								const uniqueKids = new Set(b.printJobs.map((j) => j.studentName)).size;
-								return (
+					{/* WYBRANE GRUPY DO WYDRUKU (ZAZNACZONE CHECKBOXAMI) */}
+					{activeBatches.length > 0 && (
+						<div className="border-b border-slate-200 bg-purple-50/50 px-6 py-3">
+							<div className="mb-2 flex items-center justify-between">
+								<div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+									<LayersFill className="text-purple-600" />
+									Wybrane grupy do wydruku na tym arkuszu ({activeBatches.length}):
+								</div>
+								{activeBatches.length > 1 && (
 									<button
-										key={b.id}
 										type="button"
-										onClick={() => toggleBatch(b.id)}
-										className={`cursor-pointer inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all ${
-											isChecked
-												? 'border-purple-500 bg-purple-600 text-white shadow-xs'
-												: 'border-slate-200 bg-white text-slate-700 hover:border-purple-200 hover:bg-purple-50'
-										}`}
+										onClick={clearAllSelected}
+										className="text-[11px] font-medium text-slate-500 hover:text-red-600 cursor-pointer transition-colors"
 									>
-										<span className="truncate max-w-[200px]">{b.groupName}</span>
-										<span
-											className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
-												isChecked ? 'bg-purple-800 text-purple-100' : 'bg-slate-100 text-slate-600'
-											}`}
-										>
-											{uniqueKids} {uniqueKids === 1 ? 'dziecko' : 'dzieci'}
-										</span>
+										Usuń wszystkie
 									</button>
-								);
-							})}
+								)}
+							</div>
+
+							<div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto pr-1">
+								{activeBatches.map((b) => {
+									const uniqueKids = new Set(b.printJobs.map((j) => j.studentName)).size;
+									return (
+										<span
+											key={b.id}
+											className="inline-flex items-center gap-2 rounded-xl border border-purple-200 bg-white px-3 py-1 text-xs font-semibold text-purple-900 shadow-xs"
+										>
+											<span className="truncate max-w-[220px]">{b.groupName}</span>
+											<span className="rounded-full bg-purple-100 px-1.5 py-0.2 text-[10px] font-bold text-purple-700">
+												{uniqueKids} {uniqueKids === 1 ? 'dziecko' : 'dzieci'}
+											</span>
+											<button
+												type="button"
+												onClick={() => removeBatch(b.id)}
+												className="cursor-pointer text-slate-400 hover:text-red-600 transition-colors ml-0.5"
+												title="Usuń tę grupę z arkusza"
+											>
+												<XLg size={11} />
+											</button>
+										</span>
+									);
+								})}
+							</div>
 						</div>
-					</div>
+					)}
 
 					{/* PASEK OPCJI I PRZYCISK DRUKU */}
 					<div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-slate-50 px-6 py-3">
@@ -403,7 +386,11 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 					<div className="flex-1 overflow-y-auto bg-slate-200/70 p-4 md:p-6">
 						{labels.length === 0 ? (
 							<div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-400">
-								Zaznacz powyżej co najmniej jedną paczkę z wydrukami, aby wygenerować etykiety.
+								<Scissors className="mx-auto mb-3 text-slate-300" size={32} />
+								<p className="text-sm font-bold text-slate-600">Brak wybranych grup do wydruku etykiet.</p>
+								<p className="text-xs text-slate-400 mt-1">
+									Zaznacz checkboxy przy grupach na liście w panelu lub kliknij „Etykiety” przy danej paczce.
+								</p>
 							</div>
 						) : (
 							<div className="mx-auto max-w-[210mm] rounded-xl border border-slate-300 bg-white p-6 shadow-xl">

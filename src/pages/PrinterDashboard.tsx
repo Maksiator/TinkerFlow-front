@@ -235,6 +235,51 @@ export function PrinterDashboard() {
 		return result;
 	}, [batches, statusFilter, selectedGroupIds, dayOfWeekFilter, dateFilterType, customDateValue, sortBy]);
 
+	// Paczki spełniające kryteria etykiet (mające wydruki i niebędące NoPrints)
+	const eligibleBatchesForLabels = useMemo(() => {
+		return filteredAndSortedBatches.filter(
+			(b) => b.status !== PrintBatchState.NoPrints && (b.printJobs?.length ?? 0) > 0
+		);
+	}, [filteredAndSortedBatches]);
+
+	const isAllEligibleSelected =
+		eligibleBatchesForLabels.length > 0 &&
+		eligibleBatchesForLabels.every((b) => selectedBatchIdsForLabels.includes(b.id));
+
+	const isSomeEligibleSelected =
+		!isAllEligibleSelected &&
+		eligibleBatchesForLabels.some((b) => selectedBatchIdsForLabels.includes(b.id));
+
+	const toggleSelectAllEligible = () => {
+		if (isAllEligibleSelected) {
+			setSelectedBatchIdsForLabels([]);
+		} else {
+			setSelectedBatchIdsForLabels(eligibleBatchesForLabels.map((b) => b.id));
+		}
+	};
+
+	const toggleBatchSelect = (batchId: string, e?: React.MouseEvent | React.ChangeEvent) => {
+		e?.stopPropagation();
+		setSelectedBatchIdsForLabels((prev) =>
+			prev.includes(batchId) ? prev.filter((id) => id !== batchId) : [...prev, batchId]
+		);
+	};
+
+	// Statystyki dla aktualnie zaznaczonych paczek do etykiet
+	const selectedBatchesForLabels = useMemo(() => {
+		return batches.filter((b) => selectedBatchIdsForLabels.includes(b.id));
+	}, [batches, selectedBatchIdsForLabels]);
+
+	const selectedBatchesKidsCount = useMemo(() => {
+		return new Set(
+			selectedBatchesForLabels.flatMap((b) => b.printJobs.map((j) => j.studentName || j.studentId))
+		).size;
+	}, [selectedBatchesForLabels]);
+
+	const selectedBatchesJobsCount = useMemo(() => {
+		return selectedBatchesForLabels.reduce((acc, b) => acc + (b.printJobs?.length || 0), 0);
+	}, [selectedBatchesForLabels]);
+
 	if (isLoading && batches.length === 0) {
 		return (
 			<div className="flex h-full items-center justify-center p-10">
@@ -311,17 +356,31 @@ export function PrinterDashboard() {
 						<button
 							type="button"
 							onClick={() => {
-								const eligibleIds = filteredAndSortedBatches
-									.filter((b) => b.status !== PrintBatchState.NoPrints && (b.printJobs?.length ?? 0) > 0)
-									.map((b) => b.id);
-								setSelectedBatchIdsForLabels(eligibleIds);
+								if (selectedBatchIdsForLabels.length === 0) {
+									toast('Zaznacz checkboxy przy grupach, które chcesz wydrukować na arkuszu.', {
+										icon: 'ℹ️',
+									});
+									return;
+								}
 								setIsLabelsModalOpen(true);
 							}}
-							className="flex cursor-pointer items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-3.5 py-2 text-sm font-bold text-purple-700 shadow-sm transition-all hover:bg-purple-100"
-							title="Drukuj etykiety do woreczków na kartce A4 (zbiorczo lub pojedynczo)"
+							className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-bold shadow-sm transition-all ${
+								selectedBatchIdsForLabels.length > 0
+									? 'border-purple-300 bg-purple-600 text-white hover:bg-purple-700 shadow-purple-200'
+									: 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+							}`}
+							title={
+								selectedBatchIdsForLabels.length > 0
+									? `Drukuj etykiety dla ${selectedBatchIdsForLabels.length} zaznaczonych grup`
+									: 'Zaznacz checkboxy przy grupach, aby wydrukować etykiety'
+							}
 						>
-							<Scissors className="text-purple-600" size={15} />
-							<span>Drukuj etykiety (A4)</span>
+							<Scissors size={15} className={selectedBatchIdsForLabels.length > 0 ? 'text-white' : 'text-purple-600'} />
+							<span>
+								{selectedBatchIdsForLabels.length > 0
+									? `Drukuj etykiety (${selectedBatchIdsForLabels.length})`
+									: 'Drukuj etykiety (A4)'}
+							</span>
 						</button>
 					)}
 
@@ -528,6 +587,20 @@ export function PrinterDashboard() {
 						<table className="w-full border-collapse text-left text-sm">
 							<thead className="bg-slate-50 text-slate-500 border-b border-slate-200 font-bold text-xs uppercase tracking-wider">
 								<tr>
+									{isAdmin && (
+										<th className="p-4 w-10 text-center">
+											<input
+												type="checkbox"
+												checked={isAllEligibleSelected}
+												ref={(el) => {
+													if (el) el.indeterminate = isSomeEligibleSelected;
+												}}
+												onChange={toggleSelectAllEligible}
+												className="h-4 w-4 rounded border-slate-300 text-purple-600 accent-purple-600 cursor-pointer"
+												title="Zaznacz/odznacz wszystkie widoczne paczki z wydrukami"
+											/>
+										</th>
+									)}
 									<th className="p-4">Status</th>
 									<th className="p-4">Szkoła / Grupa</th>
 									<th className="p-4">Dzień zajęć</th>
@@ -543,13 +616,32 @@ export function PrinterDashboard() {
 								{filteredAndSortedBatches.map((batch) => {
 									const uniqueStudentsCount = new Set(batch.printJobs.map((j) => j.studentId)).size;
 									const isDeadlineSoon = new Date(batch.deadline).getTime() - Date.now() < 24 * 60 * 60 * 1000;
+									const isEligibleForLabels = batch.status !== PrintBatchState.NoPrints && (batch.printJobs?.length ?? 0) > 0;
+									const isSelectedForLabels = selectedBatchIdsForLabels.includes(batch.id);
 
 									return (
 										<tr
 											key={batch.id}
 											onClick={() => setSelectedBatch(batch)}
-											className="cursor-pointer transition-colors hover:bg-purple-50/50"
+											className={`cursor-pointer transition-colors ${
+												isSelectedForLabels ? 'bg-purple-50/80 hover:bg-purple-100/70' : 'hover:bg-purple-50/50'
+											}`}
 										>
+											{isAdmin && (
+												<td className="p-4 w-10 text-center" onClick={(e) => e.stopPropagation()}>
+													{isEligibleForLabels ? (
+														<input
+															type="checkbox"
+															checked={isSelectedForLabels}
+															onChange={(e) => toggleBatchSelect(batch.id, e)}
+															className="h-4 w-4 rounded border-slate-300 text-purple-600 accent-purple-600 cursor-pointer"
+															title="Zaznacz paczkę do druku etykiet"
+														/>
+													) : (
+														<span className="text-slate-200 text-xs">—</span>
+													)}
+												</td>
+											)}
 											<td className="p-4 whitespace-nowrap">
 												{getStatusBadge(batch.status)}
 											</td>
@@ -668,22 +760,43 @@ export function PrinterDashboard() {
 			) : (
 				/* WIDOK SZCZEGÓŁOWY (KARTY) */
 				<div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-					{filteredAndSortedBatches.map((batch) => (
-						<div
-							key={batch.id}
-							className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
-						>
-							{/* Karta paczki - Nagłówek */}
-							<div className="border-b border-slate-100 bg-slate-50 p-4">
-								<div className="mb-2 flex items-start justify-between">
-									<div>
-										<span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-600 block">{batch.branchName}</span>
-										<h2 className="truncate pr-2 text-lg font-bold text-slate-800" title={batch.groupName}>
-											{batch.groupName}
-										</h2>
+					{filteredAndSortedBatches.map((batch) => {
+						const isEligibleForLabels = batch.status !== PrintBatchState.NoPrints && (batch.printJobs?.length ?? 0) > 0;
+						const isSelectedForLabels = selectedBatchIdsForLabels.includes(batch.id);
+
+						return (
+							<div
+								key={batch.id}
+								className={`flex flex-col overflow-hidden rounded-xl border transition-all ${
+									isSelectedForLabels
+										? 'border-purple-500 ring-2 ring-purple-400 bg-purple-50/20 shadow-md'
+										: 'border-slate-200 bg-white shadow-sm hover:shadow-md'
+								}`}
+							>
+								{/* Karta paczki - Nagłówek */}
+								<div className="border-b border-slate-100 bg-slate-50 p-4">
+									<div className="mb-2 flex items-start justify-between gap-3">
+										<div className="flex items-start gap-2.5 min-w-0">
+											{isAdmin && isEligibleForLabels && (
+												<div className="pt-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+													<input
+														type="checkbox"
+														checked={isSelectedForLabels}
+														onChange={(e) => toggleBatchSelect(batch.id, e)}
+														className="h-4 w-4 rounded border-slate-300 text-purple-600 accent-purple-600 cursor-pointer"
+														title="Zaznacz paczkę do druku etykiet"
+													/>
+												</div>
+											)}
+											<div className="min-w-0">
+												<span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-600 block truncate">{batch.branchName}</span>
+												<h2 className="truncate pr-2 text-lg font-bold text-slate-800" title={batch.groupName}>
+													{batch.groupName}
+												</h2>
+											</div>
+										</div>
+										<div className="shrink-0">{getStatusBadge(batch.status)}</div>
 									</div>
-									<div className="shrink-0">{getStatusBadge(batch.status)}</div>
-								</div>
 
 								<div className="flex flex-col gap-1 text-xs text-slate-500 mt-2">
 									<div className="flex items-center gap-1.5 font-semibold text-slate-800">
@@ -812,7 +925,49 @@ export function PrinterDashboard() {
 								</button>
 							</div>
 						</div>
-					))}
+					);
+				})}
+				</div>
+			)}
+
+			{/* PŁYWAJĄCY PASEK AKCJI MASOWEGO DRUKOWANIA ETYKIET (TYLKO DLA ADMINA) */}
+			{isAdmin && selectedBatchIdsForLabels.length > 0 && (
+				<div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-2xl border border-purple-200 bg-white/95 px-5 py-3 shadow-2xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-5">
+					<div className="flex items-center gap-3">
+						<span className="flex h-7 w-7 items-center justify-center rounded-full bg-purple-600 text-xs font-black text-white shadow-xs">
+							{selectedBatchIdsForLabels.length}
+						</span>
+						<div className="text-xs">
+							<div className="font-extrabold text-slate-800">
+								{selectedBatchIdsForLabels.length === 1
+									? '1 wybrana grupa do etykiet'
+									: `${selectedBatchIdsForLabels.length} wybrane grupy do etykiet`}
+							</div>
+							<div className="text-[11px] font-medium text-slate-500">
+								{selectedBatchesKidsCount} {selectedBatchesKidsCount === 1 ? 'uczeń' : 'uczniów'} • {selectedBatchesJobsCount} {selectedBatchesJobsCount === 1 ? 'model' : 'modeli'}
+							</div>
+						</div>
+					</div>
+
+					<div className="h-7 w-px bg-slate-200" />
+
+					<div className="flex items-center gap-2">
+						<button
+							type="button"
+							onClick={() => setIsLabelsModalOpen(true)}
+							className="flex cursor-pointer items-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-xs font-extrabold text-white shadow-md transition-all hover:bg-purple-700 active:scale-95"
+						>
+							<Scissors size={15} />
+							Drukuj etykiety A4 (Bulk)
+						</button>
+						<button
+							type="button"
+							onClick={() => setSelectedBatchIdsForLabels([])}
+							className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100"
+						>
+							Odznacz
+						</button>
+					</div>
 				</div>
 			)}
 			{/* ---- DODANY MODAL ---- */}
