@@ -3,7 +3,8 @@ import { apiClient } from './client';
 export interface Branch {
 	id: string;
 	name: string;
-	groupCount: number; // To ten bonus, który dodaliśmy w kontrolerze
+	groupCount: number; // Liczba grup w oddziale
+	trainersCount: number; // Liczba trenerów przypisanych do oddziału
 }
 
 export interface CreateBranchRequest {

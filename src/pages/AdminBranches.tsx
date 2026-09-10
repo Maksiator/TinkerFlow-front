@@ -1,7 +1,27 @@
 import { useState, useEffect } from 'react';
-import { BuildingFill, PlusLg, PencilSquare, Trash3Fill, Search, XLg, InfoCircleFill } from 'react-bootstrap-icons';
+import { BuildingFill, PlusLg, PencilSquare, Trash3Fill, Search, XLg, InfoCircleFill, PersonBadgeFill, PeopleFill } from 'react-bootstrap-icons';
 import { branchService, type Branch } from '../api/branchService';
 import toast from 'react-hot-toast';
+
+function formatGroupsCount(count: number): string {
+	if (count === 1) return '1 grupa';
+	const lastDigit = count % 10;
+	const lastTwoDigits = count % 100;
+	if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) {
+		return `${count} grupy`;
+	}
+	return `${count} grup`;
+}
+
+function formatTrainersCount(count: number): string {
+	if (count === 1) return '1 trener';
+	const lastDigit = count % 10;
+	const lastTwoDigits = count % 100;
+	if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) {
+		return `${count} trenerzy`;
+	}
+	return `${count} trenerów`;
+}
 
 export function AdminBranches() {
 	const [branches, setBranches] = useState<Branch[]>([]);
@@ -154,19 +174,20 @@ export function AdminBranches() {
 						<tr>
 							<th className="p-4 text-[11px] font-bold tracking-wider uppercase">Nazwa lokalizacji</th>
 							<th className="p-4 text-center text-[11px] font-bold tracking-wider uppercase">Liczba grup</th>
+							<th className="p-4 text-center text-[11px] font-bold tracking-wider uppercase">Liczba trenerów</th>
 							<th className="p-4 text-right text-[11px] font-bold tracking-wider uppercase">Akcje</th>
 						</tr>
 					</thead>
 					<tbody>
 						{isLoading ? (
 							<tr>
-								<td colSpan={3} className="p-12 text-center font-bold text-slate-400">
+								<td colSpan={4} className="p-12 text-center font-bold text-slate-400">
 									Pobieranie danych...
 								</td>
 							</tr>
 						) : filteredBranches.length === 0 ? (
 							<tr>
-								<td colSpan={3} className="p-12 text-center text-slate-400">
+								<td colSpan={4} className="p-12 text-center text-slate-400">
 									Brak zdefiniowanych oddziałów.
 								</td>
 							</tr>
@@ -175,8 +196,15 @@ export function AdminBranches() {
 								<tr key={branch.id} className="border-b border-slate-100 transition-colors hover:bg-slate-50">
 									<td className="p-4 font-bold text-slate-700">{branch.name}</td>
 									<td className="p-4 text-center">
-										<span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-											{branch.groupCount} grup
+										<span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+											<PeopleFill size={13} className="text-slate-400" />
+											{formatGroupsCount(branch.groupCount)}
+										</span>
+									</td>
+									<td className="p-4 text-center">
+										<span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-100">
+											<PersonBadgeFill size={13} className="text-blue-500" />
+											{formatTrainersCount(branch.trainersCount ?? 0)}
 										</span>
 									</td>
 									<td className="p-4 text-right">
