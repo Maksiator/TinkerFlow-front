@@ -133,40 +133,52 @@ export function AdminUsers() {
 	};
 
 	// LOGIKA OGRANICZENIA ODDZIAŁÓW DLA KOORDYNATORA
+	// Endpoint GET /api/branches na serwerze filtruje oddziały (dla Admina zwraca wszystkie, dla Koordynatora tylko jego)
 	const visibleBranches = useMemo(() => {
-		if (isCurrentUserAdmin) return branches; // Admin widzi wszystkie
-
-		// Szukamy pełnych danych zalogowanego użytkownika w pobranej liście 'users'
-		const fullCurrentUser = users.find((u) => u.id === currentUser?.id);
-
-		// Teraz TypeScript wie, że fullCurrentUser to typ 'User', który posiada 'branches'
-		const myBranchIds = fullCurrentUser?.branches.map((b) => b.branchId) || [];
-
-		return branches.filter((branch) => myBranchIds.includes(branch.id));
-	}, [branches, users, isCurrentUserAdmin, currentUser?.id]);
+		return branches;
+	}, [branches]);
 
 	const openCreateModal = () => {
 		setEditingUser(null);
+
+		// Domyślne zaznaczenie oddziału:
+		// Zgodnie z wymaganiem: z automatu zaznaczony jest 1. oddział (lub jedyny dostępny dla koordynatora)
+		let initialBranchIds: string[] = [];
+		if (visibleBranches.length > 0) {
+			initialBranchIds = [visibleBranches[0].id];
+		}
+
 		setFormData({
 			firstName: '',
 			lastName: '',
 			email: '',
 			password: '',
 			role: UserRole.Trainer, // Koordynator ma zablokowane pole, więc to musi być domyślne
-			branchIds: [],
+			branchIds: initialBranchIds,
 		});
 		setIsModalOpen(true);
 	};
 
 	const openEditModal = (user: User) => {
 		setEditingUser(user);
+
+		let initialBranchIds = user.branches.map((b) => b.branchId);
+		// Jeśli edytowany trener lub koordynator nie miał żadnego oddziału, automatycznie podpowiadamy pierwszy dostępny
+		if (
+			(user.role === UserRole.Trainer || user.role === UserRole.Coordinator) &&
+			initialBranchIds.length === 0 &&
+			visibleBranches.length > 0
+		) {
+			initialBranchIds = [visibleBranches[0].id];
+		}
+
 		setFormData({
 			firstName: user.firstName,
 			lastName: user.lastName,
 			email: user.email,
 			password: '',
 			role: user.role,
-			branchIds: user.branches.map((b) => b.branchId),
+			branchIds: initialBranchIds,
 		});
 		setIsModalOpen(true);
 	};
@@ -178,23 +190,46 @@ export function AdminUsers() {
 	};
 
 	const toggleBranch = (branchId: string) => {
-		setFormData((prev) => ({
-			...prev,
-			branchIds: prev.branchIds.includes(branchId)
-				? prev.branchIds.filter((id) => id !== branchId)
-				: [...prev.branchIds, branchId],
-		}));
+		// Jeśli jest tylko 1 oddział dostępny dla koordynatora, nie ma możliwości jego odkliknięcia
+		if (visibleBranches.length === 1) {
+			toast('Ten oddział jest wymagany i nie można go odznaczyć.', { icon: 'ℹ️' });
+			return;
+		}
+
+		setFormData((prev) => {
+			const isChecked = prev.branchIds.includes(branchId);
+			if (isChecked) {
+				// Jeśli użytkownik próbuje odznaczyć i byłby to ostatni zaznaczony oddział
+				if (prev.branchIds.length <= 1) {
+					toast.error('Pracownik musi posiadać co najmniej jeden przypisany oddział.');
+					return prev;
+				}
+				return {
+					...prev,
+					branchIds: prev.branchIds.filter((id) => id !== branchId),
+				};
+			} else {
+				return {
+					...prev,
+					branchIds: [...prev.branchIds, branchId],
+				};
+			}
+		});
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+
+		const requiresBranch = formData.role !== UserRole.Printer && formData.role !== UserRole.Admin;
+		if (requiresBranch && (!formData.branchIds || formData.branchIds.length === 0)) {
+			toast.error('Wybierz co najmniej jeden oddział dla pracownika!');
+			return;
+		}
+
 		setIsSubmitting(true);
 
 		try {
-			const branchIdsToSend =
-				formData.role === UserRole.Printer || formData.role === UserRole.Admin
-					? []
-					: formData.branchIds;
+			const branchIdsToSend = requiresBranch ? formData.branchIds : [];
 
 			if (editingUser) {
 				const updateData: UpdateUserRequest = {
@@ -597,7 +632,24 @@ export function AdminUsers() {
 								<label className="mb-1 block text-xs font-bold text-slate-500 uppercase">Rola w systemie</label>
 								<select
 									value={formData.role}
-									onChange={(e) => setFormData({ ...formData, role: Number(e.target.value) as UserRole })}
+									onChange={(e) => {
+										const newRole = Number(e.target.value) as UserRole;
+										setFormData((prev) => {
+											let updatedBranchIds = prev.branchIds;
+											if (
+												(newRole === UserRole.Trainer || newRole === UserRole.Coordinator) &&
+												updatedBranchIds.length === 0 &&
+												visibleBranches.length > 0
+											) {
+												updatedBranchIds = [visibleBranches[0].id];
+											}
+											return {
+												...prev,
+												role: newRole,
+												branchIds: updatedBranchIds,
+											};
+										});
+									}}
 									disabled={isCurrentUserCoordinator} // Koordynator nie może zmienić roli (zawsze Trener)
 									className="w-full cursor-pointer rounded-lg border bg-white p-2.5 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100"
 								>
@@ -621,29 +673,56 @@ export function AdminUsers() {
 								</div>
 							) : (
 								<div>
-									<label className="mb-1 block text-xs font-bold text-slate-500 uppercase">
-										Przypisane Oddziały
-									</label>
+									<div className="mb-1.5 flex items-center justify-between">
+										<label className="text-xs font-bold text-slate-500 uppercase">
+											Przypisane Oddziały <span className="text-rose-500">*</span>
+										</label>
+										{visibleBranches.length === 1 && (
+											<span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+												Oddział domyślny
+											</span>
+										)}
+									</div>
 									<div className="grid max-h-40 grid-cols-2 gap-2 overflow-y-auto rounded-lg border bg-slate-50 p-2">
 										{visibleBranches.length === 0 ? (
 											<p className="col-span-2 p-2 text-center text-xs text-slate-400">Brak dostępnych oddziałów.</p>
 										) : (
-											visibleBranches.map((branch) => (
-												<label
-													key={branch.id}
-													className="flex cursor-pointer items-center gap-2 text-sm transition-colors hover:text-blue-600"
-												>
-													<input
-														type="checkbox"
-														checked={formData.branchIds.includes(branch.id)}
-														onChange={() => toggleBranch(branch.id)}
-														className="cursor-pointer rounded text-blue-600"
-													/>
-													<span className="truncate">{branch.name}</span>
-												</label>
-											))
+											visibleBranches.map((branch) => {
+												const isChecked = formData.branchIds.includes(branch.id);
+												const isLocked = visibleBranches.length === 1 && isChecked;
+
+												return (
+													<label
+														key={branch.id}
+														className={`flex items-center gap-2 text-sm transition-colors ${
+															isLocked
+																? 'cursor-not-allowed text-slate-700 font-semibold'
+																: 'cursor-pointer hover:text-blue-600'
+														}`}
+													>
+														<input
+															type="checkbox"
+															checked={isChecked}
+															disabled={isLocked}
+															onChange={() => toggleBranch(branch.id)}
+															className="cursor-pointer rounded text-blue-600 disabled:cursor-not-allowed"
+														/>
+														<span className="truncate">{branch.name}</span>
+														{isLocked && (
+															<span className="text-[10px] font-bold text-slate-400">
+																(stały)
+															</span>
+														)}
+													</label>
+												);
+											})
 										)}
 									</div>
+									{formData.branchIds.length === 0 && (
+										<p className="mt-1.5 text-xs font-bold text-rose-600">
+											Wybierz co najmniej jeden oddział dla pracownika.
+										</p>
+									)}
 								</div>
 							)}
 
@@ -657,8 +736,13 @@ export function AdminUsers() {
 								</button>
 								<button
 									type="submit"
-									disabled={isSubmitting}
-									className="flex-1 cursor-pointer rounded-lg bg-slate-800 py-2.5 font-bold text-white transition-colors hover:bg-slate-900 disabled:bg-slate-400"
+									disabled={
+										isSubmitting ||
+										(formData.role !== UserRole.Printer &&
+											formData.role !== UserRole.Admin &&
+											formData.branchIds.length === 0)
+									}
+									className="flex-1 cursor-pointer rounded-lg bg-slate-800 py-2.5 font-bold text-white transition-colors hover:bg-slate-900 disabled:bg-slate-400 disabled:cursor-not-allowed"
 								>
 									{isSubmitting ? 'Czekaj...' : 'Zapisz'}
 								</button>
