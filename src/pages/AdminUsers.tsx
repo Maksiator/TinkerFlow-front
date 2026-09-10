@@ -14,10 +14,15 @@ import {
 	EyeFill,
 	EyeSlashFill,
 	PrinterFill,
+	ArrowUp,
+	ArrowDown,
+	SortDown,
+	ArrowCounterclockwise,
 } from 'react-bootstrap-icons';
 import { userService, type User, UserRole, type UpdateUserRequest, type CreateUserRequest } from '../api/userService';
 import { branchService, type Branch } from '../api/branchService';
 import { authService } from '../api/authService';
+import { CustomSelect } from '../components/CustomSelect';
 import toast from 'react-hot-toast';
 
 export function AdminUsers() {
@@ -28,6 +33,10 @@ export function AdminUsers() {
 	const [branches, setBranches] = useState<Branch[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [searchTerm, setSearchTerm] = useState('');
+	const [selectedRole, setSelectedRole] = useState<string>('all');
+	const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
+	const [sortBy, setSortBy] = useState<string>('branch');
+	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 	const [page, setPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);
 	const [pageSize] = useState(15);
@@ -81,6 +90,25 @@ export function AdminUsers() {
 
 
 
+	const handleSort = (field: string) => {
+		if (sortBy === field) {
+			setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+		} else {
+			setSortBy(field);
+			setSortOrder('asc');
+		}
+		setPage(1);
+	};
+
+	const SortIcon = ({ field }: { field: string }) => {
+		if (sortBy !== field) return <SortDown className="text-slate-300 ml-1 inline-block" />;
+		return sortOrder === 'asc' ? (
+			<ArrowUp className="text-blue-500 ml-1 inline-block" />
+		) : (
+			<ArrowDown className="text-blue-500 ml-1 inline-block" />
+		);
+	};
+
 	useEffect(() => {
 		if (currentUserRole === undefined || currentUserRole === UserRole.Trainer) {
 			toast.error('Brak dostępu. Ta strona jest tylko dla administracji.');
@@ -90,9 +118,12 @@ export function AdminUsers() {
 
 		let isMounted = true;
 		const fetchInitialData = async () => {
+			setIsLoading(true);
 			try {
+				const roleParam = selectedRole === 'all' ? undefined : (Number(selectedRole) as UserRole);
+				const branchParam = selectedBranchId === 'all' ? undefined : selectedBranchId;
 				const [usersData, branchesData] = await Promise.all([
-					userService.getAll(searchTerm, page, pageSize),
+					userService.getAll(searchTerm, page, pageSize, roleParam, branchParam, sortBy, sortOrder),
 					branchService.getAll()
 				]);
 				if (isMounted) {
@@ -116,11 +147,13 @@ export function AdminUsers() {
 		return () => {
 			isMounted = false;
 		};
-	}, [currentUserRole, navigate, page, pageSize, searchTerm]);
+	}, [currentUserRole, navigate, page, pageSize, searchTerm, selectedRole, selectedBranchId, sortBy, sortOrder]);
 
 	const refreshData = async () => {
 		try {
-			const usersData = await userService.getAll(searchTerm, page, pageSize);
+			const roleParam = selectedRole === 'all' ? undefined : (Number(selectedRole) as UserRole);
+			const branchParam = selectedBranchId === 'all' ? undefined : selectedBranchId;
+			const usersData = await userService.getAll(searchTerm, page, pageSize, roleParam, branchParam, sortBy, sortOrder);
 			const branchesData = await branchService.getAll();
 			setUsers(usersData.items);
 			setTotalPages(usersData.totalPages);
@@ -343,36 +376,146 @@ export function AdminUsers() {
 				</button>
 			</div>
 
-			<div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-				<div className="relative">
-					<Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
-					<input
-						type="text"
-						value={searchTerm}
-						onChange={(e) => setSearchTerm(e.target.value)}
-						placeholder="Szukaj pracownika..."
-						className="w-full rounded-lg border border-slate-300 py-3 pl-10 transition-all outline-none focus:border-blue-500"
+			{/* PANEL WYSZUKIWARKI I FILTRÓW */}
+			<div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-end">
+				{/* Wyszukiwarka */}
+				<div className="flex-1">
+					<label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+						Szukaj pracownika
+					</label>
+					<div className="relative">
+						<Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
+						<input
+							type="text"
+							value={searchTerm}
+							onChange={(e) => {
+								setSearchTerm(e.target.value);
+								setPage(1);
+							}}
+							placeholder="Wpisz imię, nazwisko lub e-mail..."
+							className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-4 pl-10 text-sm font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-400"
+						/>
+					</div>
+				</div>
+
+				{/* Filtr roli / typu użytkownika */}
+				<div className="w-full md:w-56">
+					<CustomSelect
+						label="Typ użytkownika"
+						color="blue"
+						value={selectedRole}
+						onChange={(val) => {
+							setSelectedRole(val);
+							setPage(1);
+						}}
+						options={[
+							{ value: 'all', label: 'Wszystkie role' },
+							...(isCurrentUserAdmin
+								? [
+										{ value: String(UserRole.Admin), label: 'Administratorzy' },
+										{ value: String(UserRole.Coordinator), label: 'Koordynatorzy' },
+								  ]
+								: []),
+							{ value: String(UserRole.Trainer), label: 'Trenerzy' },
+							...(isCurrentUserAdmin
+								? [{ value: String(UserRole.Printer), label: 'Drukarze' }]
+								: []),
+						]}
 					/>
 				</div>
+
+				{/* Filtr oddziału */}
+				<div className="w-full md:w-56">
+					<CustomSelect
+						label="Oddział"
+						color="blue"
+						searchable={visibleBranches.length > 5}
+						value={selectedBranchId}
+						onChange={(val) => {
+							setSelectedBranchId(val);
+							setPage(1);
+						}}
+						options={[
+							{ value: 'all', label: 'Wszystkie oddziały' },
+							...visibleBranches.map((b) => ({
+								value: b.id,
+								label: b.name,
+							})),
+						]}
+					/>
+				</div>
+
+				{/* Przycisk resetowania filtrów */}
+				{(searchTerm || selectedRole !== 'all' || selectedBranchId !== 'all') && (
+					<button
+						type="button"
+						onClick={() => {
+							setSearchTerm('');
+							setSelectedRole('all');
+							setSelectedBranchId('all');
+							setPage(1);
+						}}
+						className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 flex items-center justify-center gap-1.5 h-[46px]"
+						title="Resetuj filtry"
+					>
+						<ArrowCounterclockwise size={14} />
+						Reset
+					</button>
+				)}
 			</div>
 
 			<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 				<div className="overflow-x-auto">
 					<table className="w-full text-left text-sm">
-						<thead className="bg-slate-50 text-slate-500">
+						<thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
 							<tr>
-								<th className="p-4 font-bold">Pracownik</th>
-								<th className="p-4 font-bold">Oddziały</th>
-								<th className="p-4 font-bold">Rola</th>
-								<th className="p-4 text-center font-bold">Status</th>
+								<th
+									onClick={() => handleSort('name')}
+									className="cursor-pointer p-4 font-bold transition-colors hover:bg-slate-100 select-none"
+									title="Sortuj po nazwisku"
+								>
+									Pracownik <SortIcon field="name" />
+								</th>
+								<th
+									onClick={() => handleSort('branch')}
+									className="cursor-pointer p-4 font-bold transition-colors hover:bg-slate-100 select-none"
+									title="Sortuj po oddziale (domyślne)"
+								>
+									Oddziały <SortIcon field="branch" />
+								</th>
+								<th
+									onClick={() => handleSort('role')}
+									className="cursor-pointer p-4 font-bold transition-colors hover:bg-slate-100 select-none"
+									title="Sortuj po roli"
+								>
+									Rola <SortIcon field="role" />
+								</th>
+								<th
+									onClick={() => handleSort('status')}
+									className="cursor-pointer p-4 font-bold transition-colors hover:bg-slate-100 select-none text-center"
+									title="Sortuj po statusie"
+								>
+									Status <SortIcon field="status" />
+								</th>
 								<th className="p-4 text-right font-bold">Akcje</th>
 							</tr>
 						</thead>
 						<tbody>
-							{!isLoading &&
-								users
-									.map((user) => (
-										<tr
+							{isLoading ? (
+								<tr>
+									<td colSpan={5} className="py-12 text-center text-slate-400">
+										Ładowanie listy pracowników...
+									</td>
+								</tr>
+							) : users.length === 0 ? (
+								<tr>
+									<td colSpan={5} className="py-12 text-center text-slate-400">
+										Brak pracowników spełniających wybrane kryteria wyszukiwania i filtrów.
+									</td>
+								</tr>
+							) : (
+								users.map((user) => (
+									<tr
 											key={user.id}
 											className={`border-b border-slate-100 hover:bg-slate-50 ${!user.isActive ? 'opacity-50' : ''}`}
 										>
@@ -465,7 +608,8 @@ export function AdminUsers() {
 												</div>
 											</td>
 										</tr>
-									))}
+									))
+							)}
 						</tbody>
 					</table>
 				</div>

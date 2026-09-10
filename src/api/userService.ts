@@ -63,11 +63,23 @@ interface IdentityError {
 }
 
 export const userService = {
-	getAll: async (search?: string, page: number = 1, pageSize: number = 15) => {
+	getAll: async (
+		search?: string,
+		page: number = 1,
+		pageSize: number = 15,
+		role?: UserRole | 'all',
+		branchId?: string | 'all',
+		sortBy: string = 'branch',
+		sortOrder: 'asc' | 'desc' = 'asc'
+	) => {
 		const params = new URLSearchParams();
-		if (search) params.append('search', search);
+		if (search && search.trim()) params.append('search', search.trim());
 		params.append('page', page.toString());
 		params.append('pageSize', pageSize.toString());
+		if (role !== undefined && role !== 'all') params.append('role', role.toString());
+		if (branchId && branchId !== 'all') params.append('branchId', branchId);
+		params.append('sortBy', sortBy);
+		params.append('sortOrder', sortOrder);
 
 		const response = await apiClient.get<PagedUserResponse>(`/users?${params.toString()}`);
 		return response.data;
