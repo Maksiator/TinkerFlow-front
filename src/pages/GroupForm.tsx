@@ -5,9 +5,10 @@ import { studentService, type Student, type StudentHistoryItem } from '../api/st
 import { branchService, type Branch } from '../api/branchService';
 import { userService, type User, UserRole } from '../api/userService';
 import { systemSettingsService } from '../api/systemSettingsService';
-import { ArrowLeft, PlusLg, TrashFill, Search, PersonFillAdd, CloudArrowUpFill, ArchiveFill } from 'react-bootstrap-icons';
+import { ArrowLeft, PlusLg, TrashFill, Search, PersonFillAdd, CloudArrowUpFill, ArchiveFill, ArrowLeftRight } from 'react-bootstrap-icons';
 import toast from 'react-hot-toast';
 import { authService } from '../api/authService';
+import { TransferStudentModal } from '../components/TransferStudentModal';
 
 export function GroupForm() {
 	const { id } = useParams<{ id: string }>();
@@ -36,6 +37,7 @@ export function GroupForm() {
 	// --- STAN: USTAWIANIE SYSTEMU I MODAL WYPISANIA ---
 	const [systemAcademicYear, setSystemAcademicYear] = useState('2024/2025');
 	const [studentToRemove, setStudentToRemove] = useState<Student | null>(null);
+	const [studentToTransfer, setStudentToTransfer] = useState<Student | null>(null);
 	const [removeReason, setRemoveReason] = useState<'midyear' | 'mistake'>('midyear');
 	const [isRemoving, setIsRemoving] = useState(false);
 
@@ -483,12 +485,24 @@ export function GroupForm() {
 											</div>
 											<div className="text-xs text-slate-500">Rocznik: {student.dateOfBirth.substring(0, 4)}</div>
 										</div>
-										<button
-											onClick={() => setStudentToRemove(student)}
-											className="cursor-pointer rounded-lg bg-slate-50 p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-										>
-											<TrashFill />
-										</button>
+										<div className="flex items-center gap-1.5">
+											<button
+												type="button"
+												onClick={() => setStudentToTransfer(student)}
+												className="cursor-pointer rounded-lg bg-slate-50 p-2 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600"
+												title="Przepisz ucznia do innej grupy"
+											>
+												<ArrowLeftRight />
+											</button>
+											<button
+												type="button"
+												onClick={() => setStudentToRemove(student)}
+												className="cursor-pointer rounded-lg bg-slate-50 p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+												title="Wypisz ucznia z grupy"
+											>
+												<TrashFill />
+											</button>
+										</div>
 									</div>
 								))}
 							</div>
@@ -627,6 +641,33 @@ export function GroupForm() {
 					</div>
 				</div>
 			)}
+
+			{/* MODAL PRZEPISYWANIA UCZNIA (MIGRACJA 1-KLIKIEM) */}
+			<TransferStudentModal
+				isOpen={Boolean(studentToTransfer)}
+				onClose={() => setStudentToTransfer(null)}
+				student={
+					studentToTransfer
+						? {
+								id: studentToTransfer.id,
+								firstName: studentToTransfer.firstName,
+								lastName: studentToTransfer.lastName,
+								currentGroupId: id,
+								currentGroupName: formData.name,
+						  }
+						: null
+				}
+				onSuccess={async () => {
+					if (id) {
+						const [students, hist] = await Promise.all([
+							studentService.getByGroup(id),
+							studentService.getGroupHistory(id),
+						]);
+						setEnrolledStudents(students);
+						setStudentHistory(hist);
+					}
+				}}
+			/>
 		</div>
 	);
 }

@@ -134,6 +134,14 @@ export const studentService = {
 
 	deleteGroupHistory: async (studentId: string, historyId: string) => {
 		await apiClient.delete(`/students/${studentId}/history/groups/${historyId}`);
+	},
+
+	transferStudent: async (studentId: string, data: { targetGroupId: string; reason?: string; recordHistory?: boolean }) => {
+		const res = await apiClient.post<{ message: string; studentId: string; targetGroupId: string; targetGroupName: string }>(
+			`/students/${studentId}/transfer`,
+			data
+		);
+		return res.data;
 	}
 };
 

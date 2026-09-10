@@ -16,6 +16,7 @@ import {
 	EyeFill,
 	PeopleFill,
 	ExclamationTriangleFill,
+	ArrowLeftRight,
 } from 'react-bootstrap-icons';
 import { studentService, type Student, SkillLevel } from '../api/studentService';
 import { groupService, type Group } from '../api/groupService';
@@ -23,6 +24,7 @@ import { systemSettingsService } from '../api/systemSettingsService';
 import { authService } from '../api/authService';
 import { UserRole } from '../api/userService';
 import toast from 'react-hot-toast';
+import { TransferStudentModal } from '../components/TransferStudentModal';
 
 export function Students() {
 	const navigate = useNavigate();
@@ -47,6 +49,7 @@ export function Students() {
 	const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 	const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
 	const [isBulkGroupModalOpen, setIsBulkGroupModalOpen] = useState(false);
+	const [studentToTransfer, setStudentToTransfer] = useState<Student | null>(null);
 	const [isSubmittingBulk, setIsSubmittingBulk] = useState(false);
 
 	// Dane do modalu zmiany grupy
@@ -400,12 +403,22 @@ export function Students() {
 													{isTrainer ? <EyeFill /> : <PencilFill />}
 												</button>
 												{!isTrainer && (
-													<button
-														onClick={() => handleDelete(student.id, student.firstName, student.lastName)}
-														className="cursor-pointer rounded-lg bg-slate-100 p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-													>
-														<TrashFill />
-													</button>
+													<>
+														<button
+															onClick={() => setStudentToTransfer(student)}
+															className="cursor-pointer rounded-lg bg-slate-100 p-2 text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-600"
+															title="Przepisz ucznia do innej grupy"
+														>
+															<ArrowLeftRight />
+														</button>
+														<button
+															onClick={() => handleDelete(student.id, student.firstName, student.lastName)}
+															className="cursor-pointer rounded-lg bg-slate-100 p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+															title="Usuń ucznia"
+														>
+															<TrashFill />
+														</button>
+													</>
 												)}
 											</div>
 										</td>
@@ -593,6 +606,26 @@ export function Students() {
 					</div>
 				</div>
 			)}
+
+			{/* MODAL PRZEPISYWANIA UCZNIA (MIGRACJA 1-KLIKIEM) */}
+			<TransferStudentModal
+				isOpen={Boolean(studentToTransfer)}
+				onClose={() => setStudentToTransfer(null)}
+				student={
+					studentToTransfer
+						? {
+								id: studentToTransfer.id,
+								firstName: studentToTransfer.firstName,
+								lastName: studentToTransfer.lastName,
+								currentGroupId: studentToTransfer.groupId,
+								currentGroupName: studentToTransfer.groupName,
+						  }
+						: null
+				}
+				onSuccess={() => {
+					fetchStudents(currentPage, searchTerm, sortBy, sortOrder);
+				}}
+			/>
 		</div>
 	);
 }

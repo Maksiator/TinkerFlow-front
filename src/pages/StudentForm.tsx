@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search } from 'react-bootstrap-icons';
+import { ArrowLeft, Search, ArrowLeftRight } from 'react-bootstrap-icons';
 import { studentService, type StudentRequest, SkillLevel } from '../api/studentService';
 import { groupService, type Group } from '../api/groupService';
 import { branchService, type Branch } from '../api/branchService';
@@ -8,6 +8,7 @@ import { systemSettingsService } from '../api/systemSettingsService';
 import { authService } from '../api/authService';
 import { UserRole } from '../api/userService';
 import toast from 'react-hot-toast';
+import { TransferStudentModal } from '../components/TransferStudentModal';
 
 export function StudentForm() {
 	const { id } = useParams<{ id: string }>();
@@ -57,6 +58,7 @@ export function StudentForm() {
 
 	// Modal i ustawienia
 	const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+	const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
 	const [removeReason, setRemoveReason] = useState<'midyear' | 'mistake'>('midyear');
 	const [systemAcademicYear, setSystemAcademicYear] = useState('2024/2025');
 
@@ -307,7 +309,20 @@ export function StudentForm() {
 							/>
 						</div>
 						<div className="md:col-span-2 relative" ref={mainGroupDropdownRef}>
-							<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Grupa</label>
+							<div className="flex items-center justify-between mb-1.5">
+								<label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Grupa</label>
+								{isEditMode && !isTrainer && formData.groupId && (
+									<button
+										type="button"
+										onClick={() => setIsTransferModalOpen(true)}
+										className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
+										title="Błyskawiczne przepisanie ucznia do innej grupy"
+									>
+										<ArrowLeftRight size={12} />
+										Przepisz do innej grupy
+									</button>
+								)}
+							</div>
 							<div className="relative">
 								<Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
 								<input
@@ -697,6 +712,36 @@ export function StudentForm() {
 						</div>
 					</div>
 				</div>
+			)}
+
+			{/* MODAL PRZEPISYWANIA UCZNIA (MIGRACJA 1-KLIKIEM) */}
+			{isEditMode && id && (
+				<TransferStudentModal
+					isOpen={isTransferModalOpen}
+					onClose={() => setIsTransferModalOpen(false)}
+					student={{
+						id,
+						firstName: formData.firstName,
+						lastName: formData.lastName,
+						currentGroupId: formData.groupId,
+						currentGroupName: groups.find((g) => g.id === formData.groupId)?.name || null,
+					}}
+					onSuccess={async (targetGroupId) => {
+						setFormData((prev) => ({
+							...prev,
+							groupId: targetGroupId,
+							branchId: null,
+						}));
+						setInitialGroupId(targetGroupId);
+						setMainGroupSearch('');
+						try {
+							const historyData = await studentService.getHistory(id);
+							setHistory(historyData);
+						} catch (e) {
+							console.error(e);
+						}
+					}}
+				/>
 			)}
 		</div>
 	);
