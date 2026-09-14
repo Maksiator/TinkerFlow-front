@@ -45,7 +45,16 @@ export interface StudentHistoryItem {
 	isMidYear: boolean;
 }
 
+export interface BulkCreateStudentsResponse {
+	message: string;
+	addedCount: number;
+	skippedCount: number;
+	addedStudents: string[];
+	skippedStudents: string[];
+}
+
 export const studentService = {
+
 	getAll: async (search: string = '', sortBy: string = 'lastName', sortOrder: string = 'asc', page: number = 1, pageSize: number = 15) => {
 		const params = new URLSearchParams();
 		if (search.trim() !== '') params.append('search', search);
@@ -84,7 +93,7 @@ export const studentService = {
 	},
 
 	createBulk: async (data: StudentRequest[]) => {
-		const res = await apiClient.post<{ message: string }>('/students/bulk', data);
+		const res = await apiClient.post<BulkCreateStudentsResponse>('/students/bulk', data);
 		return res.data;
 	},
 

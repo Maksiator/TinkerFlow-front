@@ -1,14 +1,24 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
 	ArrowLeft,
 	ArrowLeftRight,
 	CheckCircleFill,
 	ExclamationCircleFill,
+	ExclamationTriangleFill,
 	ShieldLockFill,
 	Search,
+	PeopleFill,
+	PersonPlusFill,
+	CheckLg,
 } from 'react-bootstrap-icons';
-import { studentService, type StudentRequest, SkillLevel } from '../api/studentService';
+import {
+	studentService,
+	type Student,
+	type StudentRequest,
+	type BulkCreateStudentsResponse,
+	SkillLevel,
+} from '../api/studentService';
 import { groupService, type Group } from '../api/groupService';
 import { branchService, type Branch } from '../api/branchService';
 import { authService } from '../api/authService';
@@ -22,9 +32,11 @@ interface PreviewRow {
 	rawDate: string;
 	parsedDate: string;
 	isValid: boolean;
+	isAlreadyInGroup: boolean;
+	isDuplicateInList: boolean;
 }
 
-// NOWE: Magiczna funkcja usuwająca CapsLocka i formatująca pierwszą literę
+// Funkcja usuwająca CapsLocka i formatująca pierwszą literę
 const capitalizeName = (name: string) => {
 	if (!name) return '';
 	return name
@@ -46,8 +58,14 @@ export function StudentBulkAdd() {
 	const [selectedBranchId, setSelectedBranchId] = useState<string>('');
 	const [groups, setGroups] = useState<Group[]>([]);
 	const [branches, setBranches] = useState<Branch[]>([]);
+	const [groupStudents, setGroupStudents] = useState<Student[]>([]);
+	const [isLoadingGroupStudents, setIsLoadingGroupStudents] = useState(false);
+
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSaving, setIsSaving] = useState(false);
+
+	// Wynik importu (raport po zapisie)
+	const [importResult, setImportResult] = useState<BulkCreateStudentsResponse | null>(null);
 
 	// Wyszukiwarka dla oddziału
 	const [branchSearch, setBranchSearch] = useState('');
@@ -64,12 +82,11 @@ export function StudentBulkAdd() {
 			try {
 				const [groupsData, branchesData] = await Promise.all([
 					groupService.getAll(),
-					branchService.getAll()
+					branchService.getAll(),
 				]);
 				if (isMounted) {
 					setGroups(groupsData);
 					setBranches(branchesData);
-					// Domyślnie zaznacz pierwszy oddział, jeśli koordynator/admin ma dostęp
 					if (branchesData.length > 0) {
 						setSelectedBranchId(branchesData[0].id);
 					}
@@ -93,6 +110,40 @@ export function StudentBulkAdd() {
 		};
 	}, []);
 
+	// Pobieranie uczniów z wybranej grupy w celu dynamicznej weryfikacji powtórek
+	useEffect(() => {
+		if (!selectedGroupId) {
+			setGroupStudents([]);
+			return;
+		}
+
+		let isMounted = true;
+		setIsLoadingGroupStudents(true);
+
+		studentService
+			.getByGroup(selectedGroupId)
+			.then((data) => {
+				if (isMounted) {
+					setGroupStudents(data);
+				}
+			})
+			.catch((err) => {
+				console.error('Błąd pobierania uczniów grupy:', err);
+				if (isMounted) {
+					setGroupStudents([]);
+				}
+			})
+			.finally(() => {
+				if (isMounted) {
+					setIsLoadingGroupStudents(false);
+				}
+			});
+
+		return () => {
+			isMounted = false;
+		};
+	}, [selectedGroupId]);
+
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
 			if (branchDropdownRef.current && !branchDropdownRef.current.contains(event.target as Node)) {
@@ -109,23 +160,18 @@ export function StudentBulkAdd() {
 		}
 	}, [branches, user]);
 
-	const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-		const newText = e.target.value;
-		setRawText(newText);
+	// Funkcja parsująca wiersze tekstu z dynamicznym badaniem powtórek
+	const parseLines = (text: string, currentGroupStudents: Student[]): PreviewRow[] => {
+		if (!text.trim()) return [];
 
-		if (!newText.trim()) {
-			setPreviewRows([]);
-			return;
-		}
+		const lines = text.split('\n').filter((l) => l.trim().length > 0);
+		const seenInList = new Set<string>();
 
-		const lines = newText.split('\n').filter((l) => l.trim().length > 0);
-		const parsed: PreviewRow[] = lines.map((line, index) => {
-			// Próba podziału po tabulatorze (standard przy wklejaniu z Excela), średniku lub przecinku
+		return lines.map((line, index) => {
 			let parts = line.split('\t');
 			if (parts.length < 2) parts = line.split(';');
 			if (parts.length < 2) parts = line.split(',');
 
-			// Jeśli wciąż nie podzieliło (bo np. ktoś wkleił spacje), dzielimy po ostatniej grupie spacji przed datą
 			if (parts.length < 2) {
 				const spaceMatch = line.match(/(.+)\s+(\d{1,4}[./-]\d{1,2}[./-]\d{1,4})$/);
 				if (spaceMatch) {
@@ -139,7 +185,6 @@ export function StudentBulkAdd() {
 			const rawDate = parts[1] || '';
 			const nameParts = fullName.split(' ').filter((n) => n.length > 0);
 
-			// ZMIANA: Owijamy wyniki funkcją capitalizeName
 			const firstNameRaw = nameParts.length > 0 ? nameParts[nameParts.length - 1] : '';
 			const lastNameRaw = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : '';
 
@@ -159,27 +204,94 @@ export function StudentBulkAdd() {
 
 			const isValid = firstName.length > 0 && lastName.length > 0 && parsedDate.length === 10;
 
-			return { id: `row-${index}`, firstName, lastName, rawDate, parsedDate, isValid };
-		});
+			// Klucz do porównania
+			const key = `${firstName.trim().toLowerCase()}_${lastName.trim().toLowerCase()}`;
 
-		setPreviewRows(parsed);
+			// Czy uczeń już istnieje w tej grupie w bazie danych
+			const isAlreadyInGroup = currentGroupStudents.some(
+				(s) =>
+					s.firstName.trim().toLowerCase() === firstName.trim().toLowerCase() &&
+					s.lastName.trim().toLowerCase() === lastName.trim().toLowerCase()
+			);
+
+			// Czy to duplikat wewnątrz samego wklejanego tekstu
+			const isDuplicateInList = seenInList.has(key);
+			if (isValid) {
+				seenInList.add(key);
+			}
+
+			return {
+				id: `row-${index}`,
+				firstName,
+				lastName,
+				rawDate,
+				parsedDate,
+				isValid,
+				isAlreadyInGroup,
+				isDuplicateInList,
+			};
+		});
+	};
+
+	// Aktualizacja podglądu przy zmianie tekstu lub zmianie listy uczniów grupy
+	useEffect(() => {
+		setPreviewRows(parseLines(rawText, groupStudents));
+	}, [rawText, groupStudents]);
+
+	const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+		setRawText(e.target.value);
 	};
 
 	const swapNames = (rowId: string) => {
-		setPreviewRows((prev) =>
-			prev.map((row) => {
+		setPreviewRows((prev) => {
+			const updated = prev.map((row) => {
 				if (row.id === rowId) {
 					return { ...row, firstName: row.lastName, lastName: row.firstName };
 				}
 				return row;
-			}),
-		);
+			});
+
+			// Przelicz powtórki po zamianie
+			const seenInList = new Set<string>();
+			return updated.map((row) => {
+				const key = `${row.firstName.trim().toLowerCase()}_${row.lastName.trim().toLowerCase()}`;
+				const isAlreadyInGroup = groupStudents.some(
+					(s) =>
+						s.firstName.trim().toLowerCase() === row.firstName.trim().toLowerCase() &&
+						s.lastName.trim().toLowerCase() === row.lastName.trim().toLowerCase()
+				);
+				const isDuplicateInList = seenInList.has(key);
+				if (row.isValid) {
+					seenInList.add(key);
+				}
+				return {
+					...row,
+					isAlreadyInGroup,
+					isDuplicateInList,
+				};
+			});
+		});
 	};
 
+	// Statystyki podglądu
+	const stats = useMemo(() => {
+		const toAdd = previewRows.filter((r) => r.isValid && !r.isAlreadyInGroup && !r.isDuplicateInList);
+		const inGroup = previewRows.filter((r) => r.isValid && r.isAlreadyInGroup);
+		const duplicateInList = previewRows.filter((r) => r.isValid && !r.isAlreadyInGroup && r.isDuplicateInList);
+		const invalid = previewRows.filter((r) => !r.isValid);
+
+		return {
+			toAddCount: toAdd.length,
+			inGroupCount: inGroup.length,
+			duplicateInListCount: duplicateInList.length,
+			invalidCount: invalid.length,
+			toAddRows: toAdd,
+		};
+	}, [previewRows]);
+
 	const handleSubmit = async () => {
-		const invalidCount = previewRows.filter((r) => !r.isValid).length;
-		if (invalidCount > 0) {
-			toast.error(`Masz ${invalidCount} błędnych wierszy. Popraw je w polu po lewej.`);
+		if (stats.invalidCount > 0) {
+			toast.error(`Masz ${stats.invalidCount} błędnych wierszy. Popraw je w polu po lewej.`);
 			return;
 		}
 
@@ -188,9 +300,15 @@ export function StudentBulkAdd() {
 			return;
 		}
 
+		if (stats.toAddCount === 0) {
+			toast.error('Wszyscy uczniowie z listy są już w tej grupie lub są zduplikowani!');
+			return;
+		}
+
 		setIsSaving(true);
 		try {
-			const payload: StudentRequest[] = previewRows.map((row) => ({
+			// Wysyłamy tylko tych uczniów, którzy są nowi
+			const payload: StudentRequest[] = stats.toAddRows.map((row) => ({
 				firstName: row.firstName,
 				lastName: row.lastName,
 				dateOfBirth: row.parsedDate,
@@ -201,15 +319,26 @@ export function StudentBulkAdd() {
 				branchId: selectedGroupId === '' ? (selectedBranchId === '' ? null : selectedBranchId) : null,
 			}));
 
-			await studentService.createBulk(payload);
-			toast.success(`Pomyślnie zaimportowano ${payload.length} uczniów!`);
+			const res = await studentService.createBulk(payload);
 
-			// Powrót do grupy, jeśli weszliśmy stamtąd
-			if (selectedGroupId) {
-				navigate(`/grupy/${selectedGroupId}`);
-			} else {
-				navigate('/uczniowie');
-			}
+			// Dołączamy do raportu pominiętych z weryfikacji frontowej
+			const combinedSkipped = [
+				...res.skippedStudents,
+				...previewRows
+					.filter((r) => r.isValid && (r.isAlreadyInGroup || r.isDuplicateInList))
+					.map((r) => `${r.firstName} ${r.lastName}`),
+			];
+			const uniqueSkipped = Array.from(new Set(combinedSkipped));
+
+			setImportResult({
+				message: res.message,
+				addedCount: res.addedCount,
+				skippedCount: uniqueSkipped.length,
+				addedStudents: res.addedStudents,
+				skippedStudents: uniqueSkipped,
+			});
+
+			toast.success(`Pomyślnie dodano ${res.addedCount} nowych uczniów!`);
 		} catch (error) {
 			console.error(error);
 			toast.error('Błąd podczas masowego dodawania.');
@@ -234,6 +363,98 @@ export function StudentBulkAdd() {
 
 	return (
 		<div className="mx-auto max-w-6xl p-4 md:p-8">
+			{/* MODAL RAPORTU PO ZAKOŃCZENIU IMPORTU */}
+			{importResult && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+					<div className="animate-in fade-in zoom-in-95 w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl duration-200">
+						<div className="mb-4 flex items-center gap-3 text-green-600">
+							<CheckCircleFill size={32} />
+							<h3 className="text-xl font-bold text-slate-800">Raport z importu</h3>
+						</div>
+
+						<p className="mb-4 text-sm text-slate-600">
+							Proces importu został zakończony. Oto dokładne zestawienie przetworzonych danych:
+						</p>
+
+						<div className="space-y-4">
+							{/* Dodani uczniowie */}
+							<div className="rounded-xl border border-green-200 bg-green-50/70 p-4">
+								<div className="flex items-center justify-between text-xs font-bold text-green-800 uppercase">
+									<span>Dodani nowi uczniowie</span>
+									<span className="rounded-full bg-green-200 px-2 py-0.5 text-green-900">
+										{importResult.addedCount}
+									</span>
+								</div>
+								{importResult.addedStudents.length > 0 ? (
+									<div className="mt-2 flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+										{importResult.addedStudents.map((name, i) => (
+											<span
+												key={i}
+												className="inline-flex items-center gap-1 rounded bg-white px-2 py-1 text-xs font-semibold text-green-900 shadow-xs border border-green-200"
+											>
+												<CheckLg size={12} className="text-green-600" /> {name}
+											</span>
+										))}
+									</div>
+								) : (
+									<p className="mt-1 text-xs text-green-700 italic">Żaden uczeń nie został dodany.</p>
+								)}
+							</div>
+
+							{/* Pominięte powtórki */}
+							{importResult.skippedCount > 0 && (
+								<div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+									<div className="flex items-center justify-between text-xs font-bold text-amber-800 uppercase">
+										<span>Pominięto (duplikaty / już w grupie)</span>
+										<span className="rounded-full bg-amber-200 px-2 py-0.5 text-amber-900">
+											{importResult.skippedCount}
+										</span>
+									</div>
+									<div className="mt-2 flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+										{importResult.skippedStudents.map((name, i) => (
+											<span
+												key={i}
+												className="rounded bg-white px-2 py-1 text-xs font-medium text-amber-900 shadow-xs border border-amber-200"
+											>
+												{name}
+											</span>
+										))}
+									</div>
+								</div>
+							)}
+						</div>
+
+						<div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2">
+							<button
+								onClick={() => {
+									setImportResult(null);
+									setRawText('');
+									setPreviewRows([]);
+								}}
+								className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+							>
+								Wklej kolejną listę
+							</button>
+							{selectedGroupId ? (
+								<button
+									onClick={() => navigate(`/grupy/${selectedGroupId}`)}
+									className="cursor-pointer rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700"
+								>
+									Przejdź do grupy
+								</button>
+							) : (
+								<button
+									onClick={() => navigate('/uczniowie')}
+									className="cursor-pointer rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700"
+								>
+									Przejdź do bazy uczniów
+								</button>
+							)}
+						</div>
+					</div>
+				</div>
+			)}
+
 			<button
 				onClick={() => (selectedGroupId ? navigate(`/grupy/${selectedGroupId}`) : navigate('/uczniowie'))}
 				className="mb-6 flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-500 transition-colors hover:text-blue-600"
@@ -245,9 +466,11 @@ export function StudentBulkAdd() {
 				<h1 className="mb-2 text-2xl font-bold text-slate-800">Masowy import uczniów</h1>
 				<p className="mb-6 text-slate-500">
 					Wklej dane prosto z Excela lub ActiveNow. Format: <strong>Nazwisko Imię, Data urodzenia</strong>.
+					System na bieżąco porównuje listę z bazą i informuje o powtórkach.
 				</p>
 
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+					{/* LEWA KOLUMNA: Formularz i wklejanie */}
 					<div className="flex flex-col gap-4">
 						<div>
 							<label className="mb-2 block text-sm font-bold text-slate-700">Skopiuj i wklej tabelę:</label>
@@ -260,7 +483,12 @@ export function StudentBulkAdd() {
 						</div>
 
 						<div>
-							<label className="mb-2 block text-sm font-bold text-slate-700">Przypisz od razu do grupy:</label>
+							<label className="mb-2 flex items-center justify-between text-sm font-bold text-slate-700">
+								<span>Przypisz od razu do grupy:</span>
+								{isLoadingGroupStudents && (
+									<span className="text-xs font-normal text-blue-600">Weryfikowanie grupy...</span>
+								)}
+							</label>
 							<select
 								value={selectedGroupId}
 								onChange={(e) => setSelectedGroupId(e.target.value)}
@@ -273,6 +501,12 @@ export function StudentBulkAdd() {
 									</option>
 								))}
 							</select>
+							{selectedGroupId && groupStudents.length > 0 && (
+								<p className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+									<PeopleFill size={13} className="text-blue-600" />
+									Obecnie w tej grupie w bazie: <strong>{groupStudents.length} uczniów</strong>.
+								</p>
+							)}
 						</div>
 
 						{selectedGroupId === '' && (
@@ -334,50 +568,101 @@ export function StudentBulkAdd() {
 						)}
 					</div>
 
+					{/* PRAWA KOLUMNA: Dynamiczny podgląd i statystyki */}
 					<div className="flex h-full flex-col">
-						<label className="mb-2 block text-sm font-bold text-slate-700">Podgląd systemu:</label>
+						<label className="mb-2 block text-sm font-bold text-slate-700">Dynamiczny podgląd weryfikacji:</label>
+
+						{/* LICZNIKI STATYSTYK W CZASIE RZECZYWISTYM */}
+						{previewRows.length > 0 && (
+							<div className="mb-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+								<div className="rounded-lg border border-green-200 bg-green-50 p-2 text-green-800">
+									<div className="text-lg font-extrabold">{stats.toAddCount}</div>
+									<div className="font-bold">Do dodania</div>
+								</div>
+								<div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-800">
+									<div className="text-lg font-extrabold">{stats.inGroupCount}</div>
+									<div className="font-bold">Już w grupie</div>
+								</div>
+								<div className="rounded-lg border border-orange-200 bg-orange-50 p-2 text-orange-800">
+									<div className="text-lg font-extrabold">{stats.duplicateInListCount}</div>
+									<div className="font-bold">Duplikat listy</div>
+								</div>
+								<div className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-800">
+									<div className="text-lg font-extrabold">{stats.invalidCount}</div>
+									<div className="font-bold">Błędny format</div>
+								</div>
+							</div>
+						)}
+
 						<div className="min-h-80 flex-1 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50">
 							{previewRows.length === 0 ? (
 								<div className="flex h-full items-center justify-center p-8 text-center text-sm text-slate-400">
-									Tabela pojawi się po wklejeniu danych.
+									Wklej tekst po lewej stronie, aby zobaczyć dynamiczne porównanie.
 								</div>
 							) : (
 								<table className="w-full text-left text-sm">
-									<thead className="sticky top-0 bg-slate-200 text-slate-600 shadow-sm">
+									<thead className="sticky top-0 bg-slate-200 text-slate-600 shadow-sm text-xs font-bold uppercase">
 										<tr>
-											<th className="p-3 font-bold">Status</th>
-											<th className="p-3 font-bold">Imię i Nazwisko</th>
-											<th className="p-3 font-bold">Data (do bazy)</th>
+											<th className="p-3">Weryfikacja</th>
+											<th className="p-3">Uczeń</th>
+											<th className="p-3">Data</th>
 										</tr>
 									</thead>
 									<tbody>
 										{previewRows.map((row) => (
-											<tr key={row.id} className="border-b border-slate-100 bg-white hover:bg-slate-50">
+											<tr
+												key={row.id}
+												className={`border-b border-slate-100 transition-colors ${
+													!row.isValid
+														? 'bg-red-50/70 hover:bg-red-100/50'
+														: row.isAlreadyInGroup
+														? 'bg-amber-50/60 hover:bg-amber-100/50'
+														: row.isDuplicateInList
+														? 'bg-orange-50/60 hover:bg-orange-100/50'
+														: 'bg-white hover:bg-slate-50'
+												}`}
+											>
 												<td className="p-3">
-													{row.isValid ? (
-														<CheckCircleFill className="text-green-500" title="OK" />
+													{!row.isValid ? (
+														<span className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">
+															<ExclamationCircleFill size={12} /> Błąd
+														</span>
+													) : row.isAlreadyInGroup ? (
+														<span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800" title="Uczeń już jest w tej grupie, zostanie pominięty">
+															<ExclamationTriangleFill size={12} /> Już w grupie
+														</span>
+													) : row.isDuplicateInList ? (
+														<span className="inline-flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-[11px] font-bold text-orange-800" title="Ta osoba pojawiła się wcześniej na tej samej liście">
+															<ExclamationTriangleFill size={12} /> Duplikat listy
+														</span>
 													) : (
-														<ExclamationCircleFill className="text-red-500" title="Błąd" />
+														<span className="inline-flex items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-[11px] font-bold text-green-800">
+															<CheckCircleFill size={12} /> Nowy
+														</span>
 													)}
 												</td>
 												<td className="p-3">
 													<div className="flex items-center gap-2">
-														<span className="font-semibold text-slate-800">{row.firstName}</span>
-														<span className="text-slate-600">{row.lastName}</span>
+														<span className={`font-semibold ${row.isAlreadyInGroup ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
+															{row.firstName}
+														</span>
+														<span className={row.isAlreadyInGroup ? 'text-slate-500 line-through' : 'text-slate-700'}>
+															{row.lastName}
+														</span>
 														<button
 															onClick={() => swapNames(row.id)}
 															className="cursor-pointer rounded border border-slate-200 bg-slate-100 p-1 text-xs text-slate-500 transition-colors hover:text-blue-600"
-															title="Zamień"
+															title="Zamień imię z nazwiskiem"
 														>
-															<ArrowLeftRight />
+															<ArrowLeftRight size={10} />
 														</button>
 													</div>
 												</td>
 												<td className="p-3">
 													{row.isValid ? (
-														<span className="font-mono text-green-700">{row.parsedDate}</span>
+														<span className="font-mono text-xs font-semibold text-slate-600">{row.parsedDate}</span>
 													) : (
-														<div className="text-xs text-red-500">"{row.rawDate}"</div>
+														<div className="text-xs font-mono text-red-500">"{row.rawDate}"</div>
 													)}
 												</td>
 											</tr>
@@ -387,13 +672,26 @@ export function StudentBulkAdd() {
 							)}
 						</div>
 
-						<div className="mt-6 flex justify-end">
+						<div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+							<div className="text-xs text-slate-500">
+								{previewRows.length > 0 && (
+									<span>
+										Razem wklejono: <strong>{previewRows.length}</strong> osób | Do dodania: <strong className="text-green-600">{stats.toAddCount}</strong>
+									</span>
+								)}
+							</div>
+
 							<button
 								onClick={handleSubmit}
-								disabled={isSaving || previewRows.length === 0 || previewRows.some((r) => !r.isValid)}
-								className="cursor-pointer rounded-lg bg-green-600 px-8 py-3 font-bold text-white shadow-md transition-all hover:bg-green-700 disabled:bg-slate-400"
+								disabled={isSaving || previewRows.length === 0 || stats.invalidCount > 0 || stats.toAddCount === 0}
+								className="w-full sm:w-auto cursor-pointer rounded-xl bg-green-600 px-6 py-3 font-bold text-white shadow-md transition-all hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-300 flex items-center justify-center gap-2"
 							>
-								{isSaving ? 'Zapisywanie...' : `Importuj ${previewRows.filter((r) => r.isValid).length} uczniów`}
+								<PersonPlusFill size={18} />
+								{isSaving
+									? 'Zapisywanie...'
+									: stats.toAddCount === 0 && previewRows.length > 0
+									? 'Wszyscy uczniowie są już w grupie'
+									: `Dodaj ${stats.toAddCount} nowych uczniów`}
 							</button>
 						</div>
 					</div>
