@@ -197,10 +197,12 @@ export const printBatchService = {
 		try {
 			// Zwróć uwagę na ścieżkę w C#: [HttpPatch("~/api/printjobs/{jobId:guid}/status")]
 			// Używamy /printjobs bezpośrednio, a nie /printbatches
-			const response = await apiClient.patch<{ message: string; newStatus: PrintJobsStates }>(
-				`/printjobs/${jobId}/status`,
-				{ status },
-			);
+			const response = await apiClient.patch<{
+				message: string;
+				newStatus: PrintJobsStates;
+				batchStatus?: PrintBatchState;
+				batchId?: string;
+			}>(`/printjobs/${jobId}/status`, { status });
 			return response.data;
 		} catch (error) {
 			throw new Error(extractErrorMessage(error, 'Wystąpił błąd podczas zmiany statusu pojedynczego wydruku.'));

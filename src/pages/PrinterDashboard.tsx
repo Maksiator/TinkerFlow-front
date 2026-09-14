@@ -71,6 +71,7 @@ export function PrinterDashboard() {
 				const data = await printBatchService.getBatchesForFarm(undefined, includeCompleted);
 				if (isMounted) {
 					setBatches(data);
+					setSelectedBatch((prev) => (prev ? data.find((b) => b.id === prev.id) || null : null));
 				}
 			} catch (error: unknown) {
 				console.error(error);
@@ -95,6 +96,12 @@ export function PrinterDashboard() {
 	// Funkcja wywoływana przez przycisk odświeżania
 	const handleRefresh = () => {
 		setRefreshTrigger((prev) => prev + 1);
+	};
+
+	// Natychmiastowa aktualizacja paczki w stanie komponentu (bez czekania na pełny refetch)
+	const handleBatchUpdated = (updatedBatch: PrintBatchResponse) => {
+		setBatches((prev) => prev.map((b) => (b.id === updatedBatch.id ? updatedBatch : b)));
+		setSelectedBatch(updatedBatch);
 	};
 
 	// Pomocnicza funkcja do tłumaczenia statusu i przypisania koloru
@@ -944,6 +951,7 @@ export function PrinterDashboard() {
 					batch={selectedBatch}
 					isOpen={!!selectedBatch}
 					onClose={() => setSelectedBatch(null)}
+					onBatchUpdated={handleBatchUpdated}
 					onRefreshNeeded={() => {
 						// Gdy paczka zmieni status z poziomu modala, musimy odświeżyć główną listę
 						setRefreshTrigger((prev) => prev + 1);

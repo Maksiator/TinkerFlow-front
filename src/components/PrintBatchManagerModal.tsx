@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { XCircleFill, PrinterFill, BoxSeamFill, ExclamationTriangleFill, TrashFill, SlashCircle, Scissors } from 'react-bootstrap-icons';
 import { printBatchService, type PrintBatchResponse, PrintBatchState, PrintJobsStates } from '../api/printBatchService';
@@ -11,6 +11,7 @@ interface PrintBatchManagerModalProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onRefreshNeeded: () => void;
+	onBatchUpdated?: (updatedBatch: PrintBatchResponse) => void;
 }
 
 export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
@@ -18,6 +19,7 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 	isOpen,
 	onClose,
 	onRefreshNeeded,
+	onBatchUpdated,
 }) => {
 	const currentUser = authService.getCurrentUser();
 	const isAdmin = currentUser?.role === UserRole.Admin;
@@ -27,6 +29,13 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 
 	// Stan lokalny dla wydruków (żeby dropdowny zmieniały się na żywo)
 	const [localJobs, setLocalJobs] = useState(batch.printJobs);
+	// Stan lokalny dla paczki (żeby wyłączać przyciski po kliknięciu i aktualizować status)
+	const [localBatchStatus, setLocalBatchStatus] = useState(batch.status);
+
+	useEffect(() => {
+		setLocalJobs(batch.printJobs);
+		setLocalBatchStatus(batch.status);
+	}, [batch]);
 
 	// Grupowanie wydruków po uczniu
 	const groupedJobs = useMemo(() => {
@@ -47,9 +56,6 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 			}, {} as Record<string, typeof localJobs>);
 	}, [localJobs]);
 
-	// Stan lokalny dla paczki (żeby wyłączać przyciski po kliknięciu)
-	const [localBatchStatus, setLocalBatchStatus] = useState(batch.status);
-
 	if (!isOpen) return null;
 
 	// ==========================================
@@ -64,21 +70,27 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 			// 2. Magia na Froncie - optymistycznie aktualizujemy widok w Modalu!
 			setLocalBatchStatus(newStatus);
 
-			setLocalJobs((prevJobs) =>
-				prevJobs.map((job) => {
-					// Jeśli kliknęliśmy "W druku" -> wszystkie oczekujące zmieniają się na "Drukuje się"
-					if (newStatus === PrintBatchState.Printing) {
-						return job.status === PrintJobsStates.Pending ? { ...job, status: PrintJobsStates.Printing } : job;
-					}
-					// Jeśli kliknęliśmy "Do odbioru" -> wszystkie w druku i oczekujące zmieniają się na "Wydrukowano"
-					else if (newStatus === PrintBatchState.ReadyForCollection) {
-						return job.status === PrintJobsStates.Printing || job.status === PrintJobsStates.Pending
-							? { ...job, status: PrintJobsStates.Printed }
-							: job;
-					}
-					return job;
-				}),
-			);
+			const nextJobs = localJobs.map((job) => {
+				// Jeśli kliknęliśmy "W druku" -> wszystkie oczekujące zmieniają się na "Drukuje się"
+				if (newStatus === PrintBatchState.Printing) {
+					return job.status === PrintJobsStates.Pending ? { ...job, status: PrintJobsStates.Printing } : job;
+				}
+				// Jeśli kliknęliśmy "Do odbioru" -> wszystkie w druku i oczekujące zmieniają się na "Wydrukowano"
+				else if (newStatus === PrintBatchState.ReadyForCollection) {
+					return job.status === PrintJobsStates.Printing || job.status === PrintJobsStates.Pending
+						? { ...job, status: PrintJobsStates.Printed }
+						: job;
+				}
+				return job;
+			});
+
+			setLocalJobs(nextJobs);
+
+			onBatchUpdated?.({
+				...batch,
+				status: newStatus,
+				printJobs: nextJobs,
+			});
 
 			toast.success('Masowo zaktualizowano statusy!');
 			onRefreshNeeded(); // Odświeżamy listę w tle (na Dashboardzie)
@@ -100,13 +112,59 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 	// ==========================================
 	const handleJobStatusChange = async (jobId: string, newStatus: PrintJobsStates) => {
 		const previousJobs = [...localJobs];
-		setLocalJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, status: newStatus } : j)));
+		const previousBatchStatus = localBatchStatus;
+
+		// 1. Optymistyczna aktualizacja listy zadań
+		const nextJobs = localJobs.map((j) => (j.id === jobId ? { ...j, status: newStatus } : j));
+		setLocalJobs(nextJobs);
+
+		// 2. Optymistyczna kalkulacja nowego statusu paczki
+		let optimisticBatchStatus = localBatchStatus;
+		if (
+			nextJobs.length > 0 &&
+			localBatchStatus !== PrintBatchState.Completed &&
+			localBatchStatus !== PrintBatchState.NoPrints
+		) {
+			if (
+				nextJobs.every((j) => j.status === PrintJobsStates.Printed || j.status === PrintJobsStates.Failed) &&
+				nextJobs.some((j) => j.status === PrintJobsStates.Printed)
+			) {
+				optimisticBatchStatus = PrintBatchState.ReadyForCollection;
+			} else if (nextJobs.some((j) => j.status === PrintJobsStates.Printing || j.status === PrintJobsStates.Printed)) {
+				optimisticBatchStatus = PrintBatchState.Printing;
+			} else if (nextJobs.every((j) => j.status === PrintJobsStates.Pending)) {
+				optimisticBatchStatus = PrintBatchState.Pending;
+			}
+			setLocalBatchStatus(optimisticBatchStatus);
+		}
+
+		// 3. Natychmiastowe zsynchronizowanie z rodzicem (PrinterDashboard)
+		const updatedBatch: PrintBatchResponse = {
+			...batch,
+			status: optimisticBatchStatus,
+			printJobs: nextJobs,
+		};
+		onBatchUpdated?.(updatedBatch);
 
 		try {
-			await printBatchService.updateJobStatus(jobId, newStatus);
+			const res = await printBatchService.updateJobStatus(jobId, newStatus);
+			if (res.batchStatus !== undefined) {
+				setLocalBatchStatus(res.batchStatus);
+				onBatchUpdated?.({
+					...updatedBatch,
+					status: res.batchStatus,
+				});
+			}
 			toast.success('Zaktualizowano status modelu.');
+			onRefreshNeeded(); // Odświeżenie listy w tle na pulpicie
 		} catch (error: unknown) {
 			setLocalJobs(previousJobs);
+			setLocalBatchStatus(previousBatchStatus);
+			onBatchUpdated?.({
+				...batch,
+				status: previousBatchStatus,
+				printJobs: previousJobs,
+			});
 			const errorMessage = error instanceof Error ? error.message : 'Nie udało się zaktualizować wydruku.';
 			toast.error(errorMessage);
 		}
@@ -150,15 +208,40 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 		}
 	};
 
+	// Status paczki badge
+	const getBatchStatusBadge = (status: PrintBatchState) => {
+		switch (status) {
+			case PrintBatchState.Pending:
+				return <span className="rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-bold text-yellow-800">Oczekujące</span>;
+			case PrintBatchState.Printing:
+				return <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-800">W druku</span>;
+			case PrintBatchState.ReadyForCollection:
+				return <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-bold text-purple-800">Do odbioru</span>;
+			case PrintBatchState.Completed:
+				return <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-800">Zakończone</span>;
+			case PrintBatchState.NoPrints:
+				return (
+					<span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700 border border-slate-200">
+						<SlashCircle size={11} /> Brak wydruków
+					</span>
+				);
+			default:
+				return null;
+		}
+	};
+
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm transition-opacity">
 			<div className="flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
 				{/* NAGŁÓWEK */}
 				<div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-5">
 					<div>
-						<h2 className="text-xl font-extrabold text-slate-800">Zarządzanie Paczką</h2>
-						<p className="text-sm font-medium text-slate-500">
-							Grupa: <span className="text-purple-600">{batch.groupName}</span>
+						<div className="flex items-center gap-2.5">
+							<h2 className="text-xl font-extrabold text-slate-800">Zarządzanie Paczką</h2>
+							{getBatchStatusBadge(localBatchStatus)}
+						</div>
+						<p className="text-sm font-medium text-slate-500 mt-0.5">
+							Grupa: <span className="text-purple-600 font-bold">{batch.groupName}</span> • Oddział: <span className="text-slate-700 font-semibold">{batch.branchName}</span>
 						</p>
 					</div>
 					<div className="flex items-center gap-2">
