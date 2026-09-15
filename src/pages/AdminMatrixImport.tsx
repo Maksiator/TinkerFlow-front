@@ -210,7 +210,8 @@ export function AdminMatrixImport() {
 				setMissingProjects(error.response.data.missingProjects || []);
 				toast.error('Zatrzymano: Brakuje danych w bazie głównej!');
 			} else if (axios.isAxiosError(error) && error.response?.data?.message) {
-				toast.error(error.response.data.message);
+				const detail = error.response.data.detail ? `: ${error.response.data.detail}` : '';
+				toast.error(`${error.response.data.message}${detail}`);
 			} else {
 				toast.error('Wystąpił nieoczekiwany błąd serwera.');
 				console.error(error);
