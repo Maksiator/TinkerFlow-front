@@ -262,29 +262,58 @@ export function Matrix() {
 
 	return (
 		<div className="flex h-dvh flex-col overflow-hidden bg-slate-50">
-			<div className="z-10 shrink-0 border-b border-slate-200 bg-white p-4 shadow-sm md:p-6">
-				<div className="mx-auto flex max-w-400 items-center justify-between">
-					<div>
-						<span className="text-xs font-bold tracking-wider text-orange-500 uppercase md:text-sm">
-							Krok {currentIndex + 1} z {selectedGroups.length}
+			{/* ZWIEZŁY, KOMPAKTOWY NAGŁÓWEK DLA LEPSZEGO SKALOWANIA NA LAPTOPACH */}
+			<div className="z-10 shrink-0 border-b border-slate-200 bg-white px-3 py-2 shadow-xs md:px-6 md:py-2.5">
+				<div className="mx-auto flex max-w-400 items-center justify-between gap-4">
+					<div className="flex min-w-0 items-center gap-2 md:gap-3">
+						<span className="shrink-0 rounded-md bg-orange-100 px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-orange-700 md:text-xs">
+							Krok {currentIndex + 1}/{selectedGroups.length}
 						</span>
-						<h1 className="mt-0.5 text-2xl font-extrabold text-slate-800 md:mt-1 md:text-3xl">{currentGroup.name}</h1>
-						<p className="text-xs text-slate-500 md:text-sm">Lokalizacja: {currentGroup.location}</p>
+						<h1 className="truncate text-base font-extrabold text-slate-800 md:text-xl" title={currentGroup.name}>
+							{currentGroup.name}
+						</h1>
+						<span className="hidden text-slate-300 sm:inline">•</span>
+						<p className="hidden truncate text-xs text-slate-500 sm:inline" title={currentGroup.location}>
+							{currentGroup.location}
+						</p>
 					</div>
 
-					<div className="hidden gap-2 md:flex">
-						{selectedGroups.map((group, idx) => (
-							<div
-								key={group.id}
-								className={`h-3 w-3 rounded-full transition-colors ${idx === currentIndex ? 'bg-blue-600' : idx < currentIndex ? 'bg-blue-200' : 'bg-slate-200'}`}
-							/>
-						))}
+					{/* KLIKALNE KROPKI PAGINACJI (BULLETY) */}
+					<div className="flex shrink-0 items-center gap-1 overflow-x-auto py-0.5">
+						{selectedGroups.map((group, idx) => {
+							const isCurrent = idx === currentIndex;
+							const isPast = idx < currentIndex;
+							return (
+								<button
+									key={group.id}
+									type="button"
+									onClick={() => {
+										searchParams.set('active', group.id);
+										setSearchParams(searchParams);
+									}}
+									title={`Przejdź do: ${idx + 1}. ${group.name} (${group.location})`}
+									className={`group flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-all focus:outline-none ${
+										isCurrent ? 'scale-110' : 'hover:scale-110'
+									}`}
+								>
+									<span
+										className={`rounded-full transition-all ${
+											isCurrent
+												? 'h-3 w-3 bg-blue-600 ring-2 ring-blue-400 ring-offset-1'
+												: isPast
+												? 'h-2 w-2 bg-blue-300 hover:bg-blue-400 hover:h-2.5 hover:w-2.5'
+												: 'h-2 w-2 bg-slate-300 hover:bg-slate-400 hover:h-2.5 hover:w-2.5'
+										}`}
+									/>
+								</button>
+							);
+						})}
 					</div>
 				</div>
 			</div>
 
-			{/* ZMIANA 1: Na telefonach p-0 (0 marginesów), krawędzie na ostro, pełne wykorzystanie szerokości ekranu */}
-			<div className="mx-auto flex w-full max-w-400 flex-1 flex-col overflow-hidden p-0 md:p-6">
+			{/* GŁÓWNY OBSZAR TABELI Z WIĘKSZĄ PRZESTRZENIĄ PIONOWĄ NA LAPTOPACH */}
+			<div className="mx-auto flex w-full max-w-400 flex-1 flex-col overflow-hidden p-0 md:px-6 md:py-2">
 				<ProjectPivot key={currentGroup.id} groupId={currentGroup.id} refreshTrigger={refreshTrigger} />
 			</div>
 

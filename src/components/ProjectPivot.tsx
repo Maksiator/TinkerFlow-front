@@ -206,7 +206,11 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 				</div>
 			</div>
 
-			<div className="scrollbar-thin relative min-h-0 flex-1 overflow-auto bg-white">
+			<div
+				className={`scrollbar-thin relative min-h-0 flex-1 overflow-auto bg-white transition-all duration-300 ${
+					isPrintManagerOpen || isSidebarOpen ? 'md:mr-80' : ''
+				}`}
+			>
 				<table className="w-full min-w-max border-collapse text-left text-sm">
 					<thead className="sticky top-0 z-20 bg-slate-100 shadow-sm">
 						{/* ... Reszta kodu tabeli pozostaje bez zmian (to samo co miałeś) ... */}

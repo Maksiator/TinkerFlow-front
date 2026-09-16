@@ -1,9 +1,26 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { XLg, PrinterFill, Scissors, EyeFill, LayersFill } from 'react-bootstrap-icons';
+import {
+	XLg,
+	PrinterFill,
+	Scissors,
+	EyeFill,
+	LayersFill,
+	PersonPlusFill,
+	PlusLg,
+	ChevronDown,
+	ChevronUp,
+} from 'react-bootstrap-icons';
+import toast from 'react-hot-toast';
 import { authService } from '../api/authService';
 import { UserRole } from '../api/userService';
 import { type PrintBatchResponse, PrintBatchState } from '../api/printBatchService';
+
+export interface CustomLabelItem {
+	id: string;
+	studentName: string;
+	groupName: string;
+}
 
 export interface PrintLabelsModalProps {
 	isOpen: boolean;
@@ -24,6 +41,32 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 	const isAdmin = currentUser?.role === UserRole.Admin;
 
 	const [activeBatchIds, setActiveBatchIds] = useState<string[]>(selectedBatchIds);
+
+	// STANY DLA WŁASNYCH / WARSZTATOWYCH ETYKIET
+	const [customGroupName, setCustomGroupName] = useState('');
+	const [customNamesText, setCustomNamesText] = useState('');
+	const [isCustomSectionOpen, setIsCustomSectionOpen] = useState(false);
+	const [customLabels, setCustomLabels] = useState<CustomLabelItem[]>(() => {
+		try {
+			const saved = localStorage.getItem('print_custom_labels');
+			return saved ? JSON.parse(saved) : [];
+		} catch {
+			return [];
+		}
+	});
+
+	// Auto-zapis customowych etykiet
+	useEffect(() => {
+		try {
+			if (customLabels.length > 0) {
+				localStorage.setItem('print_custom_labels', JSON.stringify(customLabels));
+			} else {
+				localStorage.removeItem('print_custom_labels');
+			}
+		} catch {
+			// ignore
+		}
+	}, [customLabels]);
 
 	useEffect(() => {
 		if (isOpen) {
@@ -49,7 +92,39 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 		onBatchIdsChange?.([]);
 	};
 
-	// Przygotowanie listy etykiet ze wszystkich zaznaczonych paczek (1 na ucznia)
+	const handleAddCustomLabels = () => {
+		const lines = customNamesText
+			.split('\n')
+			.map((l) => l.trim())
+			.filter(Boolean);
+
+		if (lines.length === 0) {
+			toast.error('Wpisz przynajmniej jedno imię i nazwisko!');
+			return;
+		}
+
+		const group = customGroupName.trim() || 'Warsztaty';
+		const newItems: CustomLabelItem[] = lines.map((name) => ({
+			id: `custom-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+			studentName: name,
+			groupName: group,
+		}));
+
+		setCustomLabels((prev) => [...prev, ...newItems]);
+		setCustomNamesText('');
+		toast.success(`Dodano ${newItems.length} osób do wydruku etykiet.`);
+	};
+
+	const handleRemoveCustomLabel = (id: string) => {
+		setCustomLabels((prev) => prev.filter((l) => l.id !== id));
+	};
+
+	const handleClearCustomLabels = () => {
+		setCustomLabels([]);
+		toast.success('Wyczyszczono własne etykiety.');
+	};
+
+	// Przygotowanie listy etykiet ze wszystkich zaznaczonych paczek + własnych pozycji (1 na ucznia)
 	const labels = useMemo(() => {
 		const list: Array<{
 			id: string;
@@ -71,8 +146,12 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 			}
 		}
 
+		for (const custom of customLabels) {
+			list.push(custom);
+		}
+
 		return list;
-	}, [activeBatches]);
+	}, [activeBatches, customLabels]);
 
 	// Podział na wiersze po 3 etykiety (do siatki tabeli ze wspólnymi ramkami cięcia)
 	const labelRows = useMemo(() => {
@@ -231,6 +310,106 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 						</button>
 					</div>
 
+					{/* SEKCJA WŁASNYCH ETYKIET / WARSZTATÓW JEDNORAZOWYCH (ADMIN ONLY) */}
+					<div className="border-b border-slate-200 bg-slate-50 px-6 py-3">
+						<div className="flex items-center justify-between">
+							<button
+								type="button"
+								onClick={() => setIsCustomSectionOpen(!isCustomSectionOpen)}
+								className="flex cursor-pointer items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 transition-colors hover:text-purple-700"
+							>
+								<PersonPlusFill className="text-purple-600" />
+								<span>Własne etykiety / jednorazowe warsztaty</span>
+								{customLabels.length > 0 && (
+									<span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700 lowercase">
+										{customLabels.length} {customLabels.length === 1 ? 'dodana' : 'dodanych'}
+									</span>
+								)}
+								{isCustomSectionOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+							</button>
+
+							{customLabels.length > 0 && (
+								<button
+									type="button"
+									onClick={handleClearCustomLabels}
+									className="cursor-pointer text-[11px] font-medium text-slate-500 transition-colors hover:text-red-600"
+								>
+									Wyczyść własne ({customLabels.length})
+								</button>
+							)}
+						</div>
+
+						{/* FORMULARZ DODAWANIA WŁASNYCH OSÓB */}
+						{(isCustomSectionOpen || (customLabels.length === 0 && activeBatches.length === 0)) && (
+							<div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
+								<div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+									<div className="md:col-span-1">
+										<label className="mb-1 block text-xs font-bold text-slate-700">
+											Nazwa grupy / warsztatów
+										</label>
+										<input
+											type="text"
+											value={customGroupName}
+											onChange={(e) => setCustomGroupName(e.target.value)}
+											placeholder="np. Warsztaty SP 15"
+											className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs outline-none transition-colors focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+										/>
+										<p className="mt-1 text-[10px] text-slate-400">
+											Domyślnie: „Warsztaty”, jeśli pole pozostanie puste.
+										</p>
+									</div>
+
+									<div className="md:col-span-2">
+										<label className="mb-1 block text-xs font-bold text-slate-700">
+											Uczestnicy (wklej imiona i nazwiska, jedno pod drugim)
+										</label>
+										<div className="flex gap-2">
+											<textarea
+												rows={2}
+												value={customNamesText}
+												onChange={(e) => setCustomNamesText(e.target.value)}
+												placeholder={'Jan Kowalski\nAnna Nowak\nPiotr Wiśniewski'}
+												className="flex-1 resize-y rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs outline-none transition-colors focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+											/>
+											<button
+												type="button"
+												onClick={handleAddCustomLabels}
+												disabled={!customNamesText.trim()}
+												className="flex self-stretch cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-purple-600 px-4 text-xs font-bold text-white shadow-xs transition-all hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+											>
+												<PlusLg size={14} />
+												<span>Dodaj</span>
+											</button>
+										</div>
+									</div>
+								</div>
+							</div>
+						)}
+
+						{/* LISTA DODANYCH WŁASNYCH ETYKIET */}
+						{customLabels.length > 0 && (
+							<div className="mt-2.5 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto pr-1">
+								{customLabels.map((c) => (
+									<span
+										key={c.id}
+										className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-white px-2.5 py-0.5 text-xs font-medium text-purple-900 shadow-xs"
+									>
+										<span className="font-bold">{c.studentName}</span>
+										<span className="text-[10px] text-purple-500">({c.groupName})</span>
+										<button
+											type="button"
+											onClick={() => handleRemoveCustomLabel(c.id)}
+											className="ml-0.5 cursor-pointer text-slate-400 transition-colors hover:text-red-600"
+											title="Usuń tę etykietę"
+										>
+											<XLg size={10} />
+										</button>
+									</span>
+								))}
+							</div>
+						)}
+					</div>
+
 					{/* WYBRANE GRUPY DO WYDRUKU (ZAZNACZONE CHECKBOXAMI) */}
 					{activeBatches.length > 0 && (
 						<div className="border-b border-slate-200 bg-purple-50/50 px-6 py-3">
@@ -317,9 +496,9 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 						{labels.length === 0 ? (
 							<div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-400">
 								<Scissors className="mx-auto mb-3 text-slate-300" size={32} />
-								<p className="text-sm font-bold text-slate-600">Brak wybranych grup do wydruku etykiet.</p>
+								<p className="text-sm font-bold text-slate-600">Brak wybranych etykiet do wydruku.</p>
 								<p className="text-xs text-slate-400 mt-1">
-									Zaznacz checkboxy przy grupach na liście w panelu lub kliknij „Etykiety” przy danej paczce.
+									Zaznacz grupy w panelu lub wpisz własne osoby w sekcji powyżej (np. na jednorazowe warsztaty).
 								</p>
 							</div>
 						) : (

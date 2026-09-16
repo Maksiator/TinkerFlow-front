@@ -36,7 +36,27 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 	const [activeTab, setActiveTab] = useState<'send' | 'history'>('send');
 
 	// STANY DLA ZAKŁADKI WYSYŁKI
-	const [notes, setNotes] = useState('');
+	const [notes, setNotes] = useState<string>(() => {
+		try {
+			return localStorage.getItem(`print_notes_${groupId}`) || '';
+		} catch {
+			return '';
+		}
+	});
+
+	// AUTO-ZAPIS NOTATKI W LOCAL STORAGE (żeby nie znikała po zamknięciu panelu)
+	useEffect(() => {
+		try {
+			if (notes.trim()) {
+				localStorage.setItem(`print_notes_${groupId}`, notes);
+			} else {
+				localStorage.removeItem(`print_notes_${groupId}`);
+			}
+		} catch {
+			// ignore
+		}
+	}, [notes, groupId]);
+
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [readyBatch, setReadyBatch] = useState<PrintBatchResponse | null>(null);
 
@@ -258,6 +278,11 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 			});
 			toast.success('Paczka została wysłana na farmę druku!');
 			setNotes('');
+			try {
+				localStorage.removeItem(`print_notes_${groupId}`);
+			} catch {
+				// ignore
+			}
 			setCustomJobs([]); // Wyczyść customowe wydruki
 			onBatchSent(readyToPrint.map((item) => item.matrixKey));
 		} catch (error: unknown) {
@@ -296,15 +321,24 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 		);
 		if (!isConfirmed) return;
 
-		// Znajdujemy anulowaną paczkę, aby móc wyciągnąć z niej wydruki niestandardowe
+		// Znajdujemy anulowaną paczkę, aby móc wyciągnąć z niej wydruki niestandardowe oraz notatkę
 		const batchToCancel = historyBatches.find((b) => b.id === batchId);
 
 		try {
 			await printBatchService.deleteBatch(batchId);
 			toast.success('Paczka została anulowana.');
 
-			// Jeśli paczka miała wydruki niestandardowe, przywracamy je do formularza do ponownej edycji
+			// Jeśli paczka miała notatkę lub wydruki niestandardowe, przywracamy je do formularza do ponownej edycji
 			if (batchToCancel) {
+				if (batchToCancel.notes) {
+					setNotes(batchToCancel.notes);
+					try {
+						localStorage.setItem(`print_notes_${groupId}`, batchToCancel.notes);
+					} catch {
+						// ignore
+					}
+				}
+
 				const customJobsFromCanceled = batchToCancel.printJobs
 					.filter((job) => !job.studentProjectId)
 					.map((job) => ({
@@ -315,8 +349,11 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 
 				if (customJobsFromCanceled.length > 0) {
 					setCustomJobs((prev) => [...prev, ...customJobsFromCanceled]);
-					setActiveTab('send'); // Wracamy do zakładki edycji
-					toast.success(`Przywrócono ${customJobsFromCanceled.length} wydruków niestandardowych do ponownej edycji.`);
+				}
+
+				setActiveTab('send'); // Wracamy do zakładki edycji
+				if (customJobsFromCanceled.length > 0 || batchToCancel.notes) {
+					toast.success(`Przywrócono dane anulowanej paczki (notatkę i pozycje) do ponownej edycji.`);
 				}
 			}
 
