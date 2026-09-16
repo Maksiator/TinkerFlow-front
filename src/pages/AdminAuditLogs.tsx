@@ -416,6 +416,17 @@ export function AdminAuditLogs() {
 														</span>
 													)}
 												</div>
+											) : log.userRole ? (
+												<div className="flex flex-col">
+													<span className="font-semibold text-slate-800 text-xs">
+														{log.userRole}
+													</span>
+													{log.userId && (
+														<span className="text-[10px] text-slate-400 font-mono">
+															{log.userId.slice(0, 8)}...
+														</span>
+													)}
+												</div>
 											) : (
 												<span className="text-xs text-slate-400 italic">Gość / System</span>
 											)}
@@ -557,7 +568,7 @@ export function AdminAuditLogs() {
 									{selectedLog.userId && (
 										<p className="text-[11px] text-slate-400 font-mono mt-1">ID Użytkownika: {selectedLog.userId}</p>
 									)}
-									{!selectedLog.userName && !selectedLog.userEmail && (
+									{!selectedLog.userName && !selectedLog.userEmail && !selectedLog.userRole && !selectedLog.userId && (
 										<p className="text-xs text-slate-400 italic">Brak powiązanego użytkownika (Gość / System)</p>
 									)}
 								</div>
