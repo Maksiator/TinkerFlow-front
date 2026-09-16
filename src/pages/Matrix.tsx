@@ -279,7 +279,7 @@ export function Matrix() {
 					</div>
 
 					{/* KLIKALNE KROPKI PAGINACJI (BULLETY) */}
-					<div className="flex shrink-0 items-center gap-1 overflow-x-auto py-0.5">
+					<div className="flex shrink-0 items-center gap-0.5 overflow-x-auto scrollbar-none py-1">
 						{selectedGroups.map((group, idx) => {
 							const isCurrent = idx === currentIndex;
 							const isPast = idx < currentIndex;
@@ -292,17 +292,15 @@ export function Matrix() {
 										setSearchParams(searchParams);
 									}}
 									title={`Przejdź do: ${idx + 1}. ${group.name} (${group.location})`}
-									className={`group flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-all focus:outline-none ${
-										isCurrent ? 'scale-110' : 'hover:scale-110'
-									}`}
+									className="group flex h-6 w-6 cursor-pointer items-center justify-center rounded-full focus:outline-none"
 								>
 									<span
-										className={`rounded-full transition-all ${
+										className={`rounded-full transition-all duration-150 ${
 											isCurrent
-												? 'h-3 w-3 bg-blue-600 ring-2 ring-blue-400 ring-offset-1'
+												? 'h-3.5 w-3.5 bg-blue-600 ring-2 ring-blue-400 ring-offset-1'
 												: isPast
-												? 'h-2 w-2 bg-blue-300 hover:bg-blue-400 hover:h-2.5 hover:w-2.5'
-												: 'h-2 w-2 bg-slate-300 hover:bg-slate-400 hover:h-2.5 hover:w-2.5'
+												? 'h-2 w-2 bg-blue-300 group-hover:h-3 group-hover:w-3 group-hover:bg-blue-500'
+												: 'h-2 w-2 bg-slate-300 group-hover:h-3 group-hover:w-3 group-hover:bg-slate-400'
 										}`}
 									/>
 								</button>

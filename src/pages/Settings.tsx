@@ -2,10 +2,17 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { PersonFill, KeyFill, ShieldFill, BuildingFill, EyeFill, EyeSlashFill } from 'react-bootstrap-icons';
 import { userService, type User, UserRole } from '../api/userService';
+import { authService } from '../api/authService';
 
 export function Settings() {
 	const [user, setUser] = useState<User | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
+
+	// Stan formularza danych profilowych (dla Admina)
+	const [firstName, setFirstName] = useState('');
+	const [lastName, setLastName] = useState('');
+	const [canActAsTrainer, setCanActAsTrainer] = useState(false);
+	const [isSavingProfile, setIsSavingProfile] = useState(false);
 
 	// Stan formularza zmiany hasła
 	const [currentPassword, setCurrentPassword] = useState('');
@@ -25,6 +32,9 @@ export function Settings() {
 				const data = await userService.getMe();
 				if (isMounted) {
 					setUser(data);
+					setFirstName(data.firstName || '');
+					setLastName(data.lastName || '');
+					setCanActAsTrainer(Boolean(data.canActAsTrainer));
 				}
 			} catch (error) {
 				console.error(error);
@@ -43,6 +53,47 @@ export function Settings() {
 			isMounted = false;
 		};
 	}, []);
+
+	const handleProfileSave = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!firstName.trim() || !lastName.trim()) {
+			toast.error('Imię i nazwisko nie mogą być puste!');
+			return;
+		}
+
+		setIsSavingProfile(true);
+		try {
+			const updated = await userService.updateProfile({
+				firstName: firstName.trim(),
+				lastName: lastName.trim(),
+				canActAsTrainer,
+			});
+			setUser(updated);
+			setFirstName(updated.firstName);
+			setLastName(updated.lastName);
+			setCanActAsTrainer(Boolean(updated.canActAsTrainer));
+
+			// Aktualizacja w localStorage dla nagłówka i authService
+			const storedUser = authService.getCurrentUser();
+			if (storedUser) {
+				localStorage.setItem(
+					'tinkerflow_user',
+					JSON.stringify({
+						...storedUser,
+						firstName: updated.firstName,
+						lastName: updated.lastName,
+					})
+				);
+			}
+
+			toast.success('Dane profilu zostały pomyślnie zaktualizowane!');
+		} catch (error: any) {
+			console.error(error);
+			toast.error(error.message || 'Błąd podczas aktualizacji profilu.');
+		} finally {
+			setIsSavingProfile(false);
+		}
+	};
 
 	const handlePasswordChange = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -139,10 +190,88 @@ export function Settings() {
 							<div className="rounded-lg bg-blue-50 p-2 text-blue-600">
 								<PersonFill size={20} />
 							</div>
-							<h2 className="font-bold text-slate-800">Twój Profil</h2>
+							<div>
+								<h2 className="font-bold text-slate-800">Twój Profil</h2>
+								{user?.role === UserRole.Admin && (
+									<span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">
+										Konto Administratora
+									</span>
+								)}
+							</div>
 						</div>
 
-						{user && (
+						{user && user.role === UserRole.Admin ? (
+							<form onSubmit={handleProfileSave} className="space-y-4 text-sm">
+								<div>
+									<label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+										Imię
+									</label>
+									<input
+										type="text"
+										value={firstName}
+										onChange={(e) => setFirstName(e.target.value)}
+										required
+										placeholder="Twoje imię"
+										className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-800 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+									/>
+								</div>
+
+								<div>
+									<label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+										Nazwisko
+									</label>
+									<input
+										type="text"
+										value={lastName}
+										onChange={(e) => setLastName(e.target.value)}
+										required
+										placeholder="Twoje nazwisko"
+										className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-800 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+									/>
+								</div>
+
+								<div>
+									<span className="block text-xs font-semibold uppercase tracking-wider text-slate-400">Adres e-mail</span>
+									<span className="font-medium text-slate-700 break-all text-xs">{user.email}</span>
+								</div>
+
+								<div>
+									<span className="block text-xs font-semibold uppercase tracking-wider text-slate-400">Rola w systemie</span>
+									<span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 font-medium text-slate-700 text-xs">
+										<ShieldFill size={12} className="text-slate-500" />
+										{getRoleName(user.role)}
+									</span>
+								</div>
+
+								{/* PRZEŁĄCZNIK: MOŻLIWOŚĆ WYBORU JAKO TRENER */}
+								<div className="rounded-xl border border-purple-200 bg-purple-50/70 p-3.5 transition-all">
+									<label className="flex items-start gap-3 cursor-pointer">
+										<input
+											type="checkbox"
+											checked={canActAsTrainer}
+											onChange={(e) => setCanActAsTrainer(e.target.checked)}
+											className="mt-0.5 h-4 w-4 rounded border-slate-300 text-purple-600 accent-purple-600 focus:ring-purple-500"
+										/>
+										<div>
+											<span className="text-xs font-bold text-purple-950 block">
+												Wybór mojego konta jako trenera
+											</span>
+											<span className="text-[11px] text-purple-700 block mt-0.5 leading-snug">
+												Pozwala na wybór Twojego konta jako głównego trenera grup oraz przy wyznaczaniu zastępstw.
+											</span>
+										</div>
+									</label>
+								</div>
+
+								<button
+									type="submit"
+									disabled={isSavingProfile || !firstName.trim() || !lastName.trim()}
+									className="w-full cursor-pointer rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+								>
+									{isSavingProfile ? 'Zapisywanie...' : 'Zapisz dane profilu'}
+								</button>
+							</form>
+						) : user ? (
 							<div className="space-y-4 text-sm">
 								<div>
 									<span className="block text-xs font-semibold uppercase tracking-wider text-slate-400">Imię i nazwisko</span>
@@ -160,7 +289,7 @@ export function Settings() {
 									</span>
 								</div>
 							</div>
-						)}
+						) : null}
 					</div>
 
 					{/* ODDZIAŁY */}

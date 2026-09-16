@@ -124,9 +124,12 @@ export function GroupForm() {
 					? fetchedUsersResponse
 					: ((fetchedUsersResponse as { items?: User[] }).items ?? []);
 
-				// Wyłuskujemy tylko tych, którzy mogą prowadzić zajęcia
+				// Wyłuskujemy tylko tych, którzy mogą prowadzić zajęcia (Trenerzy, Koordynatorzy oraz Administrator jeśli włączył tę opcję)
 				const availableTrainers = fetchedUsers.filter(
-					(u: User) => u.role === UserRole.Trainer || u.role === UserRole.Coordinator,
+					(u: User) =>
+						u.role === UserRole.Trainer ||
+						u.role === UserRole.Coordinator ||
+						(u.role === UserRole.Admin && u.canActAsTrainer),
 				);
 
 				// Wyłuskujemy drukarzy

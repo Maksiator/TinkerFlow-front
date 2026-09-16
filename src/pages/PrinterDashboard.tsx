@@ -358,6 +358,24 @@ export function PrinterDashboard() {
 						)}
 					</button>
 
+					{/* PRZYCISK DRUKOWANIA ETYKIET A4 (ADMIN ONLY) */}
+					{isAdmin && (
+						<button
+							type="button"
+							onClick={() => setIsLabelsModalOpen(true)}
+							className="flex cursor-pointer items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-3.5 py-2 text-sm font-bold text-purple-700 shadow-sm transition-all hover:border-purple-300 hover:bg-purple-100"
+							title="Otwórz generator etykiet na woreczki A4 (dla grup lub własnych warsztatów)"
+						>
+							<Scissors className="text-purple-600" size={15} />
+							<span>Etykiety A4</span>
+							{selectedBatchIdsForLabels.length > 0 && (
+								<span className="rounded-full bg-purple-200 px-2 py-0.2 text-xs font-black text-purple-900">
+									{selectedBatchIdsForLabels.length}
+								</span>
+							)}
+						</button>
+					)}
+
 
 					<label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 shadow-sm transition-all hover:bg-slate-50">
 						<input

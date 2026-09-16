@@ -44,7 +44,10 @@ export function Substitutes() {
 
 				if (isMounted) {
 					const availableTrainers = (usersData.items || []).filter(
-						(u: User) => u.role === UserRole.Trainer || u.role === UserRole.Coordinator,
+						(u: User) =>
+							u.role === UserRole.Trainer ||
+							u.role === UserRole.Coordinator ||
+							(u.role === UserRole.Admin && u.canActAsTrainer),
 					);
 					setGroups(groupsData);
 					setTrainers(availableTrainers);

@@ -26,6 +26,7 @@ export interface User {
 	isActive: boolean;
 	branches: UserBranch[]; // NOWE: Teraz backend to zwraca
 	mustChangePassword: boolean;
+	canActAsTrainer?: boolean;
 }
 
 export interface PagedUserResponse {
@@ -43,6 +44,7 @@ export interface CreateUserRequest {
 	password: string;
 	role: UserRole;
 	branchIds: string[]; // NOWE: Lista ID oddziałów
+	canActAsTrainer?: boolean;
 }
 
 export interface UpdateUserRequest {
@@ -50,6 +52,7 @@ export interface UpdateUserRequest {
 	lastName: string;
 	role: UserRole;
 	branchIds: string[]; // NOWE: Lista ID oddziałów
+	canActAsTrainer?: boolean;
 }
 
 export interface ChangePasswordRequest {
@@ -131,6 +134,18 @@ export const userService = {
 	getMe: async () => {
 		const response = await apiClient.get<User>('/users/me');
 		return response.data;
+	},
+
+	updateProfile: async (data: { firstName: string; lastName: string; canActAsTrainer?: boolean }) => {
+		try {
+			const response = await apiClient.put<User>('/users/me', data);
+			return response.data;
+		} catch (error) {
+			if (axios.isAxiosError(error) && error.response?.data?.message) {
+				throw new Error(error.response.data.message);
+			}
+			throw new Error('Nie udało się zaktualizować profilu.');
+		}
 	},
 
 	resetPassword: async (id: string, data: { newPassword: string }) => {
