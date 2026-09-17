@@ -53,6 +53,7 @@ export interface UpdateUserRequest {
 	role: UserRole;
 	branchIds: string[]; // NOWE: Lista ID oddziałów
 	canActAsTrainer?: boolean;
+	email?: string;
 }
 
 export interface ChangePasswordRequest {

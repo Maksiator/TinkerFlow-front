@@ -270,6 +270,7 @@ export function AdminUsers() {
 					lastName: formData.lastName,
 					role: formData.role,
 					branchIds: branchIdsToSend,
+					email: isCurrentUserAdmin ? formData.email.trim() : undefined,
 				};
 				await userService.update(editingUser.id, updateData);
 				if (formData.password) {
@@ -673,15 +674,22 @@ export function AdminUsers() {
 								/>
 							</div>
 
-							<input
-								type="email"
-								placeholder="Email"
-								required
-								disabled={!!editingUser}
-								value={formData.email}
-								onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-								className="rounded-lg border p-2.5 disabled:bg-slate-50"
-							/>
+							<div>
+								<input
+									type="email"
+									placeholder="Email"
+									required
+									disabled={!!editingUser && !isCurrentUserAdmin}
+									value={formData.email}
+									onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+									className="w-full rounded-lg border p-2.5 disabled:bg-slate-50"
+								/>
+								{editingUser && isCurrentUserAdmin && (
+									<p className="mt-1 text-[11px] text-amber-600 font-medium">
+										Jako administrator możesz poprawić błędnie wpisany adres e-mail (login) pracownika.
+									</p>
+								)}
+							</div>
 
 							{editingUser ? (
 								<div>
