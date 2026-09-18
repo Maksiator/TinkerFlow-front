@@ -290,7 +290,7 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 							</div>
 							<h3 className="text-base font-extrabold text-slate-800">Brak modeli do druku</h3>
 							<p className="mt-1 text-xs text-slate-500 max-w-md mx-auto">
-								Trener oznaczył, że na tych zajęciach nie realizowano projektów do druku 3D. Farma nie musi czekać na pliki z tej grupy.
+								Trener oznaczył, że na tych zajęciach nie realizowano projektów do druku 3D. Drukarz nie musi czekać na pliki z tej grupy.
 							</p>
 							{batch.notes && (
 								<div className="mt-4 inline-block rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs">

@@ -119,7 +119,7 @@ export const printBatchService = {
 			);
 			return response.data;
 		} catch (error) {
-			throw new Error(extractErrorMessage(error, 'Wystąpił błąd podczas wysyłania paczki na farmę.'));
+			throw new Error(extractErrorMessage(error, 'Wystąpił błąd podczas wysyłania paczki do drukarza.'));
 		}
 	},
 
@@ -166,7 +166,7 @@ export const printBatchService = {
 	},
 
 	// ----------------------------------------------------
-	// DLA DRUKARZA (FARMY)
+	// DLA DRUKARZA
 	// ----------------------------------------------------
 
 	getBatchesForFarm: async (statusFilter?: PrintBatchState, includeCompleted?: boolean) => {
@@ -177,7 +177,7 @@ export const printBatchService = {
 			const response = await apiClient.get<PrintBatchResponse[]>('/printbatches/farm', { params });
 			return response.data;
 		} catch (error) {
-			throw new Error(extractErrorMessage(error, 'Nie udało się załadować listy paczek z farmy druku.'));
+			throw new Error(extractErrorMessage(error, 'Nie udało się załadować listy zleceń druku.'));
 		}
 	},
 

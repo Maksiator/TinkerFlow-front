@@ -1,6 +1,15 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { PrinterFill, XCircleFill, BoxSeamFill, InfoCircleFill, PlusLg, Trash, SlashCircle } from 'react-bootstrap-icons';
+import {
+	PrinterFill,
+	XCircleFill,
+	BoxSeamFill,
+	InfoCircleFill,
+	PlusLg,
+	Trash,
+	SlashCircle,
+	ExclamationTriangleFill,
+} from 'react-bootstrap-icons';
 import {
 	printBatchService,
 	type PrintJobRequest,
@@ -80,42 +89,42 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 	const [historyBatches, setHistoryBatches] = useState<PrintBatchResponse[]>([]);
 	const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-	// POBIERANIE DANYCH STARTOWYCH (Gotowa paczka do odbioru)
-	useEffect(() => {
-		let isMounted = true;
-		const fetchReadyBatch = async () => {
-			try {
-				const batch = await printBatchService.getReadyBatchForGroup(groupId);
-				if (isMounted) setReadyBatch(batch);
-			} catch (error) {
-				console.error(error);
-			}
-		};
-		fetchReadyBatch();
-		return () => {
-			isMounted = false;
-		};
+	// STAN DLA MONITU O BRAKUJĄCYCH UCZNIACH
+	const [showMissingModal, setShowMissingModal] = useState(false);
+
+	// POBIERANIE HISTORII
+	const fetchHistory = useCallback(async () => {
+		if (!groupId) return;
+		setIsLoadingHistory(true);
+		try {
+			const data = await printBatchService.getBatchHistoryForGroup(groupId);
+			setHistoryBatches(data);
+		} catch (error) {
+			console.error(error);
+		} finally {
+			setIsLoadingHistory(false);
+		}
 	}, [groupId]);
 
-	// POBIERANIE HISTORII (Na start grupy i przy zmianie zakładki)
-	useEffect(() => {
-		let isMounted = true;
-		const fetchHistory = async () => {
-			setIsLoadingHistory(true);
-			try {
-				const data = await printBatchService.getBatchHistoryForGroup(groupId);
-				if (isMounted) setHistoryBatches(data);
-			} catch (error) {
-				console.error(error);
-			} finally {
-				if (isMounted) setIsLoadingHistory(false);
-			}
-		};
-		fetchHistory();
-		return () => {
-			isMounted = false;
-		};
+	// POBIERANIE DANYCH STARTOWYCH (Gotowa paczka do odbioru)
+	const fetchReadyBatch = useCallback(async () => {
+		if (!groupId) return;
+		try {
+			const batch = await printBatchService.getReadyBatchForGroup(groupId);
+			setReadyBatch(batch);
+		} catch (error) {
+			console.error(error);
+		}
 	}, [groupId]);
+
+	useEffect(() => {
+		fetchReadyBatch();
+	}, [fetchReadyBatch]);
+
+	// POBIERANIE HISTORII (Na start grupy i przy każdej zmianie zakładki)
+	useEffect(() => {
+		fetchHistory();
+	}, [fetchHistory, activeTab]);
 
 	// LOGIKA WYLICZANIA PROJEKTÓW DO DRUKU Z MATRYCY
 	const readyToPrint = useMemo(() => {
@@ -243,11 +252,46 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 		toast.success(`Dodano ${newCustomJobs.length} pozycji.`);
 	};
 
-	// AKCJA 1: WYSYŁKA NOWEJ PACZKI
-	const handleSendToFarm = async () => {
+	// WERYFIKACJA UCZNIÓW BEZ PROJEKTÓW W PACZCE
+	const missingStudents = useMemo(() => {
+		if (!students || students.length === 0) return [];
+		const studentIdsWithJobs = new Set<string>();
+		readyToPrint.forEach((item) => {
+			if (item.studentId) studentIdsWithJobs.add(item.studentId);
+		});
+		customJobs.forEach((item) => {
+			if (item.studentId) studentIdsWithJobs.add(item.studentId);
+		});
+		return students
+			.filter((s) => !studentIdsWithJobs.has(s.id))
+			.sort((a, b) => a.lastName.localeCompare(b.lastName));
+	}, [students, readyToPrint, customJobs]);
+
+	// PRZYGOTOWANIE DO WYSYŁKI - WERYFIKACJA CZY WSZYSCY UCZNIOWIE MAJĄ WYDRUKI
+	const handleSendClick = () => {
 		if (!hasItemsToPrint) return;
 
 		// Walidacja przypisania uczniów w customowych wydrukach
+		const unassignedCustom = customJobs.some((j) => !j.studentId);
+		if (unassignedCustom) {
+			toast.error('Wybierz ucznia dla wszystkich wydruków niestandardowych!');
+			return;
+		}
+
+		// Jeśli w grupie są uczniowie bez wydruków, wyświetlamy modal weryfikacyjny
+		if (missingStudents.length > 0) {
+			setShowMissingModal(true);
+			return;
+		}
+
+		// Wszyscy uczniowie mają wydruk – wysyłamy od razu
+		executeSendToPrinter();
+	};
+
+	// AKCJA 1: WŁAŚCIWA WYSYŁKA PACZKI DO DRUKARZA
+	const executeSendToPrinter = async () => {
+		if (!hasItemsToPrint) return;
+
 		const unassignedCustom = customJobs.some((j) => !j.studentId);
 		if (unassignedCustom) {
 			toast.error('Wybierz ucznia dla wszystkich wydruków niestandardowych!');
@@ -276,7 +320,7 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 				notes: notes.trim() !== '' ? notes : null,
 				projectsToPrint: allProjectsToPrint,
 			});
-			toast.success('Paczka została wysłana na farmę druku!');
+			toast.success('Paczka została wysłana do drukarza!');
 			setNotes('');
 			try {
 				localStorage.removeItem(`print_notes_${groupId}`);
@@ -284,7 +328,11 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 				// ignore
 			}
 			setCustomJobs([]); // Wyczyść customowe wydruki
+			setShowMissingModal(false);
 			onBatchSent(readyToPrint.map((item) => item.matrixKey));
+
+			// Natychmiastowe odświeżenie historii bez konieczności reloadu
+			await fetchHistory();
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : 'Błąd podczas wysyłania paczki.';
 			toast.error(errorMessage);
@@ -306,6 +354,7 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 			toast.success('Odebrano! Statusy zaktualizowane na Zrobione.');
 			setReadyBatch(null);
 			onBatchReceived();
+			await fetchHistory();
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : 'Błąd przy odbiorze paczki.';
 			toast.error(errorMessage);
@@ -720,17 +769,17 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 									<textarea
 										rows={2}
 										className="w-full rounded-md border border-slate-300 p-2 text-sm outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
-										placeholder="Uwagi dla farmy..."
+										placeholder="Uwagi dla drukarza..."
 										value={notes}
 										onChange={(e) => setNotes(e.target.value)}
 										disabled={isSubmitting}
 									/>
 									<button
-										onClick={handleSendToFarm}
+										onClick={handleSendClick}
 										disabled={isSubmitting}
 										className="mt-2.5 w-full rounded-lg bg-purple-600 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-purple-700 disabled:opacity-50"
 									>
-										{isSubmitting ? 'Wysyłanie...' : 'Wyślij na farmę'}
+										{isSubmitting ? 'Wysyłanie...' : 'Wyślij do drukarza'}
 									</button>
 								</div>
 							)}
@@ -759,7 +808,7 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 											<div className="p-3 text-xs text-slate-600 space-y-2">
 												<div className="flex items-center gap-1.5 font-bold text-slate-800">
 													<SlashCircle className="text-slate-500" size={13} />
-													<span>Brak wydruków na farmę</span>
+													<span>Brak wydruków dla drukarza</span>
 												</div>
 												{batch.notes && (
 													<p className="rounded-lg bg-slate-50 p-2 text-slate-700 border border-slate-100 text-xs font-medium">
@@ -837,6 +886,17 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 												))}
 											</div>
 
+											{/* Notatka / uwagi dla drukarza */}
+											{batch.notes && (
+												<div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/75 p-2.5 text-xs">
+													<div className="flex items-center gap-1.5 font-bold mb-1 text-amber-900">
+														<InfoCircleFill size={12} className="text-amber-700 shrink-0" />
+														<span>Notatka dla drukarza:</span>
+													</div>
+													<p className="whitespace-pre-wrap text-slate-700 font-medium">{batch.notes}</p>
+												</div>
+											)}
+
 											{/* OPCJA ANULOWANIA JEŚLI PACZKA JEST JESZCZE "PENDING" */}
 											{batch.status === PrintBatchState.Pending && (
 												<div className="mt-4 border-t border-slate-100 pt-3">
@@ -860,6 +920,69 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 					</div>
 				)}
 			</div>
+
+			{/* MODAL MONITU O BRAKUJĄCYCH UCZNIACH */}
+			{showMissingModal && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+					<div className="max-w-md w-full rounded-2xl bg-white p-5 shadow-2xl border border-slate-200">
+						<div className="flex items-start gap-3">
+							<div className="rounded-xl bg-amber-100 p-2.5 text-amber-600 shrink-0">
+								<ExclamationTriangleFill size={22} />
+							</div>
+							<div className="flex-1">
+								<h3 className="text-base font-bold text-slate-800">
+									Nie wszyscy uczniowie mają wydruk
+								</h3>
+								<p className="mt-1 text-xs text-slate-500">
+									W przygotowywanej paczce brakuje projektów dla{' '}
+									<strong className="text-slate-700">
+										{missingStudents.length} {missingStudents.length === 1 ? 'osoby' : 'osób'}
+									</strong>{' '}
+									z tej grupy:
+								</p>
+							</div>
+						</div>
+
+						{/* Lista brakujących osób */}
+						<div className="my-4 max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+							<ul className="flex flex-col gap-1">
+								{missingStudents.map((s) => (
+									<li
+										key={s.id}
+										className="flex items-center gap-2 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 border border-slate-100 shadow-2xs"
+									>
+										<span className="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+										{s.firstName} {s.lastName}
+									</li>
+								))}
+							</ul>
+						</div>
+
+						<p className="text-xs text-slate-600 leading-relaxed">
+							Upewnij się, czy to zamierzone (np. uczeń był nieobecny lub nie ukończył projektu), czy oznaczanie na matrycy zostało pominięte przez pomyłkę.
+						</p>
+
+						<div className="mt-5 flex items-center justify-end gap-2.5">
+							<button
+								type="button"
+								onClick={() => setShowMissingModal(false)}
+								disabled={isSubmitting}
+								className="cursor-pointer rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
+							>
+								Wróć i sprawdź
+							</button>
+							<button
+								type="button"
+								onClick={executeSendToPrinter}
+								disabled={isSubmitting}
+								className="cursor-pointer rounded-xl bg-purple-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+							>
+								{isSubmitting ? 'Wysyłanie...' : 'Tak, wyślij paczkę'}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };

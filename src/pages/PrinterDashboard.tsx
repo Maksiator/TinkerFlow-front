@@ -290,7 +290,7 @@ export function PrinterDashboard() {
 	if (isLoading && batches.length === 0) {
 		return (
 			<div className="flex h-full items-center justify-center p-10">
-				<div className="text-lg font-bold text-slate-400">Ładowanie farmy druku...</div>
+				<div className="text-lg font-bold text-slate-400">Ładowanie zleceń druku...</div>
 			</div>
 		);
 	}
@@ -301,7 +301,7 @@ export function PrinterDashboard() {
 				<div>
 					<h1 className="flex flex-wrap items-center gap-3 text-3xl font-extrabold text-slate-800">
 						<span className="flex items-center gap-3">
-							<PrinterFill className="text-purple-600" /> Farma Druku
+							<PrinterFill className="text-purple-600" /> Panel Drukarza
 						</span>
 						{isAdmin && (
 							<span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 border border-amber-200">

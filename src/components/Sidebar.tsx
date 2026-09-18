@@ -212,7 +212,7 @@ export function Sidebar() {
 									<div className="my-2 border-t border-slate-100" />
 									{isExpanded && (
 										<p className="mt-2 mb-2 px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-											Farma Druku
+											Strefa Drukarza
 										</p>
 									)}
 

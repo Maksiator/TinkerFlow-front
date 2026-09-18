@@ -169,7 +169,7 @@ export function AdminAuditLogs() {
 			case 'printbatches':
 				return (
 					<span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 border border-sky-200">
-						<PrinterFill size={12} /> Farma Druku
+						<PrinterFill size={12} /> Panel Drukarza
 					</span>
 				);
 			default:
@@ -205,7 +205,7 @@ export function AdminAuditLogs() {
 			BulkDeleteStudents: { label: 'Masowe usunięcie uczniów' },
 			BulkChangeGroup: { label: 'Masowe przeniesienie uczniów' },
 			ImportStudents: { label: 'Import uczniów' },
-			SendToFarm: { label: 'Wysłanie paczki do druku' },
+			SendToFarm: { label: 'Wysłanie paczki do drukarza' },
 			UpdateBatchStatus: { label: 'Zmiana statusu paczki' },
 			DeleteBatch: { label: 'Usunięcie paczki' },
 		};
