@@ -418,9 +418,7 @@ export function AdminUsers() {
 								  ]
 								: []),
 							{ value: String(UserRole.Trainer), label: 'Trenerzy' },
-							...(isCurrentUserAdmin
-								? [{ value: String(UserRole.Printer), label: 'Drukarze' }]
-								: []),
+							{ value: String(UserRole.Printer), label: 'Drukarze' },
 						]}
 					/>
 				</div>
@@ -561,9 +559,10 @@ export function AdminUsers() {
 													{(() => {
 														const isSelf = user.id === currentUser?.id;
 														const isTargetAdmin = user.role === UserRole.Admin;
+														const isTargetPrinter = user.role === UserRole.Printer;
 
-														const canEdit = !(isCurrentUserCoordinator && isTargetAdmin);
-														const canToggleStatus = !isSelf && !(isCurrentUserCoordinator && isTargetAdmin);
+														const canEdit = !(isCurrentUserCoordinator && (isTargetAdmin || isTargetPrinter));
+														const canToggleStatus = !isSelf && !(isCurrentUserCoordinator && (isTargetAdmin || isTargetPrinter));
 														const canDelete = isCurrentUserAdmin && !isSelf && !isTargetAdmin;
 
 														return (
