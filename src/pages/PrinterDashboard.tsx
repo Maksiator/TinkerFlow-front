@@ -696,16 +696,27 @@ export function PrinterDashboard() {
 												</td>
 											)}
 											<td className="p-4 text-center whitespace-nowrap">
-												{batch.notes ? (
-													<span
-														className="inline-flex items-center justify-center rounded-lg bg-yellow-100 p-1.5 text-yellow-800 hover:bg-yellow-200 transition-colors"
-														title={`Notatka trenera:\n${batch.notes}`}
-													>
-														<ChatLeftTextFill size={14} />
-													</span>
-												) : (
-													<span className="text-slate-300 text-xs">—</span>
-												)}
+												<div className="flex items-center justify-center gap-1.5">
+													{batch.notes && (
+														<span
+															className="inline-flex items-center justify-center rounded-lg bg-yellow-100 p-1.5 text-yellow-800 hover:bg-yellow-200 transition-colors"
+															title={`Notatka trenera:\n${batch.notes}`}
+														>
+															<ChatLeftTextFill size={14} />
+														</span>
+													)}
+													{batch.printerNotes && (
+														<span
+															className="inline-flex items-center justify-center rounded-lg bg-indigo-100 p-1.5 text-indigo-800 hover:bg-indigo-200 transition-colors"
+															title={`Twoja informacja dla trenera:\n${batch.printerNotes}`}
+														>
+															<ChatLeftTextFill size={14} />
+														</span>
+													)}
+													{!batch.notes && !batch.printerNotes && (
+														<span className="text-slate-300 text-xs">—</span>
+													)}
+												</div>
 											</td>
 											<td className="p-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
 												<div className="inline-flex items-center gap-1.5">
@@ -877,6 +888,13 @@ export function PrinterDashboard() {
 											<div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
 												<strong>Notatka od trenera:</strong>
 												<p className="mt-1 italic">{batch.notes}</p>
+											</div>
+										)}
+
+										{batch.printerNotes && (
+											<div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50/70 p-3 text-sm text-indigo-900">
+												<strong>Twoja informacja dla trenera:</strong>
+												<p className="mt-1 text-slate-700">{batch.printerNotes}</p>
 											</div>
 										)}
 									</>

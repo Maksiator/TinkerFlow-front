@@ -9,6 +9,7 @@ import {
 	Trash,
 	SlashCircle,
 	ExclamationTriangleFill,
+	ChatLeftTextFill,
 } from 'react-bootstrap-icons';
 import {
 	printBatchService,
@@ -527,6 +528,18 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 								<p className="mb-3 text-xs text-green-700">
 									Wydruki z grupy gotowe. Potwierdź odbiór, aby oznaczyć projekty jako Zrobione.
 								</p>
+
+								{/* Notatka / informacja od drukarza */}
+								{readyBatch.printerNotes && (
+									<div className="mb-3 rounded-lg border border-green-200 bg-white/95 p-3 text-xs shadow-2xs">
+										<div className="flex items-center gap-1.5 font-bold text-green-800 mb-1">
+											<ChatLeftTextFill size={13} className="text-green-600 shrink-0" />
+											<span>Wiadomość od drukarza:</span>
+										</div>
+										<p className="whitespace-pre-wrap font-medium text-slate-700">{readyBatch.printerNotes}</p>
+									</div>
+								)}
+
 								<button
 									onClick={handleConfirmDelivery}
 									disabled={isSubmitting}
@@ -815,6 +828,12 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 														Powód: <strong className="text-slate-900">{batch.notes}</strong>
 													</p>
 												)}
+												{batch.printerNotes && (
+													<div className="rounded-lg bg-indigo-50 p-2 text-indigo-900 border border-indigo-100 text-xs font-medium">
+														<span className="font-bold block mb-0.5">Informacja od drukarza:</span>
+														<p className="whitespace-pre-wrap text-slate-700">{batch.printerNotes}</p>
+													</div>
+												)}
 												<div className="border-t border-slate-100 pt-2">
 													<button
 														type="button"
@@ -894,6 +913,17 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 														<span>Notatka dla drukarza:</span>
 													</div>
 													<p className="whitespace-pre-wrap text-slate-700 font-medium">{batch.notes}</p>
+												</div>
+											)}
+
+											{/* Informacja od drukarza */}
+											{batch.printerNotes && (
+												<div className="mt-2.5 rounded-lg border border-indigo-200 bg-indigo-50/75 p-2.5 text-xs">
+													<div className="flex items-center gap-1.5 font-bold mb-1 text-indigo-900">
+														<ChatLeftTextFill size={12} className="text-indigo-700 shrink-0" />
+														<span>Informacja od drukarza:</span>
+													</div>
+													<p className="whitespace-pre-wrap text-slate-700 font-medium">{batch.printerNotes}</p>
 												</div>
 											)}
 

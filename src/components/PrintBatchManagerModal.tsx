@@ -1,6 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { XCircleFill, PrinterFill, BoxSeamFill, ExclamationTriangleFill, TrashFill, SlashCircle, Scissors } from 'react-bootstrap-icons';
+import {
+	XCircleFill,
+	PrinterFill,
+	BoxSeamFill,
+	ExclamationTriangleFill,
+	TrashFill,
+	SlashCircle,
+	Scissors,
+	ChatLeftTextFill,
+} from 'react-bootstrap-icons';
 import { printBatchService, type PrintBatchResponse, PrintBatchState, PrintJobsStates } from '../api/printBatchService';
 import { authService } from '../api/authService';
 import { UserRole } from '../api/userService';
@@ -25,16 +34,20 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 	const isAdmin = currentUser?.role === UserRole.Admin;
 
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [isSavingNotes, setIsSavingNotes] = useState(false);
 	const [isLabelsModalOpen, setIsLabelsModalOpen] = useState(false);
 
 	// Stan lokalny dla wydruków (żeby dropdowny zmieniały się na żywo)
 	const [localJobs, setLocalJobs] = useState(batch.printJobs);
 	// Stan lokalny dla paczki (żeby wyłączać przyciski po kliknięciu i aktualizować status)
 	const [localBatchStatus, setLocalBatchStatus] = useState(batch.status);
+	// Stan lokalny dla notatki od drukarza
+	const [printerNotes, setPrinterNotes] = useState(batch.printerNotes || '');
 
 	useEffect(() => {
 		setLocalJobs(batch.printJobs);
 		setLocalBatchStatus(batch.status);
+		setPrinterNotes(batch.printerNotes || '');
 	}, [batch]);
 
 	// Grupowanie wydruków po uczniu
@@ -58,14 +71,36 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 
 	if (!isOpen) return null;
 
+	const handleSavePrinterNotes = async () => {
+		setIsSavingNotes(true);
+		try {
+			const trimmed = printerNotes.trim();
+			const result = await printBatchService.updatePrinterNotes(batch.id, trimmed !== '' ? trimmed : null);
+			toast.success('Zapisano informację dla trenera!');
+			onBatchUpdated?.({
+				...batch,
+				status: localBatchStatus,
+				printJobs: localJobs,
+				printerNotes: result.printerNotes,
+			});
+			onRefreshNeeded();
+		} catch (error: unknown) {
+			const errorMsg = error instanceof Error ? error.message : 'Błąd podczas zapisywania notatki.';
+			toast.error(errorMsg);
+		} finally {
+			setIsSavingNotes(false);
+		}
+	};
+
 	// ==========================================
 	// 1. MASOWA ZMIANA (BULK UPDATE) CAŁEJ PACZKI
 	// ==========================================
 	const handleBatchStatusChange = async (newStatus: PrintBatchState) => {
 		setIsSubmitting(true);
 		try {
-			// 1. Wysyłamy komendę do C# (C# robi kaskadowy update w bazie)
-			await printBatchService.updateBatchStatus(batch.id, newStatus);
+			// 1. Wysyłamy komendę do C# razem z ewentualną notatką dla trenera
+			const trimmedNotes = printerNotes.trim() !== '' ? printerNotes.trim() : null;
+			await printBatchService.updateBatchStatus(batch.id, newStatus, trimmedNotes);
 
 			// 2. Magia na Froncie - optymistycznie aktualizujemy widok w Modalu!
 			setLocalBatchStatus(newStatus);
@@ -90,6 +125,7 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 				...batch,
 				status: newStatus,
 				printJobs: nextJobs,
+				printerNotes: trimmedNotes,
 			});
 
 			toast.success('Masowo zaktualizowano statusy!');
@@ -277,9 +313,47 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 				{/* LISTA WYDRUKÓW */}
 				<div className="flex-1 overflow-y-auto p-5">
 					{batch.notes && (
-						<div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 shadow-sm">
+						<div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4 shadow-sm">
 							<h3 className="mb-1 text-xs font-bold tracking-wider text-yellow-800 uppercase">Notatki trenera</h3>
 							<p className="text-sm text-yellow-900 italic">{batch.notes}</p>
+						</div>
+					)}
+
+					{/* Pole notatki / informacji od drukarza dla trenera */}
+					{batch.status !== PrintBatchState.NoPrints && (
+						<div className="mb-6 rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 shadow-xs">
+							<div className="flex items-center justify-between mb-1.5">
+								<label className="text-xs font-bold tracking-wider text-indigo-950 uppercase flex items-center gap-1.5">
+									<ChatLeftTextFill size={13} className="text-indigo-600" />
+									Informacja / notatka dla trenera
+								</label>
+								{printerNotes !== (batch.printerNotes || '') && (
+									<span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+										Niezapisana zmiana
+									</span>
+								)}
+							</div>
+							<p className="text-xs text-slate-500 mb-2">
+								Ta informacja wyświetli się trenerowi na matrycy w strefie odbioru paczki (np. inny kolor filamentu, uszkodzony element itp.).
+							</p>
+							<div className="flex flex-col sm:flex-row gap-2">
+								<textarea
+									rows={2}
+									placeholder="Wpisz informację lub uwagi dla trenera..."
+									value={printerNotes}
+									onChange={(e) => setPrinterNotes(e.target.value)}
+									disabled={isSubmitting || isSavingNotes}
+									className="flex-1 rounded-lg border border-indigo-200 bg-white p-2.5 text-xs text-slate-800 outline-none transition-colors focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+								/>
+								<button
+									type="button"
+									onClick={handleSavePrinterNotes}
+									disabled={isSubmitting || isSavingNotes || printerNotes === (batch.printerNotes || '')}
+									className="cursor-pointer self-end sm:self-stretch px-4 py-2 rounded-lg bg-indigo-600 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shrink-0"
+								>
+									{isSavingNotes ? 'Zapisywanie...' : 'Zapisz notatkę'}
+								</button>
+							</div>
 						</div>
 					)}
 

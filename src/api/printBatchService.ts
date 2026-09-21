@@ -76,6 +76,7 @@ export interface PrintBatchResponse {
 	assignedPrinterId?: string | null;
 	assignedPrinterName?: string | null;
 	classDayOfWeek?: number | null;
+	printerNotes?: string | null;
 }
 
 export interface ConfirmDeliveryRequest {
@@ -181,15 +182,29 @@ export const printBatchService = {
 		}
 	},
 
-	updateBatchStatus: async (batchId: string, status: PrintBatchState) => {
+	updateBatchStatus: async (batchId: string, status: PrintBatchState, printerNotes?: string | null) => {
 		try {
-			const response = await apiClient.patch<{ message: string; newStatus: PrintBatchState }>(
+			const payload: { status: PrintBatchState; printerNotes?: string | null } = { status };
+			if (printerNotes !== undefined) payload.printerNotes = printerNotes;
+			const response = await apiClient.patch<{ message: string; newStatus: PrintBatchState; printerNotes?: string | null }>(
 				`${BASE_URL}/${batchId}/status`,
-				{ status },
+				payload,
 			);
 			return response.data;
 		} catch (error) {
 			throw new Error(extractErrorMessage(error, 'Wystąpił błąd podczas zmiany statusu paczki.'));
+		}
+	},
+
+	updatePrinterNotes: async (batchId: string, printerNotes: string | null) => {
+		try {
+			const response = await apiClient.patch<{ message: string; printerNotes: string | null }>(
+				`${BASE_URL}/${batchId}/printer-notes`,
+				{ printerNotes },
+			);
+			return response.data;
+		} catch (error) {
+			throw new Error(extractErrorMessage(error, 'Wystąpił błąd podczas zapisywania notatki dla trenera.'));
 		}
 	},
 
