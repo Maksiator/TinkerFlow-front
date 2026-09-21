@@ -9,6 +9,7 @@ import {
 	SlashCircle,
 	Scissors,
 	ChatLeftTextFill,
+	CheckCircleFill,
 } from 'react-bootstrap-icons';
 import { printBatchService, type PrintBatchResponse, PrintBatchState, PrintJobsStates } from '../api/printBatchService';
 import { authService } from '../api/authService';
@@ -130,11 +131,6 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 
 			toast.success('Masowo zaktualizowano statusy!');
 			onRefreshNeeded(); // Odświeżamy listę w tle (na Dashboardzie)
-
-			// Jeśli paczka jest gotowa do odbioru, zamykamy modal po sekundzie (żeby drukarz zobaczył zmianę dropdownów)
-			if (newStatus === PrintBatchState.ReadyForCollection) {
-				setTimeout(() => onClose(), 1200);
-			}
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : 'Wystąpił błąd przy zmianie statusu paczki.';
 			toast.error(errorMessage);
@@ -399,26 +395,75 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 
 											{/* Projekty Ucznia */}
 											<div className="flex flex-col gap-2">
-												{jobs.map((job) => (
-													<div
-														key={job.id}
-														className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm transition-colors hover:border-purple-300"
-													>
-														<span className="text-xs font-semibold text-slate-700">{job.projectName}</span>
-
-														<select
-															value={job.status}
-															onChange={(e) => handleJobStatusChange(job.id, Number(e.target.value) as PrintJobsStates)}
-															disabled={isSubmitting || localBatchStatus === PrintBatchState.ReadyForCollection}
-															className={`cursor-pointer rounded-lg border p-1.5 text-xs font-semibold transition-colors outline-none focus:ring-2 focus:ring-purple-500 ${getJobStatusSelectClass(job.status)}`}
+												{jobs.map((job) => {
+													const isFailed = job.status === PrintJobsStates.Failed;
+													const isCustom = !job.studentProjectId;
+													return (
+														<div
+															key={job.id}
+															className={`flex flex-col justify-between gap-2 sm:flex-row sm:items-center rounded-lg border p-2.5 shadow-xs transition-colors ${
+																isFailed
+																	? 'border-red-300 bg-red-50/70 hover:border-red-400'
+																	: 'border-slate-200 bg-white hover:border-purple-300'
+															}`}
 														>
-															<option value={PrintJobsStates.Pending}>W kolejce</option>
-															<option value={PrintJobsStates.Printing}>Drukuje się</option>
-															<option value={PrintJobsStates.Printed}>Wydrukowano</option>
-															<option value={PrintJobsStates.Failed}>Błąd druku (Zepsute)</option>
-														</select>
-													</div>
-												))}
+															<div className="flex flex-wrap items-center gap-1.5">
+																<span className={`text-xs font-semibold ${isFailed ? 'text-red-900 line-through decoration-red-400' : 'text-slate-700'}`}>
+																	{job.projectName}
+																</span>
+																{isCustom && (
+																	<span className="rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-black text-orange-700 border border-orange-200">
+																		Własny
+																	</span>
+																)}
+																{isFailed && (
+																	<span className="rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-black text-red-700 border border-red-200">
+																		Błąd druku
+																	</span>
+																)}
+															</div>
+
+															<div className="flex items-center gap-2">
+																{/* Szybki 1-klikowy przycisk dla drukarza */}
+																{isFailed ? (
+																	<button
+																		type="button"
+																		onClick={() => handleJobStatusChange(job.id, PrintJobsStates.Printed)}
+																		disabled={isSubmitting}
+																		title="Kliknij, aby cofnąć błąd i oznaczyć jako wydrukowano"
+																		className="cursor-pointer flex items-center gap-1 rounded-lg border border-green-300 bg-green-50 px-2 py-1.5 text-[11px] font-bold text-green-700 hover:bg-green-100 transition-colors disabled:opacity-50"
+																	>
+																		<CheckCircleFill size={12} className="text-green-600" />
+																		<span>Oznacz: Wydrukowano</span>
+																	</button>
+																) : (
+																	<button
+																		type="button"
+																		onClick={() => handleJobStatusChange(job.id, PrintJobsStates.Failed)}
+																		disabled={isSubmitting}
+																		title="Kliknij, aby szybko zgłosić błąd druku tego modelu bez mozolnego szukania w liście"
+																		className="cursor-pointer flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[11px] font-bold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50"
+																	>
+																		<XCircleFill size={12} className="text-red-500" />
+																		<span>Zgłoś błąd druku</span>
+																	</button>
+																)}
+
+																<select
+																	value={job.status}
+																	onChange={(e) => handleJobStatusChange(job.id, Number(e.target.value) as PrintJobsStates)}
+																	disabled={isSubmitting}
+																	className={`cursor-pointer rounded-lg border p-1.5 text-xs font-semibold transition-colors outline-none focus:ring-2 focus:ring-purple-500 ${getJobStatusSelectClass(job.status)}`}
+																>
+																	<option value={PrintJobsStates.Pending}>W kolejce</option>
+																	<option value={PrintJobsStates.Printing}>Drukuje się</option>
+																	<option value={PrintJobsStates.Printed}>Wydrukowano</option>
+																	<option value={PrintJobsStates.Failed}>Błąd druku (Zepsute)</option>
+																</select>
+															</div>
+														</div>
+													);
+												})}
 											</div>
 										</div>
 									))}

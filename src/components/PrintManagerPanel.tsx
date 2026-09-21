@@ -352,7 +352,34 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 				.map((job) => job.studentProjectId as string);
 
 			await printBatchService.confirmDelivery(readyBatch.id, { confirmedStudentProjectIds: confirmedIds });
-			toast.success('Odebrano! Statusy zaktualizowane na Zrobione.');
+
+			// Modele niestandardowe (własne), które miały błąd druku, automatycznie przywracamy do listy zadań własnych
+			const failedCustomJobs = readyBatch.printJobs
+				.filter((job) => job.status === PrintJobsStates.Failed && !job.studentProjectId && job.studentId)
+				.map((job) => ({
+					id: crypto.randomUUID(),
+					studentId: job.studentId as string,
+					customName: job.projectName.includes('(Do poprawy)')
+						? job.projectName
+						: `${job.projectName} (Do poprawy)`,
+				}));
+
+			if (failedCustomJobs.length > 0) {
+				setCustomJobs((prev) => [...prev, ...failedCustomJobs]);
+			}
+
+			const failedCount = readyBatch.printJobs.filter((job) => job.status === PrintJobsStates.Failed).length;
+			if (failedCount > 0) {
+				toast(
+					`Odebrano paczkę! Udane oznaczono jako Zrobione. ${failedCount} ${
+						failedCount === 1 ? 'model z błędem wrócił' : 'modele z błędem wróciły'
+					} do poprawy.`,
+					{ icon: '⚠️', duration: 5000 },
+				);
+			} else {
+				toast.success('Odebrano! Statusy zaktualizowane na Zrobione.');
+			}
+
 			setReadyBatch(null);
 			onBatchReceived();
 			await fetchHistory();
@@ -520,35 +547,78 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 				{/* ===== ZAKŁADKA 1: WYSYŁKA / ODBIÓR ===== */}
 				{activeTab === 'send' && (
 					<div className="flex flex-col gap-4 p-4">
-						{readyBatch && (
-							<div className="rounded-xl border border-green-300 bg-green-50 p-4 shadow-sm">
-								<h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-green-800">
-									<BoxSeamFill /> Paczka do odbioru!
-								</h3>
-								<p className="mb-3 text-xs text-green-700">
-									Wydruki z grupy gotowe. Potwierdź odbiór, aby oznaczyć projekty jako Zrobione.
-								</p>
+						{readyBatch && (() => {
+							const printedJobsCount = readyBatch.printJobs.filter((j) => j.status === PrintJobsStates.Printed).length;
+							const failedJobs = readyBatch.printJobs.filter((j) => j.status === PrintJobsStates.Failed);
 
-								{/* Notatka / informacja od drukarza */}
-								{readyBatch.printerNotes && (
-									<div className="mb-3 rounded-lg border border-green-200 bg-white/95 p-3 text-xs shadow-2xs">
-										<div className="flex items-center gap-1.5 font-bold text-green-800 mb-1">
-											<ChatLeftTextFill size={13} className="text-green-600 shrink-0" />
-											<span>Wiadomość od drukarza:</span>
+							return (
+								<div className="rounded-xl border border-green-300 bg-green-50 p-4 shadow-sm">
+									<h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-green-800">
+										<BoxSeamFill /> Paczka do odbioru!
+									</h3>
+									<p className="mb-3 text-xs text-green-700">
+										Wydruki z grupy gotowe. Potwierdź odbiór, aby oznaczyć projekty jako Zrobione.
+									</p>
+
+									{/* Notatka / informacja od drukarza */}
+									{readyBatch.printerNotes && (
+										<div className="mb-3 rounded-lg border border-green-200 bg-white/95 p-3 text-xs shadow-2xs">
+											<div className="flex items-center gap-1.5 font-bold text-green-800 mb-1">
+												<ChatLeftTextFill size={13} className="text-green-600 shrink-0" />
+												<span>Wiadomość od drukarza:</span>
+											</div>
+											<p className="whitespace-pre-wrap font-medium text-slate-700">{readyBatch.printerNotes}</p>
 										</div>
-										<p className="whitespace-pre-wrap font-medium text-slate-700">{readyBatch.printerNotes}</p>
-									</div>
-								)}
+									)}
 
-								<button
-									onClick={handleConfirmDelivery}
-									disabled={isSubmitting}
-									className="w-full rounded-lg bg-green-600 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-700 disabled:opacity-50"
-								>
-									{isSubmitting ? 'Odbieranie...' : 'Odbierz wydruki'}
-								</button>
-							</div>
-						)}
+									{/* Modele z błędem druku - wyraźne ostrzeżenie dla trenera */}
+									{failedJobs.length > 0 && (
+										<div className="mb-3 rounded-lg border border-red-300 bg-red-50/90 p-3 text-xs text-red-900 shadow-2xs">
+											<div className="flex items-center gap-1.5 font-extrabold text-red-800 mb-1.5">
+												<ExclamationTriangleFill className="text-red-600 shrink-0" size={14} />
+												<span>
+													Drukarz zgłosił błąd druku ({failedJobs.length}{' '}
+													{failedJobs.length === 1 ? 'model' : failedJobs.length < 5 ? 'modele' : 'modeli'}):
+												</span>
+											</div>
+											<ul className="divide-y divide-red-200/70 rounded-md border border-red-200 bg-white/90">
+												{failedJobs.map((fj) => {
+													const isCustom = !fj.studentProjectId;
+													return (
+														<li key={fj.id} className="flex items-center justify-between p-2">
+															<div>
+																<span className="font-bold text-red-950">{fj.studentName}: </span>
+																<span className="text-slate-800 font-medium">{fj.projectName}</span>
+															</div>
+															<span
+																className={`rounded px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase border ${
+																	isCustom
+																		? 'border-orange-300 bg-orange-50 text-orange-800'
+																		: 'border-purple-200 bg-purple-50 text-purple-800'
+																}`}
+															>
+																{isCustom ? 'Projekt własny' : 'Z matrycy'}
+															</span>
+														</li>
+													);
+												})}
+											</ul>
+											<p className="mt-2 text-[11px] text-red-700 font-medium leading-tight">
+												Wydrukowano pomyślnie: <strong>{printedJobsCount} szt.</strong> Po kliknięciu „Odbierz wydruki”, udane modele zostaną oznaczone jako <strong>Zrobione</strong>, a te z błędem wrócą do statusu „W trakcie” / wydruków własnych, abyś mógł je poprawić.
+											</p>
+										</div>
+									)}
+
+									<button
+										onClick={handleConfirmDelivery}
+										disabled={isSubmitting}
+										className="w-full rounded-lg bg-green-600 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-700 disabled:opacity-50 cursor-pointer"
+									>
+										{isSubmitting ? 'Odbieranie...' : `Odbierz wydruki (${printedJobsCount} gotowych)`}
+									</button>
+								</div>
+							);
+						})()}
 
 						<div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 							<h4 className="mb-3 flex items-center gap-2 font-bold text-purple-700">
@@ -855,10 +925,11 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 										acc[job.studentName].push({
 											name: job.projectName,
 											isCustom: !job.studentProjectId,
+											status: job.status,
 										});
 										return acc;
 									},
-									{} as Record<string, { name: string; isCustom: boolean }[]>,
+									{} as Record<string, { name: string; isCustom: boolean; status: PrintJobsStates }[]>,
 								);
 
 								return (
@@ -876,6 +947,7 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 												<div className="flex items-center gap-2 text-[8px] font-bold text-slate-400 uppercase tracking-wider">
 													<span className="flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-purple-500"></span> Matryca</span>
 													<span className="flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-orange-500"></span> Własny</span>
+													<span className="flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-red-500"></span> Błąd</span>
 												</div>
 											</div>
 
@@ -888,18 +960,28 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 													>
 														<span className="mb-1 font-bold text-slate-700">{studentName}</span>
 														<div className="flex flex-wrap gap-1">
-															{projectList.map((proj, idx) => (
-																<span
-																	key={idx}
-																	className={`rounded border px-1.5 py-0.5 text-[10px] font-bold shadow-sm ${
-																		proj.isCustom 
-																			? 'border-orange-200 bg-orange-50 text-orange-700' 
-																			: 'border-purple-100 bg-white text-purple-700'
-																	}`}
-																>
-																	{proj.name}
-																</span>
-															))}
+															{projectList.map((proj, idx) => {
+																const isFailed = proj.status === PrintJobsStates.Failed;
+																return (
+																	<span
+																		key={idx}
+																		className={`rounded border px-1.5 py-0.5 text-[10px] font-bold shadow-xs flex items-center gap-1 ${
+																			isFailed
+																				? 'border-red-300 bg-red-50 text-red-700 line-through decoration-red-400'
+																				: proj.isCustom
+																				? 'border-orange-200 bg-orange-50 text-orange-700'
+																				: 'border-purple-100 bg-white text-purple-700'
+																		}`}
+																	>
+																		{proj.name}
+																		{isFailed && (
+																			<span className="no-underline text-[9px] font-black text-red-600">
+																				(Błąd)
+																			</span>
+																		)}
+																	</span>
+																);
+															})}
 														</div>
 													</div>
 												))}
