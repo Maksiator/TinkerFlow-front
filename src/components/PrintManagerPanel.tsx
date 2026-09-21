@@ -353,15 +353,13 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 
 			await printBatchService.confirmDelivery(readyBatch.id, { confirmedStudentProjectIds: confirmedIds });
 
-			// Modele niestandardowe (własne), które miały błąd druku, automatycznie przywracamy do listy zadań własnych
+			// Modele niestandardowe (własne), które nie zostały wydrukowane, automatycznie przywracamy do listy zadań własnych
 			const failedCustomJobs = readyBatch.printJobs
 				.filter((job) => job.status === PrintJobsStates.Failed && !job.studentProjectId && job.studentId)
 				.map((job) => ({
 					id: crypto.randomUUID(),
 					studentId: job.studentId as string,
-					customName: job.projectName.includes('(Do poprawy)')
-						? job.projectName
-						: `${job.projectName} (Do poprawy)`,
+					customName: job.projectName,
 				}));
 
 			if (failedCustomJobs.length > 0) {
@@ -371,10 +369,10 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 			const failedCount = readyBatch.printJobs.filter((job) => job.status === PrintJobsStates.Failed).length;
 			if (failedCount > 0) {
 				toast(
-					`Odebrano paczkę! Udane oznaczono jako Zrobione. ${failedCount} ${
-						failedCount === 1 ? 'model z błędem wrócił' : 'modele z błędem wróciły'
-					} do poprawy.`,
-					{ icon: '⚠️', duration: 5000 },
+					`Odebrano paczkę. Nie wydrukowano: ${failedCount} ${
+						failedCount === 1 ? 'model' : failedCount < 5 ? 'modele' : 'modeli'
+					}.`,
+					{ icon: 'ℹ️' },
 				);
 			} else {
 				toast.success('Odebrano! Statusy zaktualizowane na Zrobione.');
@@ -548,7 +546,6 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 				{activeTab === 'send' && (
 					<div className="flex flex-col gap-4 p-4">
 						{readyBatch && (() => {
-							const printedJobsCount = readyBatch.printJobs.filter((j) => j.status === PrintJobsStates.Printed).length;
 							const failedJobs = readyBatch.printJobs.filter((j) => j.status === PrintJobsStates.Failed);
 
 							return (
@@ -571,41 +568,31 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 										</div>
 									)}
 
-									{/* Modele z błędem druku - wyraźne ostrzeżenie dla trenera */}
+									{/* Modele niewydrukowane */}
 									{failedJobs.length > 0 && (
-										<div className="mb-3 rounded-lg border border-red-300 bg-red-50/90 p-3 text-xs text-red-900 shadow-2xs">
-											<div className="flex items-center gap-1.5 font-extrabold text-red-800 mb-1.5">
-												<ExclamationTriangleFill className="text-red-600 shrink-0" size={14} />
-												<span>
-													Drukarz zgłosił błąd druku ({failedJobs.length}{' '}
-													{failedJobs.length === 1 ? 'model' : failedJobs.length < 5 ? 'modele' : 'modeli'}):
-												</span>
+										<div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-900 shadow-2xs">
+											<div className="flex items-center gap-1.5 font-bold text-red-800 mb-2">
+												<ExclamationTriangleFill className="text-red-500 shrink-0" size={13} />
+												<span>Nie wydrukowano ({failedJobs.length}):</span>
 											</div>
-											<ul className="divide-y divide-red-200/70 rounded-md border border-red-200 bg-white/90">
+											<ul className="divide-y divide-red-200/60 rounded-md border border-red-200 bg-white/95">
 												{failedJobs.map((fj) => {
 													const isCustom = !fj.studentProjectId;
 													return (
 														<li key={fj.id} className="flex items-center justify-between p-2">
 															<div>
-																<span className="font-bold text-red-950">{fj.studentName}: </span>
-																<span className="text-slate-800 font-medium">{fj.projectName}</span>
+																<span className="font-bold text-slate-800">{fj.studentName}: </span>
+																<span className="text-slate-700 font-medium">{fj.projectName}</span>
 															</div>
-															<span
-																className={`rounded px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase border ${
-																	isCustom
-																		? 'border-orange-300 bg-orange-50 text-orange-800'
-																		: 'border-purple-200 bg-purple-50 text-purple-800'
-																}`}
-															>
-																{isCustom ? 'Projekt własny' : 'Z matrycy'}
-															</span>
+															{isCustom && (
+																<span className="rounded px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase border border-orange-200 bg-orange-50 text-orange-700">
+																	Własny
+																</span>
+															)}
 														</li>
 													);
 												})}
 											</ul>
-											<p className="mt-2 text-[11px] text-red-700 font-medium leading-tight">
-												Wydrukowano pomyślnie: <strong>{printedJobsCount} szt.</strong> Po kliknięciu „Odbierz wydruki”, udane modele zostaną oznaczone jako <strong>Zrobione</strong>, a te z błędem wrócą do statusu „W trakcie” / wydruków własnych, abyś mógł je poprawić.
-											</p>
 										</div>
 									)}
 
@@ -614,7 +601,7 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 										disabled={isSubmitting}
 										className="w-full rounded-lg bg-green-600 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-700 disabled:opacity-50 cursor-pointer"
 									>
-										{isSubmitting ? 'Odbieranie...' : `Odbierz wydruki (${printedJobsCount} gotowych)`}
+										{isSubmitting ? 'Odbieranie...' : 'Odbierz wydruki'}
 									</button>
 								</div>
 							);
@@ -947,7 +934,7 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 												<div className="flex items-center gap-2 text-[8px] font-bold text-slate-400 uppercase tracking-wider">
 													<span className="flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-purple-500"></span> Matryca</span>
 													<span className="flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-orange-500"></span> Własny</span>
-													<span className="flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-red-500"></span> Błąd</span>
+													<span className="flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-red-500"></span> Nie wydrukowano</span>
 												</div>
 											</div>
 
@@ -976,7 +963,7 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 																		{proj.name}
 																		{isFailed && (
 																			<span className="no-underline text-[9px] font-black text-red-600">
-																				(Błąd)
+																				(Nie wydrukowano)
 																			</span>
 																		)}
 																	</span>

@@ -418,7 +418,7 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 																)}
 																{isFailed && (
 																	<span className="rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-black text-red-700 border border-red-200">
-																		Błąd druku
+																		Nie wydrukowano
 																	</span>
 																)}
 															</div>
@@ -430,22 +430,22 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 																		type="button"
 																		onClick={() => handleJobStatusChange(job.id, PrintJobsStates.Printed)}
 																		disabled={isSubmitting}
-																		title="Kliknij, aby cofnąć błąd i oznaczyć jako wydrukowano"
+																		title="Kliknij, aby oznaczyć jako wydrukowano"
 																		className="cursor-pointer flex items-center gap-1 rounded-lg border border-green-300 bg-green-50 px-2 py-1.5 text-[11px] font-bold text-green-700 hover:bg-green-100 transition-colors disabled:opacity-50"
 																	>
 																		<CheckCircleFill size={12} className="text-green-600" />
-																		<span>Oznacz: Wydrukowano</span>
+																		<span>Wydrukowano</span>
 																	</button>
 																) : (
 																	<button
 																		type="button"
 																		onClick={() => handleJobStatusChange(job.id, PrintJobsStates.Failed)}
 																		disabled={isSubmitting}
-																		title="Kliknij, aby szybko zgłosić błąd druku tego modelu bez mozolnego szukania w liście"
+																		title="Kliknij, aby oznaczyć jako nie wydrukowano"
 																		className="cursor-pointer flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[11px] font-bold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50"
 																	>
 																		<XCircleFill size={12} className="text-red-500" />
-																		<span>Zgłoś błąd druku</span>
+																		<span>Nie wydrukowano</span>
 																	</button>
 																)}
 
@@ -458,7 +458,7 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 																	<option value={PrintJobsStates.Pending}>W kolejce</option>
 																	<option value={PrintJobsStates.Printing}>Drukuje się</option>
 																	<option value={PrintJobsStates.Printed}>Wydrukowano</option>
-																	<option value={PrintJobsStates.Failed}>Błąd druku (Zepsute)</option>
+																	<option value={PrintJobsStates.Failed}>Nie wydrukowano</option>
 																</select>
 															</div>
 														</div>
