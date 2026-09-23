@@ -1,11 +1,22 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { groupService, type CreateGroup } from '../api/groupService';
-import { studentService, type Student, type StudentHistoryItem } from '../api/studentService';
+import { studentService, type Student, type StudentHistoryItem, SkillLevel } from '../api/studentService';
 import { branchService, type Branch } from '../api/branchService';
 import { userService, type User, UserRole } from '../api/userService';
 import { systemSettingsService } from '../api/systemSettingsService';
-import { ArrowLeft, PlusLg, TrashFill, Search, PersonFillAdd, CloudArrowUpFill, ArchiveFill, ArrowLeftRight } from 'react-bootstrap-icons';
+import {
+	ArrowLeft,
+	PlusLg,
+	TrashFill,
+	Search,
+	PersonFillAdd,
+	CloudArrowUpFill,
+	ArchiveFill,
+	ArrowLeftRight,
+	XCircleFill,
+	PersonPlusFill,
+} from 'react-bootstrap-icons';
 import toast from 'react-hot-toast';
 import { authService } from '../api/authService';
 import { TransferStudentModal } from '../components/TransferStudentModal';
@@ -41,6 +52,25 @@ export function GroupForm() {
 	const [studentToTransfer, setStudentToTransfer] = useState<Student | null>(null);
 	const [removeReason, setRemoveReason] = useState<'midyear' | 'mistake'>('midyear');
 	const [isRemoving, setIsRemoving] = useState(false);
+
+	// --- STAN: POJEDYNCZE DODAWANIE UCZNIA ---
+	const [isAddSingleStudentModalOpen, setIsAddSingleStudentModalOpen] = useState(false);
+	const [isAddingSingleStudent, setIsAddingSingleStudent] = useState(false);
+	const [singleStudentData, setSingleStudentData] = useState<{
+		firstName: string;
+		lastName: string;
+		dateOfBirth: string;
+		level: SkillLevel;
+		isIndependent: boolean;
+		needsAttention: boolean;
+	}>({
+		firstName: '',
+		lastName: '',
+		dateOfBirth: '',
+		level: SkillLevel.Beginner,
+		isIndependent: false,
+		needsAttention: false,
+	});
 
 	// Dynamiczne filtrowanie trenerów dla wybranego oddziału
 	const availableTrainers = useMemo(() => {
@@ -270,6 +300,45 @@ export function GroupForm() {
 		}
 	};
 
+	const handleAddSingleStudent = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!id) return;
+		if (!singleStudentData.firstName.trim() || !singleStudentData.lastName.trim() || !singleStudentData.dateOfBirth) {
+			toast.error('Wypełnij imię, nazwisko oraz datę urodzenia.');
+			return;
+		}
+
+		setIsAddingSingleStudent(true);
+		try {
+			const created = await studentService.create({
+				firstName: singleStudentData.firstName.trim(),
+				lastName: singleStudentData.lastName.trim(),
+				dateOfBirth: singleStudentData.dateOfBirth,
+				level: singleStudentData.level,
+				isIndependent: singleStudentData.isIndependent,
+				needsAttention: singleStudentData.needsAttention,
+				groupId: id,
+				branchId: formData.branchId,
+			});
+			setEnrolledStudents((prev) => [...prev, created]);
+			toast.success(`Dodano ucznia ${created.firstName} ${created.lastName} do grupy!`);
+			setIsAddSingleStudentModalOpen(false);
+			setSingleStudentData({
+				firstName: '',
+				lastName: '',
+				dateOfBirth: '',
+				level: SkillLevel.Beginner,
+				isIndependent: false,
+				needsAttention: false,
+			});
+		} catch (error) {
+			console.error(error);
+			toast.error('Błąd podczas dodawania ucznia do grupy.');
+		} finally {
+			setIsAddingSingleStudent(false);
+		}
+	};
+
 	const confirmRemoveStudent = async () => {
 		if (!studentToRemove || !id) return;
 		setIsRemoving(true);
@@ -464,14 +533,28 @@ export function GroupForm() {
 				{/* PRAWA KOLUMNA: UCZNIOWIE (Bez zmian strukturalnych) */}
 				{isEditMode ? (
 					<div className="flex-1 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-						<h2 className="mb-6 text-xl font-bold text-slate-800">Uczniowie w grupie</h2>
-
-						<button
-							onClick={() => navigate(`/uczniowie/masowo?groupId=${id}`)}
-							className="flex cursor-pointer items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700"
-						>
-							<CloudArrowUpFill /> Masowy import z pliku
-						</button>
+						<div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+							<div>
+								<h2 className="text-xl font-bold text-slate-800">Uczniowie w grupie</h2>
+								<p className="text-xs text-slate-500 font-medium">Liczba uczniów: {enrolledStudents.length}</p>
+							</div>
+							<div className="flex flex-wrap items-center gap-2">
+								<button
+									type="button"
+									onClick={() => setIsAddSingleStudentModalOpen(true)}
+									className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 transition-colors shadow-2xs"
+								>
+									<PersonPlusFill size={14} /> Dodaj pojedynczego ucznia
+								</button>
+								<button
+									type="button"
+									onClick={() => navigate(`/uczniowie/masowo?groupId=${id}`)}
+									className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors shadow-2xs"
+								>
+									<CloudArrowUpFill size={14} /> Masowy import z pliku
+								</button>
+							</div>
+						</div>
 
 						<div className="mt-4 mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
 							<label className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700">
@@ -722,6 +805,119 @@ export function GroupForm() {
 					}
 				}}
 			/>
+
+			{/* MODAL POJEDYNCZEGO DODAWANIA UCZNIA */}
+			{isAddSingleStudentModalOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs transition-opacity">
+					<div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+						<div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+							<div>
+								<h3 className="text-lg font-bold text-slate-800">Dodaj ucznia do grupy</h3>
+								<p className="text-xs text-slate-500 font-medium mt-0.5">
+									Grupa: <span className="font-bold text-purple-600">{formData.name}</span>
+								</p>
+							</div>
+							<button
+								type="button"
+								onClick={() => setIsAddSingleStudentModalOpen(false)}
+								className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+							>
+								<XCircleFill size={20} />
+							</button>
+						</div>
+
+						<form onSubmit={handleAddSingleStudent} className="space-y-4">
+							<div className="grid grid-cols-2 gap-3">
+								<div>
+									<label className="mb-1 block text-xs font-bold text-slate-700">Imię *</label>
+									<input
+										type="text"
+										required
+										value={singleStudentData.firstName}
+										onChange={(e) => setSingleStudentData({ ...singleStudentData, firstName: e.target.value })}
+										placeholder="np. Jan"
+										className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+									/>
+								</div>
+								<div>
+									<label className="mb-1 block text-xs font-bold text-slate-700">Nazwisko *</label>
+									<input
+										type="text"
+										required
+										value={singleStudentData.lastName}
+										onChange={(e) => setSingleStudentData({ ...singleStudentData, lastName: e.target.value })}
+										placeholder="np. Kowalski"
+										className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+									/>
+								</div>
+							</div>
+
+							<div>
+								<label className="mb-1 block text-xs font-bold text-slate-700">Data urodzenia *</label>
+								<input
+									type="date"
+									required
+									value={singleStudentData.dateOfBirth}
+									onChange={(e) => setSingleStudentData({ ...singleStudentData, dateOfBirth: e.target.value })}
+									className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+								/>
+							</div>
+
+							<div>
+								<label className="mb-1 block text-xs font-bold text-slate-700">Poziom zaawansowania</label>
+								<select
+									value={singleStudentData.level}
+									onChange={(e) => setSingleStudentData({ ...singleStudentData, level: Number(e.target.value) as SkillLevel })}
+									className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 bg-white"
+								>
+									<option value={SkillLevel.Beginner}>Początkujący</option>
+									<option value={SkillLevel.Intermediate}>Średniozaawansowany</option>
+									<option value={SkillLevel.Advanced}>Zaawansowany</option>
+								</select>
+							</div>
+
+							<div className="space-y-2 pt-1">
+								<label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
+									<input
+										type="checkbox"
+										checked={singleStudentData.isIndependent}
+										onChange={(e) => setSingleStudentData({ ...singleStudentData, isIndependent: e.target.checked })}
+										className="h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+									/>
+									<span>Pracuje samodzielnie (oznaczenie gwiazdką)</span>
+								</label>
+								<label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
+									<input
+										type="checkbox"
+										checked={singleStudentData.needsAttention}
+										onChange={(e) => setSingleStudentData({ ...singleStudentData, needsAttention: e.target.checked })}
+										className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
+									/>
+									<span>Wymaga szczególnej uwagi / pomocy trenera</span>
+								</label>
+							</div>
+
+							<div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-3">
+								<button
+									type="button"
+									onClick={() => setIsAddSingleStudentModalOpen(false)}
+									disabled={isAddingSingleStudent}
+									className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+								>
+									Anuluj
+								</button>
+								<button
+									type="submit"
+									disabled={isAddingSingleStudent}
+									className="cursor-pointer rounded-lg bg-purple-600 px-4 py-2 text-xs font-bold text-white hover:bg-purple-700 transition-colors disabled:opacity-50"
+								>
+									{isAddingSingleStudent ? 'Dodawanie...' : 'Dodaj ucznia'}
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

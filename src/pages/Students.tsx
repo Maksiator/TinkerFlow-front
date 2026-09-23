@@ -359,12 +359,13 @@ export function Students() {
 								students.map((student: Student) => (
 									<tr
 										key={student.id}
-										className={`border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50 ${
-											selectedStudentIds.includes(student.id) ? 'bg-blue-50/50' : ''
+										onClick={() => navigate(`/uczniowie/${student.id}`)}
+										className={`group cursor-pointer border-b border-slate-100 transition-colors last:border-0 hover:bg-blue-50/40 ${
+											selectedStudentIds.includes(student.id) ? 'bg-blue-50/70' : ''
 										}`}
 									>
 										{!isTrainer && (
-											<td className="w-12 p-4 text-center">
+											<td className="w-12 p-4 text-center" onClick={(e) => e.stopPropagation()}>
 												<input
 													type="checkbox"
 													checked={selectedStudentIds.includes(student.id)}
@@ -374,7 +375,7 @@ export function Students() {
 											</td>
 										)}
 										<td className="p-4">
-											<div className="flex items-center gap-2 font-bold text-slate-800">
+											<div className="flex items-center gap-2 font-bold text-slate-800 group-hover:text-blue-700 transition-colors">
 												{student.firstName} {student.lastName}
 												{student.isIndependent && (
 													<StarFill className="text-xs text-yellow-400" title="Pracuje samodzielnie" />
@@ -393,7 +394,7 @@ export function Students() {
 											)}
 										</td>
 										<td className="p-4">{renderLevelBadge(student.level)}</td>
-										<td className="p-4 text-center">
+										<td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
 											<div className="flex items-center justify-center gap-2">
 												<button
 													onClick={() => navigate(`/uczniowie/${student.id}`)}

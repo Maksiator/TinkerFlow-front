@@ -11,6 +11,7 @@ import {
 	PeopleFill,
 	PersonPlusFill,
 	CheckLg,
+	InfoCircleFill,
 } from 'react-bootstrap-icons';
 import {
 	studentService,
@@ -464,10 +465,43 @@ export function StudentBulkAdd() {
 
 			<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
 				<h1 className="mb-2 text-2xl font-bold text-slate-800">Masowy import uczniów</h1>
-				<p className="mb-6 text-slate-500">
-					Wklej dane prosto z Excela lub ActiveNow. Format: <strong>Nazwisko Imię, Data urodzenia</strong>.
-					System na bieżąco porównuje listę z bazą i informuje o powtórkach.
+				<p className="mb-4 text-slate-500">
+					Wklej dane prosto z Excela lub ActiveNow. System na bieżąco analizuje listę, porównuje z bazą i informuje o powtórkach.
 				</p>
+
+				{/* RAMKA Z PREFEROWANYM FORMATEM DANYCH */}
+				<div className="mb-6 rounded-xl border border-blue-200 bg-blue-50/80 p-4 text-xs text-blue-950 shadow-2xs">
+					<div className="flex items-center gap-1.5 font-bold text-blue-900 mb-1.5">
+						<InfoCircleFill className="text-blue-600 shrink-0" size={15} />
+						<span className="text-sm">Format wprowadzania danych:</span>
+					</div>
+					<p className="font-medium text-slate-700 mb-2">
+						Wpisz lub skopiuj każdego ucznia w nowej linii według wzoru: <strong className="text-slate-900">Nazwisko Imię [separator] Data urodzenia</strong>
+					</p>
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-blue-200/70 text-slate-800">
+						<div className="flex flex-col gap-0.5">
+							<span className="font-bold text-blue-900">📅 Preferowany format daty urodzenia:</span>
+							<div className="flex items-center gap-2 mt-0.5">
+								<code className="rounded bg-white px-2 py-1 font-bold text-blue-700 border border-blue-200 shadow-2xs">
+									RRRR-MM-DD
+								</code>
+								<span className="text-slate-500 font-medium">np. 2015-05-20</span>
+							</div>
+							<div className="flex items-center gap-2 mt-0.5">
+								<code className="rounded bg-white px-2 py-1 font-bold text-blue-700 border border-blue-200 shadow-2xs">
+									DD.MM.RRRR
+								</code>
+								<span className="text-slate-500 font-medium">np. 20.05.2015</span>
+							</div>
+						</div>
+						<div className="flex flex-col gap-0.5">
+							<span className="font-bold text-blue-900">✂️ Dozwolone separatory:</span>
+							<p className="text-slate-600 mt-0.5">
+								Tabulator (kopiowanie kolumn z Excela), przecinek <code>,</code>, średnik <code>;</code> lub po prostu spacja między nazwiskiem a datą.
+							</p>
+						</div>
+					</div>
+				</div>
 
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
 					{/* LEWA KOLUMNA: Formularz i wklejanie */}
@@ -478,7 +512,7 @@ export function StudentBulkAdd() {
 								value={rawText}
 								onChange={handleTextChange}
 								className="h-80 w-full rounded-lg border border-slate-300 p-4 font-mono text-sm leading-relaxed transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-								placeholder="Kowalska Anna, 15.10.2015&#10;Lis Jan; 2014-05-12&#10;NOWAK PIOTR 2012-01-01"
+								placeholder="Kowalska Anna, 2015-05-20&#10;Nowak Jan, 12.10.2014&#10;Lis Piotr; 2016-01-15&#10;Wiśniewski Adam 2013-09-04"
 							/>
 						</div>
 

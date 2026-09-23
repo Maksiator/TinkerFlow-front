@@ -435,11 +435,12 @@ export function Groups() {
 								displayedGroups.map((group) => (
 									<tr
 										key={group.id}
-										className={`border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50 ${
-											selectedGroupIds.includes(group.id) ? 'bg-blue-50/50' : ''
+										onClick={() => navigate(`/grupy/${group.id}`)}
+										className={`group cursor-pointer border-b border-slate-100 transition-colors last:border-0 hover:bg-blue-50/40 ${
+											selectedGroupIds.includes(group.id) ? 'bg-blue-50/70' : ''
 										}`}
 									>
-										<td className="w-12 p-4 text-center">
+										<td className="w-12 p-4 text-center" onClick={(e) => e.stopPropagation()}>
 											<input
 												type="checkbox"
 												checked={selectedGroupIds.includes(group.id)}
@@ -449,8 +450,8 @@ export function Groups() {
 										</td>
 										<td className="p-4">
 											<div className="flex flex-col">
-												<div className="flex items-center gap-2 font-bold text-slate-800">
-													<PeopleFill className="text-blue-500" size={16} />
+												<div className="flex items-center gap-2 font-bold text-slate-800 group-hover:text-blue-700 transition-colors">
+													<PeopleFill className="text-blue-500 group-hover:text-blue-700 transition-colors" size={16} />
 													{group.name}
 												</div>
 												{group.assignedPrinterName && (
@@ -485,7 +486,7 @@ export function Groups() {
 										<td className="p-4 font-bold text-slate-800">
 											{group.studentCount}
 										</td>
-										<td className="p-4 text-center">
+										<td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
 											<div className="flex items-center justify-center gap-2">
 												<button
 													onClick={() => navigate(`/grupy/${group.id}`)}
