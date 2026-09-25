@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Search, PrinterFill, BoxSeamFill, ClockHistory } from 'react-bootstrap-icons';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, PrinterFill, BoxSeamFill, ClockHistory, ExclamationTriangleFill, InfoCircleFill } from 'react-bootstrap-icons';
 import { studentService, type Student } from '../api/studentService';
 import { projectService, type Project, ProjectState } from '../api/projectService';
 import { studentProjectService } from '../api/studentProjectService';
@@ -24,6 +24,7 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Stare podsumowanie
 	const [isPrintManagerOpen, setIsPrintManagerOpen] = useState(false); // NOWA SZUFLADA WYDRUKÓW
 	const [isPrintLogOpen, setIsPrintLogOpen] = useState(false);
+	const [showMissingBirthDateModal, setShowMissingBirthDateModal] = useState(false);
 
 	const [matrixState, setMatrixState] = useState<Record<string, ProjectState>>({});
 	const [localRefresh, setLocalRefresh] = useState(0);
@@ -68,6 +69,12 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 				if (readyBatch) {
 					setIsPrintManagerOpen(true);
 				}
+
+				// Jeśli w grupie są uczniowie bez daty urodzenia -> poinformuj trenera modala
+				const missingBirthDates = sortedStudents.filter((s) => !s.dateOfBirth);
+				if (missingBirthDates.length > 0) {
+					setShowMissingBirthDateModal(true);
+				}
 			} catch (error) {
 				if (isMounted) toast.error('Błąd pobierania danych do matrycy.');
 				console.error(error);
@@ -82,6 +89,10 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 			isMounted = false;
 		};
 	}, [groupId, refreshTrigger, localRefresh]);
+
+	const studentsWithoutBirthDate = useMemo(() => {
+		return students.filter((s) => !s.dateOfBirth);
+	}, [students]);
 
 	const filteredProjects = projects.filter(
 		(p) =>
@@ -206,6 +217,29 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 				</div>
 			</div>
 
+			{/* PASEK OSTRZEŻENIA DLA TRENERA O BRAKUJĄCYCH DATACH */}
+			{studentsWithoutBirthDate.length > 0 && (
+				<div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-950">
+					<div className="flex items-center gap-2">
+						<ExclamationTriangleFill className="text-amber-600 shrink-0" size={15} />
+						<span>
+							<strong className="text-amber-900 font-bold">Przypomnienie dla trenera:</strong> Brak daty urodzenia dla:{' '}
+							<span className="font-bold underline decoration-amber-400">
+								{studentsWithoutBirthDate.map((s) => `${s.firstName} ${s.lastName}`).join(', ')}
+							</span>
+							. Zapytaj na zajęciach o datę urodzenia!
+						</span>
+					</div>
+					<button
+						type="button"
+						onClick={() => setShowMissingBirthDateModal(true)}
+						className="cursor-pointer font-bold text-amber-800 hover:text-amber-950 underline text-xs ml-auto"
+					>
+						Szczegóły
+					</button>
+				</div>
+			)}
+
 			<div
 				className={`scrollbar-thin relative min-h-0 flex-1 overflow-auto bg-white transition-all duration-300 ${
 					isPrintManagerOpen || isSidebarOpen ? 'md:mr-80' : ''
@@ -233,10 +267,11 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 									(p) => p.status === ProjectState.ReadyToPrint,
 								)?.projectId;
 
-								const isBirthdayThisWeek = (dateOfBirth: string) => {
+								const isBirthdayThisWeek = (dateOfBirth?: string | null) => {
 									if (!dateOfBirth) return false;
 									const today = new Date();
 									const birthDate = new Date(dateOfBirth);
+									if (isNaN(birthDate.getTime())) return false;
 									
 									const day = today.getDay() || 7;
 									const startOfWeek = new Date(today);
@@ -266,16 +301,27 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 										className="min-w-25 border-b border-slate-200 p-2 text-center align-top font-bold text-slate-700 md:min-w-40 md:p-4"
 									>
 										<div className="flex flex-col items-center gap-2">
-											<span className="text-xs md:text-sm flex items-center justify-center gap-1">
-												{student.lastName} {student.firstName}
+											<span className="text-xs md:text-sm flex items-center justify-center gap-1.5 flex-wrap">
+												<span>{student.lastName} {student.firstName}</span>
 												{hasBirthday && (
 													<div className="group relative flex items-center justify-center">
 														<span className="cursor-help text-lg drop-shadow-sm">
 															🎂
 														</span>
 														<div className="pointer-events-none absolute top-full left-1/2 z-50 mt-2 w-max -translate-x-1/2 scale-95 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-white shadow-xl">
-															Urodziny: {new Date(student.dateOfBirth).toLocaleDateString('pl-PL')}
+															Urodziny: {student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString('pl-PL') : ''}
 															<div className="absolute bottom-full left-1/2 -mb-px -translate-x-1/2 border-4 border-transparent border-b-slate-800"></div>
+														</div>
+													</div>
+												)}
+												{!student.dateOfBirth && (
+													<div className="group relative flex items-center justify-center">
+														<span className="cursor-help text-sm animate-pulse" title="Brak daty urodzenia! Zapytaj ucznia.">
+															⚠️
+														</span>
+														<div className="pointer-events-none absolute top-full left-1/2 z-50 mt-2 w-max max-w-xs -translate-x-1/2 scale-95 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100 rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-bold text-white shadow-xl text-center">
+															Brak daty urodzenia!<br />Zapytaj ucznia na zajęciach.
+															<div className="absolute bottom-full left-1/2 -mb-px -translate-x-1/2 border-4 border-transparent border-b-amber-900"></div>
 														</div>
 													</div>
 												)}
@@ -403,6 +449,55 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 			)}
 
 			<PrintLogDrawer groupId={groupId} isOpen={isPrintLogOpen} onClose={() => setIsPrintLogOpen(false)} />
+
+			{/* MODAL INFORMACYJNY DLA TRENERA O BRAKUJĄCYCH DATACH URODZENIA */}
+			{showMissingBirthDateModal && studentsWithoutBirthDate.length > 0 && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+					<div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-amber-200 animate-scale-up">
+						<div className="flex items-center gap-3 text-amber-600 mb-4">
+							<div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600 shrink-0">
+								<ExclamationTriangleFill size={26} />
+							</div>
+							<div>
+								<h3 className="text-lg font-bold text-slate-900">Brakujące daty urodzenia!</h3>
+								<p className="text-xs text-slate-500">Ważny monit dla prowadzącego zajęcia</p>
+							</div>
+						</div>
+
+						<p className="text-sm text-slate-600 mb-3 leading-relaxed">
+							W tej grupie następujący uczniowie nie mają uzupełnionej daty urodzenia:
+						</p>
+
+						<div className="mb-4 max-h-48 overflow-y-auto rounded-xl border border-amber-200 bg-amber-50/70 p-3 space-y-2">
+							{studentsWithoutBirthDate.map((s) => (
+								<div key={s.id} className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-amber-200/60 shadow-2xs">
+									<span className="font-bold text-slate-800 text-sm">
+										👤 {s.firstName} {s.lastName}
+									</span>
+									<span className="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">
+										Brak daty
+									</span>
+								</div>
+							))}
+						</div>
+
+						<div className="rounded-xl bg-blue-50 border border-blue-200 p-3.5 text-xs text-blue-900 mb-5 flex items-start gap-2.5">
+							<InfoCircleFill className="text-blue-600 shrink-0 mt-0.5" size={16} />
+							<span>
+								<strong>Zadanie trenera:</strong> Zapytaj powyższych uczniów na zajęciach o dokładną datę urodzenia i przekaż ją swojemu koordynatorowi, aby uzupełnił profil ucznia w systemie.
+							</span>
+						</div>
+
+						<button
+							type="button"
+							onClick={() => setShowMissingBirthDateModal(false)}
+							className="w-full cursor-pointer rounded-xl bg-amber-500 py-3 text-center text-sm font-bold text-white shadow-md hover:bg-amber-600 transition-colors"
+						>
+							Rozumiem, zapytam na zajęciach
+						</button>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

@@ -385,7 +385,15 @@ export function Students() {
 												)}
 											</div>
 										</td>
-										<td className="p-4 text-slate-600">{student.dateOfBirth.substring(0, 4)}</td>
+										<td className="p-4 text-slate-600">
+											{student.dateOfBirth ? (
+												student.dateOfBirth.substring(0, 4)
+											) : (
+												<span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">
+													Brak daty
+												</span>
+											)}
+										</td>
 										<td className="p-4">
 											{student.groupName ? (
 												<span className="font-medium text-slate-700">{student.groupName}</span>

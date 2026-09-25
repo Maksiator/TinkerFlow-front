@@ -93,7 +93,7 @@ export function StudentForm() {
 						setFormData({
 							firstName: student.firstName,
 							lastName: student.lastName,
-							dateOfBirth: student.dateOfBirth,
+							dateOfBirth: student.dateOfBirth ? (student.dateOfBirth.length >= 10 ? student.dateOfBirth.substring(0, 10) : student.dateOfBirth) : '',
 							level: student.level,
 							isIndependent: student.isIndependent,
 							needsAttention: student.needsAttention,
@@ -138,6 +138,7 @@ export function StudentForm() {
 		try {
 			const payload: StudentRequest = {
 				...formData,
+				dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth : null,
 				groupId: formData.groupId === '' ? null : formData.groupId,
 				branchId: formData.groupId ? null : formData.branchId,
 			};
@@ -297,12 +298,13 @@ export function StudentForm() {
 
 					<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 						<div>
-							<label className="mb-2 block text-sm font-bold text-slate-700">Data urodzenia</label>
+							<label className="mb-2 block text-sm font-bold text-slate-700">
+								Data urodzenia <span className="text-xs font-normal text-slate-400">(opcjonalnie)</span>
+							</label>
 							<input
 								type="date"
-								required
 								max={new Date().toISOString().split('T')[0]}
-								value={formData.dateOfBirth}
+								value={formData.dateOfBirth || ''}
 								onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
 								disabled={isTrainer}
 								className="w-full rounded-lg border border-slate-300 p-3 text-sm transition-all outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"

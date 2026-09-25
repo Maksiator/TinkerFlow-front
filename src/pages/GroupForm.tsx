@@ -303,8 +303,8 @@ export function GroupForm() {
 	const handleAddSingleStudent = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!id) return;
-		if (!singleStudentData.firstName.trim() || !singleStudentData.lastName.trim() || !singleStudentData.dateOfBirth) {
-			toast.error('Wypełnij imię, nazwisko oraz datę urodzenia.');
+		if (!singleStudentData.firstName.trim() || !singleStudentData.lastName.trim()) {
+			toast.error('Wypełnij imię i nazwisko ucznia.');
 			return;
 		}
 
@@ -313,7 +313,7 @@ export function GroupForm() {
 			const created = await studentService.create({
 				firstName: singleStudentData.firstName.trim(),
 				lastName: singleStudentData.lastName.trim(),
-				dateOfBirth: singleStudentData.dateOfBirth,
+				dateOfBirth: singleStudentData.dateOfBirth.trim() ? singleStudentData.dateOfBirth.trim() : null,
 				level: singleStudentData.level,
 				isIndependent: singleStudentData.isIndependent,
 				needsAttention: singleStudentData.needsAttention,
@@ -588,7 +588,9 @@ export function GroupForm() {
 													<span className="font-bold text-slate-800">
 														{s.firstName} {s.lastName}
 													</span>
-													<span className="ml-2 text-xs text-slate-500">(ur. {s.dateOfBirth.substring(0, 4)})</span>
+													<span className="ml-2 text-xs text-slate-500">
+														{s.dateOfBirth ? `(ur. ${s.dateOfBirth.substring(0, 4)})` : '(brak daty)'}
+													</span>
 													<div className="mt-1 text-xs text-slate-500">
 														{s.groupName ? (
 															`Obecnie: ${s.groupName}`
@@ -620,7 +622,13 @@ export function GroupForm() {
 											<div className="font-bold text-slate-800">
 												{student.firstName} {student.lastName}
 											</div>
-											<div className="text-xs text-slate-500">Rocznik: {student.dateOfBirth.substring(0, 4)}</div>
+											<div className="text-xs text-slate-500">
+												{student.dateOfBirth ? (
+													`Rocznik: ${student.dateOfBirth.substring(0, 4)}`
+												) : (
+													<span className="font-semibold text-amber-600">Brak daty urodzenia</span>
+												)}
+											</div>
 										</div>
 										<div className="flex items-center gap-1.5">
 											<button
@@ -853,10 +861,9 @@ export function GroupForm() {
 							</div>
 
 							<div>
-								<label className="mb-1 block text-xs font-bold text-slate-700">Data urodzenia *</label>
+								<label className="mb-1 block text-xs font-bold text-slate-700">Data urodzenia (opcjonalnie)</label>
 								<input
 									type="date"
-									required
 									value={singleStudentData.dateOfBirth}
 									onChange={(e) => setSingleStudentData({ ...singleStudentData, dateOfBirth: e.target.value })}
 									className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"

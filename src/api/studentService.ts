@@ -12,7 +12,7 @@ export interface Student {
 	id: string;
 	firstName: string;
 	lastName: string;
-	dateOfBirth: string;
+	dateOfBirth?: string | null;
 	level: SkillLevel;
 	isIndependent: boolean;
 	needsAttention: boolean;
@@ -39,7 +39,7 @@ export interface StudentHistoryItem {
 	studentId: string;
 	firstName: string;
 	lastName: string;
-	dateOfBirth: string;
+	dateOfBirth?: string | null;
 	archivedAt: string;
 	academicYear: string;
 	isMidYear: boolean;

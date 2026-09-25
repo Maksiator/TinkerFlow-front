@@ -203,7 +203,9 @@ export function StudentBulkAdd() {
 				else if (p1.length === 4) parsedDate = `${p1}-${p2}-${p3.padStart(2, '0')}`;
 			}
 
-			const isValid = firstName.length > 0 && lastName.length > 0 && parsedDate.length === 10;
+			const hasRawDate = rawDate.length > 0;
+			const isValidDate = parsedDate.length === 10;
+			const isValid = firstName.length > 0 && lastName.length > 0 && (!hasRawDate || isValidDate);
 
 			// Klucz do porównania
 			const key = `${firstName.trim().toLowerCase()}_${lastName.trim().toLowerCase()}`;
@@ -312,7 +314,7 @@ export function StudentBulkAdd() {
 			const payload: StudentRequest[] = stats.toAddRows.map((row) => ({
 				firstName: row.firstName,
 				lastName: row.lastName,
-				dateOfBirth: row.parsedDate,
+				dateOfBirth: row.parsedDate ? row.parsedDate : null,
 				level: SkillLevel.Beginner,
 				isIndependent: false,
 				needsAttention: false,
@@ -476,11 +478,11 @@ export function StudentBulkAdd() {
 						<span className="text-sm">Format wprowadzania danych:</span>
 					</div>
 					<p className="font-medium text-slate-700 mb-2">
-						Wpisz lub skopiuj każdego ucznia w nowej linii według wzoru: <strong className="text-slate-900">Nazwisko Imię [separator] Data urodzenia</strong>
+						Wpisz lub skopiuj każdego ucznia w nowej linii według wzoru: <strong className="text-slate-900">Nazwisko Imię [separator] Data urodzenia</strong> <span className="text-blue-700 font-normal">(data urodzenia jest opcjonalna – możesz wkleić samo imię i nazwisko)</span>.
 					</p>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-blue-200/70 text-slate-800">
 						<div className="flex flex-col gap-0.5">
-							<span className="font-bold text-blue-900">📅 Preferowany format daty urodzenia:</span>
+							<span className="font-bold text-blue-900">📅 Format daty urodzenia (opcjonalny):</span>
 							<div className="flex items-center gap-2 mt-0.5">
 								<code className="rounded bg-white px-2 py-1 font-bold text-blue-700 border border-blue-200 shadow-2xs">
 									RRRR-MM-DD
@@ -694,7 +696,13 @@ export function StudentBulkAdd() {
 												</td>
 												<td className="p-3">
 													{row.isValid ? (
-														<span className="font-mono text-xs font-semibold text-slate-600">{row.parsedDate}</span>
+														row.parsedDate ? (
+															<span className="font-mono text-xs font-semibold text-slate-600">{row.parsedDate}</span>
+														) : (
+															<span className="text-xs font-medium text-amber-700 italic bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+																Brak daty
+															</span>
+														)
 													) : (
 														<div className="text-xs font-mono text-red-500">"{row.rawDate}"</div>
 													)}
