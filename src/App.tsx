@@ -1,8 +1,9 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Toaster } from 'react-hot-toast';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { List } from 'react-bootstrap-icons';
 
 // Lazy loaded views
 const Matrix = lazy(() => import('./pages/Matrix').then(m => ({ default: m.Matrix })));
@@ -32,10 +33,45 @@ import { UserRole } from './api/userService';
 import toast from 'react-hot-toast';
 
 const MainLayout = () => {
+	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+	const location = useLocation();
+
+	useEffect(() => {
+		setIsMobileMenuOpen(false);
+	}, [location.pathname]);
+
+	const currentUser = authService.getCurrentUser();
+
 	return (
-		<div className="flex min-h-screen bg-slate-50">
-			<Sidebar />
-			<main className="flex-1 overflow-y-auto">
+		<div className="flex min-h-screen flex-col md:flex-row bg-slate-50">
+			{/* Mobile Top Header z przyciskiem hamburgera */}
+			<header className="flex md:hidden items-center justify-between bg-white border-b border-slate-200 px-4 py-2.5 sticky top-0 z-30 shadow-2xs">
+				<div className="flex items-center gap-3">
+					<button
+						type="button"
+						onClick={() => setIsMobileMenuOpen(true)}
+						className="cursor-pointer rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+						aria-label="Otwórz menu"
+					>
+						<List size={24} />
+					</button>
+					<div className="flex items-center gap-2">
+						<img src="/favicon.svg" alt="TinkerFlow Logo" className="h-6 w-6" />
+						<span className="text-lg font-black tracking-tight text-slate-800">TinkerFlow</span>
+					</div>
+				</div>
+				{currentUser && (
+					<div className="flex items-center gap-2">
+						<span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
+							{currentUser.firstName}
+						</span>
+					</div>
+				)}
+			</header>
+
+			<Sidebar isMobileOpen={isMobileMenuOpen} onCloseMobile={() => setIsMobileMenuOpen(false)} />
+
+			<main className="flex-1 min-w-0 overflow-y-auto flex flex-col">
 				<Outlet />
 			</main>
 		</div>
