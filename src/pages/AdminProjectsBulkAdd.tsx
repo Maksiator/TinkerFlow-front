@@ -139,12 +139,12 @@ export function AdminProjectsBulkAdd() {
 								onChange={(e) => setIsAdvanced(e.target.checked)}
 								className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
 							/>
-							<span>Oznacz jako Projekty Zaawansowane</span>
+							<span>Oznacz jako Projekty Spoza harmonogramu</span>
 						</label>
 						<p className="mt-1 text-xs text-slate-500">
 							{software === ProjectSoftware.SolidWorks
-								? 'SolidWorks jest automatycznie zaawansowany.'
-								: 'Dostępne od razu w grupach zaawansowanych oraz dla zdolnych uczniów w grupach standardowych.'}
+								? 'SolidWorks jest automatycznie oznaczany jako projekt zaawansowany.'
+								: 'Dostępne w grupach zaawansowanych oraz jako opcjonalne projekty dla szybszych uczniów w grupach standardowych.'}
 						</p>
 					</div>
 				</div>

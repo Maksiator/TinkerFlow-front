@@ -15,6 +15,7 @@ import {
 import { groupService, type Group, GroupType } from '../api/groupService';
 import { branchService, type Branch } from '../api/branchService';
 import { userService, type User, UserRole } from '../api/userService';
+import { authService } from '../api/authService';
 import toast from 'react-hot-toast';
 
 export function Groups() {
@@ -455,7 +456,7 @@ export function Groups() {
 												<div className="flex items-center gap-2 font-bold text-slate-800 group-hover:text-blue-700 transition-colors">
 													<PeopleFill className="text-blue-500 group-hover:text-blue-700 transition-colors" size={16} />
 													<span>{group.name}</span>
-													{group.type === GroupType.Advanced && (
+													{authService.getCurrentUser()?.role === UserRole.Admin && group.type === GroupType.Advanced && (
 														<span className="rounded-md bg-indigo-100 px-2 py-0.5 text-[10px] font-black tracking-tight text-indigo-700 uppercase border border-indigo-200">
 															Zaawansowana
 														</span>

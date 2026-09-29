@@ -501,18 +501,26 @@ export function GroupForm() {
 								]}
 							/>
 
-							{/* 6. PROFIL / PROGRAM GRUPY */}
-							<CustomSelect
-								label="Profil grupy"
-								color="blue"
-								value={String(formData.type ?? GroupType.Standard)}
-								onChange={(val) => setFormData({ ...formData, type: (val === '' ? GroupType.Standard : Number(val)) as typeof GroupType[keyof typeof GroupType] })}
-								options={[
-									{ value: String(GroupType.Standard), label: 'Standardowa (Tinkercad)', sublabel: 'Liniowy tok nauczania Tinkercad' },
-									{ value: String(GroupType.Advanced), label: 'Zaawansowana (SolidWorks + Tinkercad Adv)', sublabel: 'Dedykowana matryca projektów zaawansowanych' },
-								]}
-								helperText="Grupy zaawansowane posiadają dedykowany harmonogram z projektami SolidWorks oraz zaawansowanym Tinkercadem."
-							/>
+							{/* 6. TYLKO DLA ADMINA: Checkbox grupy zaawansowanej */}
+							{authService.getCurrentUser()?.role === UserRole.Admin && (
+								<label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-purple-200 bg-purple-50/60 p-3 select-none hover:bg-purple-50 transition-colors">
+									<input
+										type="checkbox"
+										id="groupTypeCheckbox"
+										checked={formData.type === GroupType.Advanced}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												type: e.target.checked ? GroupType.Advanced : GroupType.Standard,
+											})
+										}
+										className="h-4 w-4 cursor-pointer rounded border-purple-300 text-purple-600 focus:ring-purple-500"
+									/>
+									<span className="text-xs font-bold text-purple-900">
+										Grupa zaawansowana <span className="font-normal text-purple-700">(SolidWorks + własny tok nauczania)</span>
+									</span>
+								</label>
+							)}
 
 							<button
 								type="submit"

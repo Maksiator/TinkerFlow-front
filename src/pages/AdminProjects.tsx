@@ -297,8 +297,8 @@ export function AdminProjects() {
 					<div className="mb-4 flex flex-wrap gap-2">
 						{[
 							{ id: 'all', label: 'Wszystkie projekty' },
-							{ id: 'tc_std', label: 'Tinkercad (Podstawowe)' },
-							{ id: 'tc_adv', label: 'Tinkercad (Zaawansowane)' },
+							{ id: 'tc_std', label: 'Tinkercad (Harmonogram)' },
+							{ id: 'tc_adv', label: 'Tinkercad (Spoza harmonogramu)' },
 							{ id: 'sw', label: 'SolidWorks' },
 						].map((tab) => (
 							<button
@@ -381,7 +381,7 @@ export function AdminProjects() {
 																		</span>
 																	) : project.isAdvanced ? (
 																		<span className="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-black tracking-tighter text-purple-700 uppercase">
-																			Tinkercad ADV
+																			Spoza harmonogramu
 																		</span>
 																	) : (
 																		<span className="rounded bg-sky-100 px-2 py-0.5 text-[10px] font-black tracking-tighter text-sky-700 uppercase">
@@ -560,7 +560,7 @@ export function AdminProjects() {
 							</div>
 
 							<div className="mt-2 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
-								<h4 className="text-sm font-bold text-slate-700">Poziom i dostępność</h4>
+								<h4 className="text-sm font-bold text-slate-700">Harmonogram i dostępność</h4>
 								<label className="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
 									<input
 										type="checkbox"
@@ -570,11 +570,11 @@ export function AdminProjects() {
 										className="mt-0.5 h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
 									/>
 									<div>
-										<span className="font-semibold">Projekt zaawansowany</span>
+										<span className="font-semibold">Projekt spoza harmonogramu</span>
 										<p className="text-xs text-slate-500">
 											{formData.software === ProjectSoftware.SolidWorks
-												? 'Projekty SolidWorks są zawsze zaawansowane (tylko dla grup zaawansowanych).'
-												: 'Tinkercad Zaawansowany – domyślny w grupach zaawansowanych, a w grupach standardowych dostępny do wyboru dla szybszych uczniów.'}
+												? 'Projekty SolidWorks są dostępne wyłącznie dla grup zaawansowanych.'
+												: 'Dla grup zaawansowanych (jako część programu) oraz jako opcjonalny projekt do wyboru dla szybszych uczniów w grupach zwykłych.'}
 										</p>
 									</div>
 								</label>

@@ -279,13 +279,13 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 										? 'bg-purple-100 border-purple-300 text-purple-900 shadow-2xs'
 										: 'bg-white border-slate-200 text-slate-600 hover:border-purple-200 hover:bg-purple-50 hover:text-purple-700'
 								}`}
-								title="Pokaż projekty zaawansowane Tinkercad dla zdolniejszych uczniów w tej grupie"
+								title="Opcjonalne projekty Tinkercad spoza standardowego harmonogramu dla szybszych uczniów"
 							>
 								<StarFill className={showAdvancedInStandard ? 'text-amber-500' : 'text-slate-400'} size={12} />
 								<span>
 									{showAdvancedInStandard
-										? 'Ukryj zaawansowane Tinkercad'
-										: `+ Zaawansowany Tinkercad (${advancedTinkercadCount})`}
+										? 'Ukryj spoza harmonogramu'
+										: `+ Spoza harmonogramu (${advancedTinkercadCount})`}
 								</span>
 							</button>
 						</div>
@@ -486,7 +486,7 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 													</span>
 												) : project.isAdvanced ? (
 													<span className="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-black tracking-tighter text-purple-700 uppercase">
-														Tinkercad ADV
+														Spoza harmonogramu
 													</span>
 												) : null}
 												{isPractice && (
