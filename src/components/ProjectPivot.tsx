@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, PrinterFill, BoxSeamFill, ClockHistory, ExclamationTriangleFill, InfoCircleFill } from 'react-bootstrap-icons';
+import { Search, PrinterFill, BoxSeamFill, ClockHistory, ExclamationTriangleFill, InfoCircleFill, StarFill } from 'react-bootstrap-icons';
 import { studentService, type Student } from '../api/studentService';
-import { projectService, type Project, ProjectState } from '../api/projectService';
+import { projectService, type Project, ProjectState, ProjectSoftware } from '../api/projectService';
 import { studentProjectService } from '../api/studentProjectService';
+import { GroupType } from '../api/groupService';
 import { printBatchService } from '../api/printBatchService';
 import { PrintLogDrawer } from './PrintLogDrawer';
 import { MatrixSummaryPanel } from './MatrixSummaryPanel';
@@ -19,6 +20,9 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 	const [projects, setProjects] = useState<Project[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [searchTerm, setSearchTerm] = useState('');
+	const [groupType, setGroupType] = useState<GroupType>(GroupType.Standard);
+	const [showAdvancedInStandard, setShowAdvancedInStandard] = useState(false);
+	const [advancedSoftwareFilter, setAdvancedSoftwareFilter] = useState<'all' | 'sw' | 'tc_adv' | 'with_std'>('all');
 
 	// STANY DLA PANELI BOCZNYCH
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Stare podsumowanie
@@ -45,6 +49,10 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 
 				if (!isMounted) return;
 
+				if (fetchedMatrixTree && fetchedMatrixTree.groupType !== undefined) {
+					setGroupType(fetchedMatrixTree.groupType);
+				}
+
 				const sortedStudents = fetchedStudents.sort((a, b) => {
 					const lastNameCompare = a.lastName.localeCompare(b.lastName);
 					if (lastNameCompare !== 0) return lastNameCompare;
@@ -64,6 +72,19 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 				}
 
 				setMatrixState(initialMatrixState);
+
+				// Jeśli któryś uczeń w grupie standardowej ma już aktywny projekt zaawansowany Tinkercad -> rozwiń od razu
+				const hasActiveAdvancedProject = fetchedProjects.some((p) => {
+					if (p.isAdvanced && p.software !== ProjectSoftware.SolidWorks) {
+						return Object.entries(initialMatrixState).some(
+							([key, status]) => key.endsWith(`_${p.id}`) && status !== ProjectState.NotStarted,
+						);
+					}
+					return false;
+				});
+				if (hasActiveAdvancedProject) {
+					setShowAdvancedInStandard(true);
+				}
 
 				// Jeśli jest paczka do odbioru -> od razu otwieramy nowy panel wydruków!
 				if (readyBatch) {
@@ -94,11 +115,42 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 		return students.filter((s) => !s.dateOfBirth);
 	}, [students]);
 
-	const filteredProjects = projects.filter(
-		(p) =>
-			p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			p.code.toLowerCase().includes(searchTerm.toLowerCase()),
-	);
+	const advancedTinkercadCount = useMemo(() => {
+		return projects.filter((p) => (p.software === ProjectSoftware.Tinkercad || !p.software) && p.isAdvanced).length;
+	}, [projects]);
+
+	const filteredProjects = useMemo(() => {
+		return projects.filter((p) => {
+			const matchesSearch =
+				p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+				p.code.toLowerCase().includes(searchTerm.toLowerCase());
+			if (!matchesSearch) return false;
+
+			// Reguły dla grupy STANDARDOWEJ:
+			if (groupType === GroupType.Standard) {
+				// Grupy standardowe NIGDY nie widzą SolidWorks
+				if (p.software === ProjectSoftware.SolidWorks) return false;
+
+				// Tinkercad zaawansowany pokazywany tylko po kliknięciu toggle
+				if (p.isAdvanced && !showAdvancedInStandard) return false;
+
+				return true;
+			}
+
+			// Reguły dla grupy ZAAWANSOWANEJ:
+			if (advancedSoftwareFilter === 'sw') {
+				return p.software === ProjectSoftware.SolidWorks;
+			}
+			if (advancedSoftwareFilter === 'tc_adv') {
+				return (p.software === ProjectSoftware.Tinkercad || !p.software) && !!p.isAdvanced;
+			}
+			if (advancedSoftwareFilter === 'with_std') {
+				return true; // Pokaż wszystko włącznie z podstawowymi
+			}
+			// Domyślnie dla zaawansowanych: SolidWorks + Tinkercad ADV
+			return p.isAdvanced || p.software === ProjectSoftware.SolidWorks;
+		});
+	}, [projects, searchTerm, groupType, showAdvancedInStandard, advancedSoftwareFilter]);
 
 	const updateStatus = async (studentId: string, projectId: string, newStatus: ProjectState) => {
 		const key = `${studentId}_${projectId}`;
@@ -176,17 +228,68 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 	return (
 		<div className="relative flex h-full flex-col overflow-hidden bg-white md:rounded-xl md:border md:border-slate-200 md:shadow-sm">
 			<div className="flex shrink-0 flex-col gap-3 border-b border-slate-200 bg-slate-50 p-3 md:flex-row md:items-center md:justify-between md:p-4">
-				<div className="relative w-full md:max-w-md">
-					<Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
-					<input
-						type="text"
-						placeholder="Szukaj projektu (np. Pająk)..."
-						id="project-search-input"
-						name="projectSearch"
-						value={searchTerm}
-						onChange={(e) => setSearchTerm(e.target.value)}
-						className="w-full rounded-lg border border-slate-300 py-2.5 pr-4 pl-10 text-sm transition-colors outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 md:py-2"
-					/>
+				<div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+					<div className="relative w-full sm:max-w-xs md:max-w-sm">
+						<Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
+						<input
+							type="text"
+							placeholder="Szukaj projektu (np. Pająk)..."
+							id="project-search-input"
+							name="projectSearch"
+							value={searchTerm}
+							onChange={(e) => setSearchTerm(e.target.value)}
+							className="w-full rounded-lg border border-slate-300 py-2 pr-4 pl-10 text-sm transition-colors outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+						/>
+					</div>
+
+					{/* KONTROLKI PROFILU GRUPY (ZAAWANSOWANA VS STANDARDOWA) */}
+					{groupType === GroupType.Advanced ? (
+						<div className="flex flex-wrap items-center gap-1.5">
+							<span className="flex items-center gap-1 rounded-lg bg-purple-100 border border-purple-200 px-2.5 py-1.5 text-xs font-black tracking-tight text-purple-900 shadow-2xs">
+								<StarFill className="text-amber-500" size={13} /> Zaawansowana
+							</span>
+							<div className="flex items-center rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-bold shadow-2xs">
+								{[
+									{ id: 'all', label: 'Wszystkie ADV' },
+									{ id: 'sw', label: 'SolidWorks' },
+									{ id: 'tc_adv', label: 'Tinkercad ADV' },
+									{ id: 'with_std', label: '+ Podstawowe' },
+								].map((f) => (
+									<button
+										key={f.id}
+										onClick={() => setAdvancedSoftwareFilter(f.id as any)}
+										className={`cursor-pointer rounded-md px-2 py-1 transition-all ${
+											advancedSoftwareFilter === f.id
+												? 'bg-slate-800 text-white'
+												: 'text-slate-600 hover:text-slate-900'
+										}`}
+									>
+										{f.label}
+									</button>
+								))}
+							</div>
+						</div>
+					) : (
+						<div className="flex items-center">
+							<button
+								type="button"
+								onClick={() => setShowAdvancedInStandard(!showAdvancedInStandard)}
+								className={`cursor-pointer flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all border ${
+									showAdvancedInStandard
+										? 'bg-purple-100 border-purple-300 text-purple-900 shadow-2xs'
+										: 'bg-white border-slate-200 text-slate-600 hover:border-purple-200 hover:bg-purple-50 hover:text-purple-700'
+								}`}
+								title="Pokaż projekty zaawansowane Tinkercad dla zdolniejszych uczniów w tej grupie"
+							>
+								<StarFill className={showAdvancedInStandard ? 'text-amber-500' : 'text-slate-400'} size={12} />
+								<span>
+									{showAdvancedInStandard
+										? 'Ukryj zaawansowane Tinkercad'
+										: `+ Zaawansowany Tinkercad (${advancedTinkercadCount})`}
+								</span>
+							</button>
+						</div>
+					)}
 				</div>
 
 				{/* NOWE RESPONSYWNE PRZYCISKI Z UKRYWANYM TEKSTEM */}
@@ -376,11 +479,22 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 												</span>
 												<span className="text-[11px] leading-tight md:text-sm">{project.name}</span>
 											</div>
-											{isPractice && (
-												<span className="mt-1 self-start rounded bg-yellow-200 px-1.5 py-0.5 text-[10px] font-black tracking-tighter text-yellow-800 uppercase md:mt-0 md:ml-2 md:self-auto">
-													Łatwe
-												</span>
-											)}
+											<div className="flex items-center gap-1 mt-1 md:mt-0 md:ml-2 flex-wrap">
+												{project.software === ProjectSoftware.SolidWorks ? (
+													<span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-black tracking-tighter text-rose-700 uppercase">
+														SolidWorks
+													</span>
+												) : project.isAdvanced ? (
+													<span className="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-black tracking-tighter text-purple-700 uppercase">
+														Tinkercad ADV
+													</span>
+												) : null}
+												{isPractice && (
+													<span className="rounded bg-yellow-200 px-1.5 py-0.5 text-[10px] font-black tracking-tighter text-yellow-800 uppercase">
+														Łatwe
+													</span>
+												)}
+											</div>
 										</div>
 									</td>
 

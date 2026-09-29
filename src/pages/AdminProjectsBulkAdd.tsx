@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircleFill, ExclamationCircleFill } from 'react-bootstrap-icons';
-import { projectService, type ProjectRequest } from '../api/projectService';
+import { projectService, type ProjectRequest, ProjectSoftware } from '../api/projectService';
 import toast from 'react-hot-toast';
 
 interface PreviewProject {
@@ -17,6 +17,8 @@ export function AdminProjectsBulkAdd() {
 	const [rawText, setRawText] = useState('');
 	const [previewRows, setPreviewRows] = useState<PreviewProject[]>([]);
 	const [isSaving, setIsSaving] = useState(false);
+	const [software, setSoftware] = useState<ProjectSoftware>(ProjectSoftware.Tinkercad);
+	const [isAdvanced, setIsAdvanced] = useState(false);
 
 	const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		const newText = e.target.value;
@@ -77,6 +79,8 @@ export function AdminProjectsBulkAdd() {
 				sequenceOrder: r.sequenceOrder,
 				isPractice: false,
 				isYearBoundary: false,
+				software: software,
+				isAdvanced: software === ProjectSoftware.SolidWorks ? true : isAdvanced,
 			}));
 
 			await projectService.createBulk(payload);
@@ -105,6 +109,45 @@ export function AdminProjectsBulkAdd() {
 					Wklej harmonogram lekcji. System sam znajdzie kod na końcu wiersza. <br />
 					Oczekiwany format: <strong>Nazwa Projektu C1 L2</strong> lub <strong>Nazwa C1 L2-3</strong>
 				</p>
+
+				{/* Opcje oprogramowania i zaawansowania */}
+				<div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+					<div>
+						<label className="mb-1 block text-sm font-bold text-slate-700">Oprogramowanie dla importowanych</label>
+						<select
+							value={software}
+							onChange={(e) => {
+								const sw = parseInt(e.target.value, 10) as ProjectSoftware;
+								setSoftware(sw);
+								if (sw === ProjectSoftware.SolidWorks) {
+									setIsAdvanced(true);
+								}
+							}}
+							className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm font-medium outline-none focus:border-blue-500"
+						>
+							<option value={ProjectSoftware.Tinkercad}>Tinkercad</option>
+							<option value={ProjectSoftware.SolidWorks}>SolidWorks</option>
+						</select>
+					</div>
+
+					<div className="flex flex-col justify-center">
+						<label className="flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-700">
+							<input
+								type="checkbox"
+								checked={isAdvanced}
+								disabled={software === ProjectSoftware.SolidWorks}
+								onChange={(e) => setIsAdvanced(e.target.checked)}
+								className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+							/>
+							<span>Oznacz jako Projekty Zaawansowane</span>
+						</label>
+						<p className="mt-1 text-xs text-slate-500">
+							{software === ProjectSoftware.SolidWorks
+								? 'SolidWorks jest automatycznie zaawansowany.'
+								: 'Dostępne od razu w grupach zaawansowanych oraz dla zdolnych uczniów w grupach standardowych.'}
+						</p>
+					</div>
+				</div>
 
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
 					{/* LEWA: Wklejanie */}

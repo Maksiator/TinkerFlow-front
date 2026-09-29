@@ -12,6 +12,13 @@ export const ProjectState = {
 
 export type ProjectState = (typeof ProjectState)[keyof typeof ProjectState];
 
+export const ProjectSoftware = {
+	Tinkercad: 0,
+	SolidWorks: 1,
+} as const;
+
+export type ProjectSoftware = (typeof ProjectSoftware)[keyof typeof ProjectSoftware];
+
 export interface Project {
 	id: string;
 	name: string;
@@ -19,14 +26,19 @@ export interface Project {
 	sequenceOrder: number;
 	isPractice: boolean;
 	isYearBoundary: boolean;
+	software: ProjectSoftware;
+	isAdvanced: boolean;
 }
 // Omit usuwa 'id' z interfejsu Project, zostawiając resztę
 export type ProjectRequest = Omit<Project, 'id'>;
 
 export const projectService = {
 	// GET
-	getAll: async () => {
-		const response = await apiClient.get<Project[]>('/projects');
+	getAll: async (software?: ProjectSoftware, isAdvanced?: boolean) => {
+		const params: Record<string, unknown> = {};
+		if (software !== undefined) params.software = software;
+		if (isAdvanced !== undefined) params.isAdvanced = isAdvanced;
+		const response = await apiClient.get<Project[]>('/projects', { params });
 		return response.data.sort((a, b) => a.sequenceOrder - b.sequenceOrder);
 	},
 

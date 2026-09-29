@@ -1,5 +1,12 @@
 import { apiClient } from './client';
 
+export const GroupType = {
+	Standard: 0,
+	Advanced: 1,
+} as const;
+
+export type GroupType = (typeof GroupType)[keyof typeof GroupType];
+
 export interface Group {
 	id: string;
 	name: string;
@@ -13,6 +20,7 @@ export interface Group {
 	classDayOfWeek?: number | null;
 	isArchived?: boolean;
 	archivedAcademicYear?: string | null;
+	type?: GroupType;
 }
 
 export interface CreateGroup {
@@ -21,6 +29,7 @@ export interface CreateGroup {
 	primaryTrainerId?: string | null;
 	assignedPrinterId?: string | null;
 	classDayOfWeek?: number | null;
+	type?: GroupType;
 }
 
 export interface UpdateGroup {
@@ -29,6 +38,7 @@ export interface UpdateGroup {
 	primaryTrainerId?: string | null;
 	assignedPrinterId?: string | null;
 	classDayOfWeek?: number | null;
+	type?: GroupType;
 }
 
 export const groupService = {

@@ -13,7 +13,7 @@ import {
 } from 'react-bootstrap-icons';
 import toast from 'react-hot-toast';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
-import { projectService, type Project } from '../api/projectService';
+import { projectService, type Project, ProjectSoftware } from '../api/projectService';
 
 interface UsageData {
 	id: string;
@@ -31,6 +31,7 @@ export function AdminProjects() {
 	const navigate = useNavigate();
 	const [projects, setProjects] = useState<Project[]>([]);
 	const [search, setSearch] = useState('');
+	const [softwareFilter, setSoftwareFilter] = useState<'all' | 'tc_std' | 'tc_adv' | 'sw'>('all');
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
@@ -42,12 +43,14 @@ export function AdminProjects() {
 	const [usageData, setUsageData] = useState<UsageData | null>(null);
 	const [isUsageLoading, setIsUsageLoading] = useState(false);
 
-	const [formData, setFormData] = useState({
+	const [formData, setFormData] = useState<Omit<Project, 'id'>>({
 		name: '',
 		code: '',
 		sequenceOrder: 1,
 		isPractice: false,
 		isYearBoundary: false,
+		software: ProjectSoftware.Tinkercad,
+		isAdvanced: false,
 	});
 
 	useEffect(() => {
@@ -111,6 +114,8 @@ export function AdminProjects() {
 			sequenceOrder: project.sequenceOrder,
 			isPractice: project.isPractice || false,
 			isYearBoundary: project.isYearBoundary || false,
+			software: project.software ?? ProjectSoftware.Tinkercad,
+			isAdvanced: project.isAdvanced ?? false,
 		});
 		setIsModalOpen(true);
 	};
@@ -118,7 +123,15 @@ export function AdminProjects() {
 	const handleCloseModal = () => {
 		setIsModalOpen(false);
 		setEditingProject(null);
-		setFormData({ name: '', code: '', sequenceOrder: 1, isPractice: false, isYearBoundary: false });
+		setFormData({
+			name: '',
+			code: '',
+			sequenceOrder: 1,
+			isPractice: false,
+			isYearBoundary: false,
+			software: ProjectSoftware.Tinkercad,
+			isAdvanced: false,
+		});
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -204,6 +217,8 @@ export function AdminProjects() {
 						sequenceOrder: p.sequenceOrder,
 						isPractice: p.isPractice,
 						isYearBoundary: p.isYearBoundary,
+						software: p.software ?? ProjectSoftware.Tinkercad,
+						isAdvanced: p.isAdvanced ?? false,
 					};
 					return projectService.update(p.id, updatePayload);
 				}),
@@ -216,9 +231,21 @@ export function AdminProjects() {
 		}
 	};
 
-	const filteredProjects = projects.filter(
-		(p) => p.name.toLowerCase().includes(search.toLowerCase()) || p.code.toLowerCase().includes(search.toLowerCase()),
-	);
+	const filteredProjects = projects.filter((p) => {
+		const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.code.toLowerCase().includes(search.toLowerCase());
+		if (!matchesSearch) return false;
+
+		if (softwareFilter === 'tc_std') {
+			return (p.software === ProjectSoftware.Tinkercad || !p.software) && !p.isAdvanced;
+		}
+		if (softwareFilter === 'tc_adv') {
+			return (p.software === ProjectSoftware.Tinkercad || !p.software) && !!p.isAdvanced;
+		}
+		if (softwareFilter === 'sw') {
+			return p.software === ProjectSoftware.SolidWorks;
+		}
+		return true;
+	});
 
 	const isSearchActive = search.length > 0;
 
@@ -266,6 +293,28 @@ export function AdminProjects() {
 
 			{!isLoading && !error && (
 				<>
+					{/* Filter tabs */}
+					<div className="mb-4 flex flex-wrap gap-2">
+						{[
+							{ id: 'all', label: 'Wszystkie projekty' },
+							{ id: 'tc_std', label: 'Tinkercad (Podstawowe)' },
+							{ id: 'tc_adv', label: 'Tinkercad (Zaawansowane)' },
+							{ id: 'sw', label: 'SolidWorks' },
+						].map((tab) => (
+							<button
+								key={tab.id}
+								onClick={() => setSoftwareFilter(tab.id as any)}
+								className={`cursor-pointer rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+									softwareFilter === tab.id
+										? 'bg-slate-800 text-white shadow-sm'
+										: 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+								}`}
+							>
+								{tab.label}
+							</button>
+						))}
+					</div>
+
 					<div className="mb-6 flex gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 						<div className="relative flex-1">
 							<Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
@@ -324,8 +373,21 @@ export function AdminProjects() {
 															</td>
 															<td className="px-6 py-4 font-mono font-bold text-blue-600">{project.code}</td>
 															<td className="w-full px-6 py-4 font-bold text-slate-700">
-																<div className="flex items-center gap-2">
+																<div className="flex items-center gap-2 flex-wrap">
 																	<span>{project.name}</span>
+																	{project.software === ProjectSoftware.SolidWorks ? (
+																		<span className="rounded bg-rose-100 px-2 py-0.5 text-[10px] font-black tracking-tighter text-rose-700 uppercase">
+																			SolidWorks
+																		</span>
+																	) : project.isAdvanced ? (
+																		<span className="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-black tracking-tighter text-purple-700 uppercase">
+																			Tinkercad ADV
+																		</span>
+																	) : (
+																		<span className="rounded bg-sky-100 px-2 py-0.5 text-[10px] font-black tracking-tighter text-sky-700 uppercase">
+																			Tinkercad
+																		</span>
+																	)}
 																	{project.isPractice && (
 																		<span className="rounded bg-yellow-100 px-2 py-0.5 text-[10px] font-black tracking-tighter text-yellow-800 uppercase">
 																			Łatwe
@@ -477,6 +539,46 @@ export function AdminProjects() {
 									/>
 								</div>
 							)}
+
+							<div>
+								<label className="mb-1 block text-sm font-bold text-slate-700">Oprogramowanie</label>
+								<select
+									value={formData.software}
+									onChange={(e) => {
+										const sw = parseInt(e.target.value, 10) as ProjectSoftware;
+										setFormData({
+											...formData,
+											software: sw,
+											isAdvanced: sw === ProjectSoftware.SolidWorks ? true : formData.isAdvanced,
+										});
+									}}
+									className="w-full rounded-lg border border-slate-300 p-2.5 outline-none focus:border-blue-500 focus:ring-1 bg-white text-sm font-medium"
+								>
+									<option value={ProjectSoftware.Tinkercad}>Tinkercad</option>
+									<option value={ProjectSoftware.SolidWorks}>SolidWorks</option>
+								</select>
+							</div>
+
+							<div className="mt-2 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+								<h4 className="text-sm font-bold text-slate-700">Poziom i dostępność</h4>
+								<label className="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
+									<input
+										type="checkbox"
+										checked={formData.isAdvanced}
+										disabled={formData.software === ProjectSoftware.SolidWorks}
+										onChange={(e) => setFormData({ ...formData, isAdvanced: e.target.checked })}
+										className="mt-0.5 h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+									/>
+									<div>
+										<span className="font-semibold">Projekt zaawansowany</span>
+										<p className="text-xs text-slate-500">
+											{formData.software === ProjectSoftware.SolidWorks
+												? 'Projekty SolidWorks są zawsze zaawansowane (tylko dla grup zaawansowanych).'
+												: 'Tinkercad Zaawansowany – domyślny w grupach zaawansowanych, a w grupach standardowych dostępny do wyboru dla szybszych uczniów.'}
+										</p>
+									</div>
+								</label>
+							</div>
 
 							<div className="mt-2 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
 								<h4 className="text-sm font-bold text-slate-700">Flagi w matrycy</h4>

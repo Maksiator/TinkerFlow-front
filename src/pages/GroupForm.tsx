@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { groupService, type CreateGroup } from '../api/groupService';
+import { groupService, type CreateGroup, GroupType } from '../api/groupService';
 import { studentService, type Student, type StudentHistoryItem, SkillLevel } from '../api/studentService';
 import { branchService, type Branch } from '../api/branchService';
 import { userService, type User, UserRole } from '../api/userService';
@@ -28,7 +28,7 @@ export function GroupForm() {
 	const isEditMode = Boolean(id) && id !== 'nowa';
 
 	// --- STAN: DANE GRUPY I LISTY WYBORU ---
-	const [formData, setFormData] = useState<CreateGroup>({ name: '', branchId: '', primaryTrainerId: null, assignedPrinterId: null, classDayOfWeek: null });
+	const [formData, setFormData] = useState<CreateGroup>({ name: '', branchId: '', primaryTrainerId: null, assignedPrinterId: null, classDayOfWeek: null, type: GroupType.Standard });
 	const [branches, setBranches] = useState<Branch[]>([]);
 	const [trainers, setTrainers] = useState<User[]>([]);
 	const [printers, setPrinters] = useState<User[]>([]);
@@ -120,6 +120,7 @@ export function GroupForm() {
 							primaryTrainerId: group.primaryTrainerId,
 							assignedPrinterId: group.assignedPrinterId ?? null,
 							classDayOfWeek: group.classDayOfWeek ?? null,
+							type: group.type ?? GroupType.Standard,
 						});
 						setIsGroupArchived(group.isArchived ?? false);
 						setEnrolledStudents(students);
@@ -498,6 +499,19 @@ export function GroupForm() {
 									{ value: '6', label: 'Sobota' },
 									{ value: '0', label: 'Niedziela' },
 								]}
+							/>
+
+							{/* 6. PROFIL / PROGRAM GRUPY */}
+							<CustomSelect
+								label="Profil grupy"
+								color="blue"
+								value={String(formData.type ?? GroupType.Standard)}
+								onChange={(val) => setFormData({ ...formData, type: (val === '' ? GroupType.Standard : Number(val)) as typeof GroupType[keyof typeof GroupType] })}
+								options={[
+									{ value: String(GroupType.Standard), label: 'Standardowa (Tinkercad)', sublabel: 'Liniowy tok nauczania Tinkercad' },
+									{ value: String(GroupType.Advanced), label: 'Zaawansowana (SolidWorks + Tinkercad Adv)', sublabel: 'Dedykowana matryca projektów zaawansowanych' },
+								]}
+								helperText="Grupy zaawansowane posiadają dedykowany harmonogram z projektami SolidWorks oraz zaawansowanym Tinkercadem."
 							/>
 
 							<button

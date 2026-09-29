@@ -1,10 +1,12 @@
 import { apiClient } from './client';
 import type { ProjectState } from './projectService';
+import type { GroupType } from './groupService';
 
 // To musi idealnie odwzorowywać to, co pluje Twój select w C#
 export interface GroupMatrixResponse {
 	groupId: string;
 	groupName: string;
+	groupType?: GroupType;
 	location: string;
 	students: {
 		studentId: string;
