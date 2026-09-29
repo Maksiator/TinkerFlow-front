@@ -460,35 +460,67 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 					</thead>
 					<tbody>
 						{filteredProjects.map((project) => {
+							const isSolidWorks = project.software === ProjectSoftware.SolidWorks;
+							const isAdvancedProject = project.isAdvanced && !isSolidWorks;
 							const isPractice = project.isPractice;
 							const isYearEnd = project.isYearBoundary;
-							const rowBgClass = isPractice ? 'bg-yellow-50 hover:bg-yellow-100/80' : 'bg-white hover:bg-slate-50';
-							const stickyBgClass = isPractice ? 'bg-yellow-50' : 'bg-white';
-							const borderLeftColClass = isYearEnd ? 'border-b-4 border-slate-900' : 'border-b border-slate-200';
+
+							// Kolory tła wiersza i komórki
+							let rowBgClass = 'bg-white hover:bg-slate-50';
+							let stickyBgClass = 'bg-white';
+							if (isSolidWorks) {
+								rowBgClass = 'bg-rose-50/20 hover:bg-rose-50/40';
+							} else if (isAdvancedProject) {
+								rowBgClass = 'bg-purple-50/20 hover:bg-purple-50/40';
+							} else if (isPractice) {
+								rowBgClass = 'bg-yellow-50 hover:bg-yellow-100/80';
+								stickyBgClass = 'bg-yellow-50';
+							}
+
+							// Pionowy pasek akcentujący z lewej strony
+							let borderLeftAccent = 'border-l-4 border-l-transparent';
+							if (isSolidWorks) {
+								borderLeftAccent = 'border-l-4 border-l-rose-500';
+							} else if (isAdvancedProject) {
+								borderLeftAccent = 'border-l-4 border-l-purple-500';
+							}
+
+							const borderBottomColClass = isYearEnd ? 'border-b-4 border-slate-900' : 'border-b border-slate-200';
 							const borderStudentColClass = isYearEnd ? 'border-b-4 border-slate-900' : 'border-b border-slate-100';
 
 							return (
 								<tr key={project.id} id={`project-row-${project.id}`} className={`transition-colors ${rowBgClass}`}>
 									<td
-										className={`sticky left-0 z-10 border-r ${borderLeftColClass} ${stickyBgClass} p-2 font-medium text-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] md:p-4`}
+										className={`sticky left-0 z-10 border-r ${borderLeftAccent} ${borderBottomColClass} ${stickyBgClass} p-2 font-medium text-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] md:p-3`}
 									>
-										<div className="flex flex-col md:flex-row md:items-center">
-											<div className="flex items-center">
-												<span className="mr-1.5 text-[10px] font-bold text-blue-500 md:mr-2 md:text-xs">
+										<div className="flex flex-col md:flex-row md:items-center justify-between gap-1">
+											<div className="flex items-center gap-1.5 min-w-0">
+												{isAdvancedProject && (
+													<StarFill
+														className="text-purple-500 shrink-0 cursor-help"
+														size={11}
+														title="Projekt spoza harmonogramu"
+													/>
+												)}
+												<span
+													className={`text-[10px] font-bold md:text-xs shrink-0 ${
+														isSolidWorks
+															? 'text-rose-600 font-extrabold'
+															: isAdvancedProject
+															? 'text-purple-600 font-extrabold'
+															: 'text-blue-500'
+													}`}
+												>
 													{project.code}
 												</span>
 												<span className="text-[11px] leading-tight md:text-sm">{project.name}</span>
 											</div>
-											<div className="flex items-center gap-1 mt-1 md:mt-0 md:ml-2 flex-wrap">
-												{project.software === ProjectSoftware.SolidWorks ? (
+											<div className="flex items-center gap-1 shrink-0">
+												{isSolidWorks && (
 													<span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-black tracking-tighter text-rose-700 uppercase">
-														SolidWorks
+														SW
 													</span>
-												) : project.isAdvanced ? (
-													<span className="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-black tracking-tighter text-purple-700 uppercase">
-														Spoza harmonogramu
-													</span>
-												) : null}
+												)}
 												{isPractice && (
 													<span className="rounded bg-yellow-200 px-1.5 py-0.5 text-[10px] font-black tracking-tighter text-yellow-800 uppercase">
 														Łatwe
