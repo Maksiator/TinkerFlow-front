@@ -27,6 +27,7 @@ export interface User {
 	branches: UserBranch[]; // NOWE: Teraz backend to zwraca
 	mustChangePassword: boolean;
 	canActAsTrainer?: boolean;
+	canActAsPrinter?: boolean;
 }
 
 export interface PagedUserResponse {
@@ -45,6 +46,7 @@ export interface CreateUserRequest {
 	role: UserRole;
 	branchIds: string[]; // NOWE: Lista ID oddziałów
 	canActAsTrainer?: boolean;
+	canActAsPrinter?: boolean;
 }
 
 export interface UpdateUserRequest {
@@ -54,6 +56,7 @@ export interface UpdateUserRequest {
 	branchIds: string[]; // NOWE: Lista ID oddziałów
 	canActAsTrainer?: boolean;
 	email?: string;
+	canActAsPrinter?: boolean;
 }
 
 export interface ChangePasswordRequest {

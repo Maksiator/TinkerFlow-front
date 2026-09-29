@@ -8,6 +8,7 @@ export interface AuthenticatedUser {
 	lastName: string;
 	role: UserRole;
 	mustChangePassword: boolean;
+	canActAsPrinter?: boolean;
 }
 
 export interface AuthResponse {
@@ -17,6 +18,7 @@ export interface AuthResponse {
 	lastName: string;
 	role: UserRole;
 	mustChangePassword: boolean;
+	canActAsPrinter?: boolean;
 }
 
 export const authService = {
@@ -29,6 +31,7 @@ export const authService = {
 			lastName: res.data.lastName,
 			role: res.data.role,
 			mustChangePassword: res.data.mustChangePassword,
+			canActAsPrinter: res.data.canActAsPrinter,
 		};
 
 		localStorage.setItem('tinkerflow_user', JSON.stringify(user));

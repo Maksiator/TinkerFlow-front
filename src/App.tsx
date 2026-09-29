@@ -43,14 +43,22 @@ const MainLayout = () => {
 };
 
 // --- STRAŻNIK RÓL (Wyrzuca na stronę główną, jeśli rola się nie zgadza) ---
-const RoleGuard = ({ allowedRoles }: { allowedRoles: UserRole[] }) => {
+const RoleGuard = ({
+	allowedRoles,
+	customCheck,
+}: {
+	allowedRoles: UserRole[];
+	customCheck?: (user: import('./api/authService').AuthenticatedUser) => boolean;
+}) => {
 	const user = authService.getCurrentUser();
 
 	if (!user) {
 		return <Navigate to="/login" replace />;
 	}
 
-	if (!allowedRoles.includes(user.role)) {
+	const hasAccess = allowedRoles.includes(user.role) || (customCheck ? customCheck(user) : false);
+
+	if (!hasAccess) {
 		toast.error('Brak uprawnień do przeglądania tej strony.');
 		return <Navigate to="/" replace />;
 	}
@@ -158,8 +166,15 @@ function App() {
 								<Route path="admin/logi" element={<AdminAuditLogs />} />
 								<Route path="admin/konserwacja" element={<AdminMaintenance />} />
 							</Route>
-							{/* === POZIOM 4: DOSTĘP DLA DRUKARZA I ADMINA === */}
-							<Route element={<RoleGuard allowedRoles={[UserRole.Admin, UserRole.Printer]} />}>
+							{/* === POZIOM 4: DOSTĘP DLA DRUKARZA, KOORDYNATORA, ADMINA I TRENERA-DRUKARZA === */}
+							<Route
+								element={
+									<RoleGuard
+										allowedRoles={[UserRole.Admin, UserRole.Printer, UserRole.Coordinator]}
+										customCheck={(u) => u.role === UserRole.Trainer && !!u.canActAsPrinter}
+									/>
+								}
+							>
 								<Route path="farma" element={<PrinterDashboard />} />
 							</Route>
 						</Route>

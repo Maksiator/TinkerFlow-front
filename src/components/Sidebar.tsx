@@ -54,7 +54,12 @@ export function Sidebar() {
 	// POMOCNICZE ZMIENNE DO RENDEROWANIA
 	const isCoordinatorOrAdmin = user && (user.role === UserRole.Admin || user.role === UserRole.Coordinator);
 	const isAdmin = user && user.role === UserRole.Admin;
-	const isPrinterOrAdmin = user && (user.role === UserRole.Admin || user.role === UserRole.Printer);
+	const isPrinterOrAdmin =
+		user &&
+		(user.role === UserRole.Admin ||
+			user.role === UserRole.Printer ||
+			user.role === UserRole.Coordinator ||
+			(user.role === UserRole.Trainer && !!user.canActAsPrinter));
 
 	return (
 		<aside
@@ -245,7 +250,10 @@ export function Sidebar() {
 					{isExpanded && (
 						<div className="flex flex-col overflow-hidden pr-2">
 							<span className="truncate text-sm font-bold text-slate-700">Cześć, {user?.firstName}! 👋</span>
-							<span className="truncate text-xs font-bold text-blue-500 uppercase">{getRoleName(user?.role)}</span>
+							<span className="truncate text-xs font-bold text-blue-500 uppercase">
+								{getRoleName(user?.role)}
+								{user?.role === UserRole.Trainer && user?.canActAsPrinter ? ' + Drukarz' : ''}
+							</span>
 						</div>
 					)}
 					<button

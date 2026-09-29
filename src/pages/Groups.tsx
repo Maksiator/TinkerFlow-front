@@ -227,7 +227,9 @@ export function Groups() {
 				? fetchedUsersResponse
 				: ((fetchedUsersResponse as { items?: User[] }).items ?? []);
 
-			const availablePrinters = fetchedUsers.filter((u: User) => u.role === UserRole.Printer);
+			const availablePrinters = fetchedUsers.filter(
+				(u: User) => u.role === UserRole.Printer || (u.role === UserRole.Trainer && !!u.canActAsPrinter),
+			);
 			setPrinters(availablePrinters);
 			setSelectedPrinterId('');
 			setIsBulkPrinterModalOpen(true);
@@ -701,7 +703,7 @@ export function Groups() {
 								<option value="">-- Brak przypisanego drukarza (usuń przypisanie) --</option>
 								{printers.map((p) => (
 									<option key={p.id} value={p.id}>
-										{p.firstName} {p.lastName} ({p.email})
+										{p.firstName} {p.lastName}{p.role === UserRole.Trainer ? ' (Trener)' : ''} ({p.email})
 									</option>
 								))}
 							</select>

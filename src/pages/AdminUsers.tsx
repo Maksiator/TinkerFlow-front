@@ -53,6 +53,7 @@ export function AdminUsers() {
 		password: '',
 		role: UserRole.Trainer as UserRole,
 		branchIds: [] as string[],
+		canActAsPrinter: false,
 	});
 
 	const currentUserRole = currentUser?.role;
@@ -188,6 +189,7 @@ export function AdminUsers() {
 			password: '',
 			role: UserRole.Trainer, // Koordynator ma zablokowane pole, więc to musi być domyślne
 			branchIds: initialBranchIds,
+			canActAsPrinter: false,
 		});
 		setIsModalOpen(true);
 	};
@@ -212,6 +214,7 @@ export function AdminUsers() {
 			password: '',
 			role: user.role,
 			branchIds: initialBranchIds,
+			canActAsPrinter: !!user.canActAsPrinter,
 		});
 		setIsModalOpen(true);
 	};
@@ -271,6 +274,7 @@ export function AdminUsers() {
 					role: formData.role,
 					branchIds: branchIdsToSend,
 					email: isCurrentUserAdmin ? formData.email.trim() : undefined,
+					canActAsPrinter: isCurrentUserAdmin ? formData.canActAsPrinter : undefined,
 				};
 				await userService.update(editingUser.id, updateData);
 				if (formData.password) {
@@ -283,6 +287,7 @@ export function AdminUsers() {
 				const createData: CreateUserRequest = {
 					...formData,
 					branchIds: branchIdsToSend,
+					canActAsPrinter: isCurrentUserAdmin ? formData.canActAsPrinter : undefined,
 				};
 				// Zabezpieczenie przed atakiem typu "wstrzyknięcie wartości w ukryte pole"
 				if (isCurrentUserCoordinator) {
@@ -331,8 +336,8 @@ export function AdminUsers() {
 		}
 	};
 
-	const renderRoleBadge = (role: UserRole) => {
-		switch (role) {
+	const renderRoleBadge = (user: User) => {
+		switch (user.role) {
 			case UserRole.Admin:
 				return (
 					<span className="flex w-max items-center gap-1 rounded-md bg-purple-100 px-2 py-1 text-xs font-bold text-purple-700">
@@ -347,9 +352,19 @@ export function AdminUsers() {
 				);
 			case UserRole.Trainer:
 				return (
-					<span className="flex w-max items-center gap-1 rounded-md bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">
-						<PersonBadgeFill /> Trener
-					</span>
+					<div className="flex flex-wrap items-center gap-1.5">
+						<span className="flex w-max items-center gap-1 rounded-md bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">
+							<PersonBadgeFill /> Trener
+						</span>
+						{user.canActAsPrinter && (
+							<span
+								className="flex w-max items-center gap-1 rounded-md bg-indigo-100 px-2 py-1 text-[11px] font-bold text-indigo-700 border border-indigo-200"
+								title="Trener posiada uprawnienia drukarza dla swoich grup"
+							>
+								<PrinterFill /> + Drukarz
+							</span>
+						)}
+					</div>
 				);
 			case UserRole.Printer:
 				return (
@@ -546,7 +561,7 @@ export function AdminUsers() {
 													)}
 												</div>
 											</td>
-											<td className="p-4">{renderRoleBadge(user.role)}</td>
+											<td className="p-4">{renderRoleBadge(user)}</td>
 											<td className="p-4 text-center">
 												<span
 													className={`rounded-full px-3 py-1 text-xs font-bold ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
@@ -810,6 +825,27 @@ export function AdminUsers() {
 									{isCurrentUserAdmin && <option value={UserRole.Printer}>Drukarz</option>}
 								</select>
 							</div>
+
+							{formData.role === UserRole.Trainer && isCurrentUserAdmin && (
+								<div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5">
+									<label className="flex items-start gap-3 cursor-pointer">
+										<input
+											type="checkbox"
+											checked={formData.canActAsPrinter}
+											onChange={(e) => setFormData((prev) => ({ ...prev, canActAsPrinter: e.target.checked }))}
+											className="mt-0.5 h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+										/>
+										<div className="text-xs">
+											<p className="font-bold text-indigo-900 flex items-center gap-1.5">
+												<PrinterFill size={14} /> Trener jako Drukarz (własne grupy)
+											</p>
+											<p className="text-indigo-700/90 mt-0.5 leading-relaxed">
+												Zezwól temu trenerowi na dostęp do panelu drukarza oraz wybór jako drukarz dla jego grup. Będzie widział wyłącznie zlecenia ze swoich grup.
+											</p>
+										</div>
+									</label>
+								</div>
+							)}
 
 							{formData.role === UserRole.Printer ? (
 								<div className="rounded-xl border border-purple-200 bg-purple-50 p-3.5 text-xs text-purple-900 leading-relaxed">

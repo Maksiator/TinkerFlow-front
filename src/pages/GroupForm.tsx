@@ -162,9 +162,9 @@ export function GroupForm() {
 						(u.role === UserRole.Admin && u.canActAsTrainer),
 				);
 
-				// Wyłuskujemy drukarzy
+				// Wyłuskujemy drukarzy (Drukarze oraz Trenerzy z uprawnieniem drukarza)
 				const availablePrinters = fetchedUsers.filter(
-					(u: User) => u.role === UserRole.Printer,
+					(u: User) => u.role === UserRole.Printer || (u.role === UserRole.Trainer && !!u.canActAsPrinter),
 				);
 
 				if (isMounted) {
@@ -474,7 +474,7 @@ export function GroupForm() {
 									{ value: '', label: 'Nie przypisano (Brak)' },
 									...printers.map((p) => ({
 										value: p.id,
-										label: `${p.firstName} ${p.lastName}`,
+										label: `${p.firstName} ${p.lastName}${p.role === UserRole.Trainer ? ' (Trener)' : ''}`,
 										sublabel: p.email,
 									})),
 								]}

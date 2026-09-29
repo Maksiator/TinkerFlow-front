@@ -303,15 +303,27 @@ export function PrinterDashboard() {
 						<span className="flex items-center gap-3">
 							<PrinterFill className="text-purple-600" /> Panel Drukarza
 						</span>
-						{isAdmin && (
+						{isAdmin ? (
 							<span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 border border-amber-200">
 								Widok Master (Wszystkie paczki)
 							</span>
-						)}
+						) : currentUser?.role === UserRole.Coordinator ? (
+							<span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800 border border-blue-200">
+								Widok Koordynatora (Twój oddział)
+							</span>
+						) : currentUser?.role === UserRole.Trainer ? (
+							<span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-800 border border-indigo-200">
+								Widok Trenera (Własne grupy)
+							</span>
+						) : null}
 					</h1>
 					<p className="mt-2 text-slate-500">
 						{isAdmin
 							? 'Jako administrator masz pełny wgląd do wszystkich paczek wydruków ze wszystkich grup i oddziałów.'
+							: currentUser?.role === UserRole.Coordinator
+							? 'Jako koordynator masz wgląd do wszystkich zleceń druku z przypisanych do Ciebie oddziałów.'
+							: currentUser?.role === UserRole.Trainer
+							? 'Przeglądaj i zarządzaj zleceniami druku dla swoich grup.'
 							: 'Zarządzaj zleceniami druku spływającymi z przypisanych do Ciebie grup.'}
 					</p>
 				</div>
