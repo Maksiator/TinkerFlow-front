@@ -93,7 +93,7 @@ export function AdminMaintenance() {
 	const cleanCategories = report?.categories.filter((c) => c.count === 0) || [];
 
 	return (
-		<div className="p-6 md:p-8">
+		<div className="mx-auto w-full max-w-[1440px] p-4 md:p-8">
 			{/* NAGŁÓWEK */}
 			<div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>

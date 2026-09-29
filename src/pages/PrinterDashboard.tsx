@@ -296,7 +296,7 @@ export function PrinterDashboard() {
 	}
 
 	return (
-		<div className="p-6 md:p-10">
+		<div className="mx-auto w-full max-w-[1440px] p-4 md:p-8">
 			<div className="mb-8 flex items-center justify-between">
 				<div>
 					<h1 className="flex flex-wrap items-center gap-3 text-3xl font-extrabold text-slate-800">
@@ -587,9 +587,9 @@ export function PrinterDashboard() {
 				</div>
 			) : viewMode === 'compact' ? (
 				/* WIDOK KOMPAKTOWY (TABELA) */
-				<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-					<div className="overflow-x-auto">
-						<table className="w-full border-collapse text-left text-sm">
+				<div className="w-full max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+					<div className="w-full max-w-full overflow-x-auto">
+						<table className="w-full min-w-[720px] border-collapse text-left text-sm">
 							<thead className="bg-slate-50 text-slate-500 border-b border-slate-200 font-bold text-xs uppercase tracking-wider">
 								<tr>
 									{isAdmin && (

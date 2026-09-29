@@ -95,7 +95,7 @@ export function AdminProjectsBulkAdd() {
 	};
 
 	return (
-		<div className="mx-auto max-w-5xl p-4 md:p-8">
+		<div className="mx-auto w-full max-w-[1440px] p-4 md:p-8">
 			<button
 				onClick={() => navigate('/admin/projekty')}
 				className="mb-6 flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-500 transition-colors hover:text-blue-600"

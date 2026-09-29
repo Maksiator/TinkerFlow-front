@@ -162,7 +162,7 @@ export function Settings() {
 	}
 
 	return (
-		<div className="mx-auto max-w-4xl p-6 sm:p-10">
+		<div className="mx-auto w-full max-w-[1440px] p-4 md:p-8">
 			<header className="mb-8">
 				<h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Ustawienia Konta</h1>
 				<p className="mt-1 text-slate-500">Zarządzaj swoimi danymi osobowymi i bezpieczeństwem konta</p>

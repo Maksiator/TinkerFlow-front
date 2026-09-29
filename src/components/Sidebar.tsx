@@ -81,7 +81,7 @@ export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
 				className={`
 					fixed inset-y-0 left-0 z-50 flex h-dvh flex-col border-r border-slate-200 bg-white transition-all duration-300 shadow-2xl md:shadow-none
 					md:sticky md:top-0 md:h-screen md:shrink-0
-					${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+					${isMobileOpen ? 'translate-x-0 visible pointer-events-auto' : '-translate-x-full invisible pointer-events-none md:translate-x-0 md:visible md:pointer-events-auto'}
 					${isExpanded ? 'w-72 md:w-64' : 'w-72 md:w-20'}
 				`}
 			>

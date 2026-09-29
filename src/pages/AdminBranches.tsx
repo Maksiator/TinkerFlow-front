@@ -136,7 +136,7 @@ export function AdminBranches() {
 	const filteredBranches = branches.filter((b) => b.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
 	return (
-		<div className="mx-auto max-w-4xl p-4 md:p-8">
+		<div className="mx-auto w-full max-w-[1440px] p-4 md:p-8">
 			{/* HEADER */}
 			<div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
 				<div>
@@ -168,8 +168,9 @@ export function AdminBranches() {
 			</div>
 
 			{/* LISTA ODDZIAŁÓW */}
-			<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-				<table className="w-full text-left text-sm">
+			<div className="w-full max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+				<div className="w-full max-w-full overflow-x-auto">
+					<table className="w-full min-w-[540px] text-left text-sm">
 					<thead className="bg-slate-50 text-slate-500">
 						<tr>
 							<th className="p-4 text-[11px] font-bold tracking-wider uppercase">Nazwa lokalizacji</th>
@@ -230,6 +231,7 @@ export function AdminBranches() {
 						)}
 					</tbody>
 				</table>
+				</div>
 			</div>
 
 			{/* RODO INFO BOX */}

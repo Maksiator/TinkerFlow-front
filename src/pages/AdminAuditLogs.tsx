@@ -237,7 +237,7 @@ export function AdminAuditLogs() {
 	};
 
 	return (
-		<div className="p-6 max-w-7xl mx-auto space-y-6">
+		<div className="mx-auto w-full max-w-[1440px] p-4 md:p-8 space-y-6">
 			{/* NAGŁÓWEK */}
 			<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
 				<div className="flex items-center gap-3">
@@ -348,9 +348,9 @@ export function AdminAuditLogs() {
 			</div>
 
 			{/* TABELA Z LOGAMI */}
-			<div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-				<div className="overflow-x-auto">
-					<table className="w-full text-left border-collapse">
+			<div className="w-full max-w-full bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+				<div className="w-full max-w-full overflow-x-auto">
+					<table className="w-full min-w-[700px] text-left border-collapse">
 						<thead>
 							<tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
 								<th className="py-3 px-4">Data i czas</th>

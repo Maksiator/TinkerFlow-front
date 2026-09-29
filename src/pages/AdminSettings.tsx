@@ -221,7 +221,7 @@ export function AdminSettings() {
 	};
 
 	return (
-		<div className="mx-auto max-w-4xl p-4 md:p-8">
+		<div className="mx-auto w-full max-w-[1440px] p-4 md:p-8">
 			{renderBlockingModal()}
 			<div className="mb-8">
 				<h1 className="flex items-center gap-3 text-3xl font-extrabold text-slate-800">

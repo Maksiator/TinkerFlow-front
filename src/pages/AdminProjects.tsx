@@ -250,7 +250,7 @@ export function AdminProjects() {
 	const isSearchActive = search.length > 0;
 
 	return (
-		<div className="p-8">
+		<div className="mx-auto w-full max-w-[1440px] p-4 md:p-8">
 			<div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
 				<div>
 					<h1 className="text-3xl font-extrabold text-slate-800">Baza Projektów</h1>
@@ -335,9 +335,9 @@ export function AdminProjects() {
 						</div>
 					)}
 
-					<div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+					<div className="w-full max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
 						<DragDropContext onDragEnd={handleDragEnd}>
-							<table className="w-full text-left text-sm">
+							<table className="w-full min-w-[640px] text-left text-sm">
 								<thead className="border-b border-slate-200 bg-slate-50">
 									<tr>
 										<th className="w-24 px-6 py-4 text-xs font-bold text-slate-400 uppercase">Sort</th>

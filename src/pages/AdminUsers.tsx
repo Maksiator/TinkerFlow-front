@@ -378,7 +378,7 @@ export function AdminUsers() {
 	};
 
 	return (
-		<div className="mx-auto max-w-6xl p-4 md:p-8">
+		<div className="mx-auto w-full max-w-[1440px] p-4 md:p-8">
 			<div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
 				<div>
 					<h1 className="text-3xl font-extrabold text-slate-800">Personel i Pracownicy</h1>
@@ -478,9 +478,9 @@ export function AdminUsers() {
 				)}
 			</div>
 
-			<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-				<div className="overflow-x-auto">
-					<table className="w-full text-left text-sm">
+			<div className="w-full max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+				<div className="w-full max-w-full overflow-x-auto">
+					<table className="w-full min-w-[640px] text-left text-sm">
 						<thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
 							<tr>
 								<th

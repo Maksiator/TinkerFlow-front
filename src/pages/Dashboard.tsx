@@ -129,7 +129,7 @@ export function Dashboard() {
 	};
 
 	return (
-		<div className="mx-auto flex max-w-7xl flex-col gap-8 p-4 md:p-8">
+		<div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8 p-4 md:p-8">
 			{/* BANER POWITALNY */}
 			<div className="animate-in fade-in slide-in-from-bottom-4 relative shrink-0 overflow-hidden rounded-3xl bg-linear-to-r from-blue-700 to-indigo-800 p-8 text-white shadow-lg duration-500">
 				<div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-white opacity-10 blur-3xl"></div>

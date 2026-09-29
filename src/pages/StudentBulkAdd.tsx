@@ -365,7 +365,7 @@ export function StudentBulkAdd() {
 	}
 
 	return (
-		<div className="mx-auto max-w-6xl p-4 md:p-8">
+		<div className="mx-auto w-full max-w-[1440px] p-4 md:p-8">
 			{/* MODAL RAPORTU PO ZAKOŃCZENIU IMPORTU */}
 			{importResult && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
@@ -630,7 +630,7 @@ export function StudentBulkAdd() {
 							</div>
 						)}
 
-						<div className="min-h-80 flex-1 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50">
+						<div className="w-full max-w-full min-h-80 flex-1 overflow-auto rounded-lg border border-slate-200 bg-slate-50">
 							{previewRows.length === 0 ? (
 								<div className="flex h-full items-center justify-center p-8 text-center text-sm text-slate-400">
 									Wklej tekst po lewej stronie, aby zobaczyć dynamiczne porównanie.

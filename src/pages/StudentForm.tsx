@@ -257,7 +257,7 @@ export function StudentForm() {
 	if (isLoading) return <div className="p-10 text-center font-bold text-slate-400">Ładowanie...</div>;
 
 	return (
-		<div className="mx-auto max-w-3xl p-4 md:p-8">
+		<div className="mx-auto w-full max-w-[1440px] p-4 md:p-8">
 			<button
 				onClick={() => navigate('/uczniowie')}
 				className="mb-6 flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-500 transition-colors hover:text-blue-600"

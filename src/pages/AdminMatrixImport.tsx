@@ -222,7 +222,7 @@ export function AdminMatrixImport() {
 	};
 
 	return (
-		<div className="mx-auto max-w-6xl p-4 md:p-8">
+		<div className="mx-auto w-full max-w-[1440px] p-4 md:p-8">
 			<div className="mb-8">
 				<h1 className="text-3xl font-extrabold text-slate-800">Jednorazowa Migracja Matrycy</h1>
 				<p className="mt-1 text-slate-500">

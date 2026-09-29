@@ -222,9 +222,9 @@ export function MatrixSetup() {
 		.filter((g): g is Group => g !== undefined);
 
 	return (
-		<div className="relative min-h-full p-4 pb-32 md:p-8">
+		<div className="relative min-h-full mx-auto w-full max-w-[1440px] p-4 pb-32 md:p-8">
 			{/* NAGŁÓWEK */}
-			<div className="mx-auto mb-8 flex max-w-6xl flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+			<div className="mb-8 flex w-full flex-col items-start justify-between gap-4 md:flex-row md:items-center">
 				<div>
 					<h1 className="text-3xl font-extrabold text-slate-800">Twoje Matryce</h1>
 					<p className="font-medium text-slate-500">Zarządzaj harmonogramami i generuj zestawienia projektów.</p>
@@ -237,7 +237,7 @@ export function MatrixSetup() {
 				</button>
 			</div>
 
-			<div className="mx-auto max-w-6xl">
+			<div className="w-full">
 				{/* LISTY TRENERA */}
 				{trainerLists.length === 0 ? (
 					<div className="mb-10 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-10 text-center">
@@ -375,7 +375,7 @@ export function MatrixSetup() {
 			{/* FLOATING BAR */}
 			{selectedGroupIds.length > 0 && (
 				<div className="animate-in slide-in-from-bottom-10 fixed right-0 bottom-0 left-0 z-40 border-t border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur-md duration-300 md:left-64">
-					<div className="mx-auto flex max-w-6xl items-center justify-between px-4">
+					<div className="mx-auto flex max-w-[1440px] items-center justify-between px-4">
 						<div>
 							<span className="hidden text-sm text-slate-500 sm:inline">Wybrano ręcznie grup: </span>
 							<span className="ml-2 text-xl font-bold text-blue-600">{selectedGroupIds.length}</span>

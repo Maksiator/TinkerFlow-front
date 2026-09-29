@@ -195,7 +195,7 @@ export function Substitutes() {
 		return <div className="p-8 text-center font-bold text-slate-400">Inicjalizacja modułu zastępstw...</div>;
 
 	return (
-		<div className="mx-auto max-w-6xl p-4 md:p-8">
+		<div className="mx-auto w-full max-w-[1440px] p-4 md:p-8">
 			<div className="mb-8">
 				<h1 className="text-3xl font-extrabold text-slate-800">Zarządzanie Zastępstwami</h1>
 				<p className="text-slate-500">Przypisuj trenerów na zajęcia i kontroluj ich okno dostępu do Matrycy.</p>
