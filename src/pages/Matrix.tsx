@@ -261,7 +261,7 @@ export function Matrix() {
 	};
 
 	return (
-		<div className="flex flex-1 h-[calc(100dvh-53px)] md:h-dvh flex-col overflow-hidden bg-slate-50">
+		<div className="flex flex-1 min-h-0 h-full flex-col overflow-hidden bg-slate-50">
 			{/* ZWIEZŁY, KOMPAKTOWY NAGŁÓWEK DLA LEPSZEGO SKALOWANIA NA LAPTOPACH */}
 			<div className="z-10 shrink-0 border-b border-slate-200 bg-white px-3 py-2 shadow-xs md:px-6 md:py-2.5">
 				<div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-4">
@@ -311,7 +311,7 @@ export function Matrix() {
 			</div>
 
 			{/* GŁÓWNY OBSZAR TABELI Z WIĘKSZĄ PRZESTRZENIĄ PIONOWĄ NA LAPTOPACH */}
-			<div className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col overflow-hidden p-0 md:px-6 md:py-2">
+			<div className="mx-auto flex w-full max-w-[1440px] flex-1 min-h-0 flex-col overflow-hidden p-0 md:px-6 md:py-2">
 				<ProjectPivot key={currentGroup.id} groupId={currentGroup.id} refreshTrigger={refreshTrigger} />
 			</div>
 

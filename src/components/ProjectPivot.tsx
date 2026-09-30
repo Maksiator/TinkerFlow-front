@@ -226,7 +226,7 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 	}
 
 	return (
-		<div className="relative flex h-full flex-col overflow-hidden bg-white md:rounded-xl md:border md:border-slate-200 md:shadow-sm">
+		<div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-white md:rounded-xl md:border md:border-slate-200 md:shadow-sm">
 			<div className="flex shrink-0 flex-col gap-3 border-b border-slate-200 bg-slate-50 p-3 md:flex-row md:items-center md:justify-between md:p-4">
 				<div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
 					<div className="relative w-full sm:max-w-xs md:max-w-sm">
