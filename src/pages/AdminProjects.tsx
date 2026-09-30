@@ -10,6 +10,9 @@ import {
 	GripVertical,
 	CloudArrowUpFill,
 	EyeFill,
+	ArrowDownCircleFill,
+	SortNumericDown,
+	Magic,
 } from 'react-bootstrap-icons';
 import toast from 'react-hot-toast';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
@@ -38,6 +41,7 @@ export function AdminProjects() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [editingProject, setEditingProject] = useState<Project | null>(null);
+	const [isOrganizeModalOpen, setIsOrganizeModalOpen] = useState(false);
 
 	const [isUsageModalOpen, setIsUsageModalOpen] = useState(false);
 	const [usageData, setUsageData] = useState<UsageData | null>(null);
@@ -134,25 +138,98 @@ export function AdminProjects() {
 		});
 	};
 
+	const saveReorderedProjects = async (newProjects: Project[]) => {
+		setProjects(newProjects);
+		try {
+			const items = newProjects.map((p, idx) => ({ id: p.id, sequenceOrder: idx + 1 }));
+			await projectService.reorder(items);
+			toast.success('Kolejność została pomyślnie zapisana!');
+		} catch (err) {
+			console.error('Błąd zapisu kolejności:', err);
+			toast.error('Błąd synchronizacji kolejności z serwerem.');
+			handleRetry();
+		}
+	};
+
+	const moveProjectToPosition = async (project: Project, targetOrder: number) => {
+		const clampedOrder = Math.max(1, Math.min(projects.length, targetOrder));
+		const remaining = projects.filter((p) => p.id !== project.id);
+		const targetIndex = clampedOrder - 1;
+		remaining.splice(targetIndex, 0, project);
+		const reordered = remaining.map((p, idx) => ({ ...p, sequenceOrder: idx + 1 }));
+		await saveReorderedProjects(reordered);
+	};
+
+	const handleMoveToEnd = async (project: Project) => {
+		await moveProjectToPosition(project, projects.length);
+		toast.success(`Przeniesiono "${project.name}" na koniec listy (#${projects.length})`);
+	};
+
+	const handleOrganizeStandardFirst = async () => {
+		const stdProjects = projects
+			.filter((p) => !p.isAdvanced && p.software !== ProjectSoftware.SolidWorks)
+			.sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+
+		const advProjects = projects
+			.filter((p) => p.isAdvanced && p.software !== ProjectSoftware.SolidWorks)
+			.sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+
+		const swProjects = projects
+			.filter((p) => p.software === ProjectSoftware.SolidWorks)
+			.sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+
+		const organized = [...stdProjects, ...advProjects, ...swProjects].map((p, idx) => ({
+			...p,
+			sequenceOrder: idx + 1,
+		}));
+
+		await saveReorderedProjects(organized);
+		setIsOrganizeModalOpen(false);
+		toast.success('Uporządkowano: Standardowe ➡️ Spoza harmonogramu ➡️ SolidWorks!');
+	};
+
+	const handleNormalizeIndices = async () => {
+		const sorted = [...projects].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+		const normalized = sorted.map((p, idx) => ({
+			...p,
+			sequenceOrder: idx + 1,
+		}));
+		await saveReorderedProjects(normalized);
+		setIsOrganizeModalOpen(false);
+		toast.success('Znormalizowano numerację projektów (1..N).');
+	};
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setIsSubmitting(true);
 
 		try {
 			if (editingProject) {
+				const orderChanged = formData.sequenceOrder !== editingProject.sequenceOrder;
 				await projectService.update(editingProject.id, formData);
-				setProjects((prev) =>
-					prev
-						.map((p) => (p.id === editingProject.id ? { ...p, ...formData } : p))
-						.sort((a, b) => a.sequenceOrder - b.sequenceOrder),
-				);
+
+				if (orderChanged) {
+					await moveProjectToPosition({ ...editingProject, ...formData }, formData.sequenceOrder);
+				} else {
+					setProjects((prev) =>
+						prev
+							.map((p) => (p.id === editingProject.id ? { ...p, ...formData } : p))
+							.sort((a, b) => a.sequenceOrder - b.sequenceOrder),
+					);
+				}
 				toast.success('Projekt zaktualizowany!');
 			} else {
 				const newOrder = formData.sequenceOrder || projects.length + 1;
 				const created = await projectService.create({ ...formData, sequenceOrder: newOrder });
-				setProjects((prev) => [...prev, created].sort((a, b) => a.sequenceOrder - b.sequenceOrder));
+
+				const updated = [...projects];
+				const insertIndex = Math.max(0, Math.min(updated.length, newOrder - 1));
+				updated.splice(insertIndex, 0, created);
+				const reordered = updated.map((p, idx) => ({ ...p, sequenceOrder: idx + 1 }));
+				await saveReorderedProjects(reordered);
 				toast.success('Projekt dodany!');
 			}
+
 			handleCloseModal();
 		} catch (err) {
 			console.error(err);
@@ -199,36 +276,7 @@ export function AdminProjects() {
 			sequenceOrder: index + 1,
 		}));
 
-		const changedProjects = finalProjects.filter((newProj) => {
-			const oldProj = projects.find((p) => p.id === newProj.id);
-			return oldProj && oldProj.sequenceOrder !== newProj.sequenceOrder;
-		});
-
-		setProjects(finalProjects);
-
-		if (changedProjects.length === 0) return;
-
-		try {
-			await Promise.all(
-				changedProjects.map((p) => {
-					const updatePayload = {
-						name: p.name,
-						code: p.code,
-						sequenceOrder: p.sequenceOrder,
-						isPractice: p.isPractice,
-						isYearBoundary: p.isYearBoundary,
-						software: p.software ?? ProjectSoftware.Tinkercad,
-						isAdvanced: p.isAdvanced ?? false,
-					};
-					return projectService.update(p.id, updatePayload);
-				}),
-			);
-			toast.success(`Zapisano kolejność (${changedProjects.length} elem.)`);
-		} catch (err) {
-			console.error('Błąd zapisu kolejności:', err);
-			toast.error('Błąd synchronizacji z serwerem .NET');
-			handleRetry();
-		}
+		await saveReorderedProjects(finalProjects);
 	};
 
 	const filteredProjects = projects.filter((p) => {
@@ -258,6 +306,13 @@ export function AdminProjects() {
 				</div>
 
 				<div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
+					<button
+						onClick={() => setIsOrganizeModalOpen(true)}
+						className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 md:w-auto text-sm"
+						title="Narzędzia do naprawy i organizacji kolejności"
+					>
+						<Magic className="text-purple-600" /> Uporządkuj kolejność
+					</button>
 					<button
 						onClick={() => navigate('/admin/projekty/masowo')}
 						className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 font-bold text-white shadow-sm transition-colors hover:bg-orange-600 md:w-auto"
@@ -401,7 +456,14 @@ export function AdminProjects() {
 																</div>
 															</td>
 															<td className="px-6 py-4 text-right">
-																<div className="flex justify-end gap-2">
+																<div className="flex justify-end items-center gap-1">
+																	<button
+																		onClick={() => handleMoveToEnd(project)}
+																		className="cursor-pointer p-2 text-slate-400 transition-colors hover:text-purple-600"
+																		title="Przenieś na sam koniec listy"
+																	>
+																		<ArrowDownCircleFill size={18} />
+																	</button>
 																	<button
 																		onClick={() => handleShowUsage(project.id)}
 																		className="cursor-pointer p-2 text-slate-400 transition-colors hover:text-blue-600"
@@ -528,17 +590,38 @@ export function AdminProjects() {
 									className="w-full rounded-lg border border-slate-300 p-2.5 outline-none focus:border-blue-500 focus:ring-1"
 								/>
 							</div>
-							{!editingProject && (
-								<div>
-									<label className="mb-1 block text-sm font-bold text-slate-700">Kolejność startowa</label>
-									<input
-										type="number"
-										value={formData.sequenceOrder}
-										onChange={(e) => setFormData({ ...formData, sequenceOrder: parseInt(e.target.value) || 1 })}
-										className="w-full rounded-lg border border-slate-300 p-2.5 outline-none focus:border-blue-500 focus:ring-1"
-									/>
+							<div>
+								<div className="mb-1 flex items-center justify-between">
+									<label className="text-sm font-bold text-slate-700">Pozycja / Numeracja (Lp.)</label>
+									<div className="flex items-center gap-1.5 text-xs">
+										<button
+											type="button"
+											onClick={() => setFormData({ ...formData, sequenceOrder: 1 })}
+											className="cursor-pointer font-semibold text-blue-600 hover:underline"
+										>
+											Początek (1)
+										</button>
+										<span className="text-slate-300">|</span>
+										<button
+											type="button"
+											onClick={() => setFormData({ ...formData, sequenceOrder: projects.length || 1 })}
+											className="cursor-pointer font-semibold text-blue-600 hover:underline"
+										>
+											Koniec ({projects.length || 1})
+										</button>
+									</div>
 								</div>
-							)}
+								<input
+									type="number"
+									min="1"
+									value={formData.sequenceOrder}
+									onChange={(e) => setFormData({ ...formData, sequenceOrder: parseInt(e.target.value) || 1 })}
+									className="w-full rounded-lg border border-slate-300 p-2.5 font-mono font-bold outline-none focus:border-blue-500 focus:ring-1"
+								/>
+								<p className="mt-1 text-xs text-slate-500">
+									Wpisanie numeru przesunie pozostałe projekty automatycznie, zapewniając spójną numerację.
+								</p>
+							</div>
 
 							<div>
 								<label className="mb-1 block text-sm font-bold text-slate-700">Oprogramowanie</label>
@@ -620,6 +703,72 @@ export function AdminProjects() {
 								</button>
 							</div>
 						</form>
+					</div>
+				</div>
+			)}
+
+			{/* MODAL ORGANIZACJI KOLEJNOŚCI */}
+			{isOrganizeModalOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+					<div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+						<div className="mb-6 flex items-center justify-between border-b border-slate-100 pb-4">
+							<div className="flex items-center gap-2">
+								<Magic className="text-xl text-purple-600" />
+								<h2 className="text-xl font-bold text-slate-800">Uporządkuj kolejność w bazie</h2>
+							</div>
+							<button
+								onClick={() => setIsOrganizeModalOpen(false)}
+								className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+							>
+								<XLg />
+							</button>
+						</div>
+
+						<p className="mb-6 text-sm text-slate-600">
+							Wybierz automatyczne narzędzie do uporządkowania i naprawy numeracji projektów w całej bazie danych:
+						</p>
+
+						<div className="space-y-4">
+							<div className="rounded-xl border border-purple-200 bg-purple-50/50 p-4 transition-all hover:border-purple-300">
+								<h3 className="flex items-center gap-2 font-bold text-purple-900">
+									<SortNumericDown /> Standardowe najpierw, Spoza harmonogramu na końcu
+								</h3>
+								<p className="mt-1 text-xs text-purple-700">
+									Układa najpierw projekty ze zwykłego programu nauczania Tinkercad (od #1), następnie wszystkie projekty spoza harmonogramu, a na samym końcu SolidWorks. Naprawia problem z przeplataniem się projektów po imporcie!
+								</p>
+								<button
+									onClick={handleOrganizeStandardFirst}
+									className="mt-3 w-full cursor-pointer rounded-lg bg-purple-600 py-2.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-purple-700"
+								>
+									Uporządkuj: Standardowe ➡️ Spoza harmonogramu ➡️ SolidWorks
+								</button>
+							</div>
+
+							<div className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all hover:border-slate-300">
+								<h3 className="flex items-center gap-2 font-bold text-slate-800">
+									<SortNumericDown /> Znormalizuj numerację (1 do N)
+								</h3>
+								<p className="mt-1 text-xs text-slate-600">
+									Zachowuje obecną kolejność listy, ale usuwa ewentualne luki w numeracji oraz powtarzające się numery. Każdy projekt otrzyma unikalny kolejny numer od 1 do {projects.length}.
+								</p>
+								<button
+									onClick={handleNormalizeIndices}
+									className="mt-3 w-full cursor-pointer rounded-lg bg-slate-700 py-2.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-slate-800"
+								>
+									Znormalizuj numery (1..{projects.length})
+								</button>
+							</div>
+						</div>
+
+						<div className="mt-6 flex justify-end">
+							<button
+								type="button"
+								onClick={() => setIsOrganizeModalOpen(false)}
+								className="cursor-pointer rounded-lg bg-slate-100 px-5 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
+							>
+								Zamknij
+							</button>
+						</div>
 					</div>
 				</div>
 			)}

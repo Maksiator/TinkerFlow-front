@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircleFill, ExclamationCircleFill } from 'react-bootstrap-icons';
+import { ArrowLeft, CheckCircleFill, ExclamationCircleFill, ArrowDownCircleFill, SortNumericDown } from 'react-bootstrap-icons';
 import { projectService, type ProjectRequest, ProjectSoftware } from '../api/projectService';
 import toast from 'react-hot-toast';
 
@@ -20,35 +20,41 @@ export function AdminProjectsBulkAdd() {
 	const [software, setSoftware] = useState<ProjectSoftware>(ProjectSoftware.Tinkercad);
 	const [isAdvanced, setIsAdvanced] = useState(false);
 
-	const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-		const newText = e.target.value;
-		setRawText(newText);
+	// Stan kolejności z bazy danych
+	const [existingMaxOrder, setExistingMaxOrder] = useState<number>(0);
+	const [existingCount, setExistingCount] = useState<number>(0);
+	const [orderMode, setOrderMode] = useState<'end' | 'custom'>('end');
+	const [customStartOrder, setCustomStartOrder] = useState<number>(1);
 
-		if (!newText.trim()) {
-			setPreviewRows([]);
-			return;
-		}
+	useEffect(() => {
+		projectService.getAll().then((projects) => {
+			const maxOrder = projects.length > 0 ? Math.max(...projects.map((p) => p.sequenceOrder)) : 0;
+			setExistingMaxOrder(maxOrder);
+			setExistingCount(projects.length);
+			setCustomStartOrder(maxOrder + 1);
+		}).catch((err) => {
+			console.error('Błąd pobierania projektów:', err);
+		});
+	}, []);
 
-		const lines = newText.split('\n').filter((l) => l.trim().length > 0);
+	const parseTextToRows = (text: string, mode: 'end' | 'custom', customStart: number, maxOrder: number): PreviewProject[] => {
+		if (!text.trim()) return [];
+		const baseOrder = mode === 'end' ? maxOrder + 1 : (Number(customStart) || 1);
+		const lines = text.split('\n').filter((l) => l.trim().length > 0);
 
-		const parsed: PreviewProject[] = lines.map((line, index) => {
+		return lines.map((line, index) => {
 			let name = '';
 			let code = '';
 			let isValid = false;
 
-			// Magiczny Regex: szuka na końcu linijki ciągu np. "C1 L2" lub "c10 l2-3"
-			// i ignoruje wielkość liter (flaga 'i').
 			const match = line.match(/(c\d+\s+l\d+(?:-\d+)?)$/i);
 
 			if (match) {
-				code = match[1].toUpperCase(); // Ujednolicamy kod do dużych liter
-				name = line.substring(0, match.index).trim(); // Wszystko przed kodem to nazwa
-
-				// Oczyszczamy nazwę z ewentualnych tabulatorów czy średników na końcu
+				code = match[1].toUpperCase();
+				name = line.substring(0, match.index).trim();
 				name = name.replace(/[\t;,-]+$/, '').trim();
 				isValid = name.length > 0 && code.length > 0;
 			} else {
-				// Jeśli nie znaleziono kodu na końcu, traktujemy całą linijkę jako błędną
 				name = line.trim();
 			}
 
@@ -56,12 +62,27 @@ export function AdminProjectsBulkAdd() {
 				id: `proj-${index}`,
 				name,
 				code,
-				sequenceOrder: index + 1, // Automatyczne nadawanie kolejności wg wierszy
+				sequenceOrder: baseOrder + index,
 				isValid,
 			};
 		});
+	};
 
-		setPreviewRows(parsed);
+	const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+		const newText = e.target.value;
+		setRawText(newText);
+		setPreviewRows(parseTextToRows(newText, orderMode, customStartOrder, existingMaxOrder));
+	};
+
+	const handleOrderModeChange = (mode: 'end' | 'custom') => {
+		setOrderMode(mode);
+		setPreviewRows(parseTextToRows(rawText, mode, customStartOrder, existingMaxOrder));
+	};
+
+	const handleCustomStartChange = (val: number) => {
+		const safeVal = Math.max(1, val);
+		setCustomStartOrder(safeVal);
+		setPreviewRows(parseTextToRows(rawText, 'custom', safeVal, existingMaxOrder));
 	};
 
 	const handleSubmit = async () => {
@@ -149,6 +170,59 @@ export function AdminProjectsBulkAdd() {
 					</div>
 				</div>
 
+				{/* Numeracja i kolejność w bazie */}
+				<div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+					<div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+						<div>
+							<h3 className="text-sm font-bold text-slate-800">Pozycja / Numeracja w harmonogramie</h3>
+							<p className="text-xs text-slate-500">
+								Wybierz, w którym miejscu listy mają znaleźć się nowe projekty (obecnie w bazie jest {existingCount} projektów, max Lp. #{existingMaxOrder}).
+							</p>
+						</div>
+
+						<div className="flex flex-wrap items-center gap-3">
+							<button
+								type="button"
+								onClick={() => handleOrderModeChange('end')}
+								className={`cursor-pointer px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+									orderMode === 'end'
+										? 'bg-blue-600 text-white shadow-sm'
+										: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100'
+								}`}
+							>
+								<ArrowDownCircleFill size={14} />
+								Dodaj na samym końcu (od #{existingMaxOrder + 1})
+							</button>
+
+							<button
+								type="button"
+								onClick={() => handleOrderModeChange('custom')}
+								className={`cursor-pointer px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+									orderMode === 'custom'
+										? 'bg-blue-600 text-white shadow-sm'
+										: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100'
+								}`}
+							>
+								<SortNumericDown size={14} />
+								Własny numer startowy
+							</button>
+
+							{orderMode === 'custom' && (
+								<div className="flex items-center gap-2 animate-in fade-in duration-200">
+									<span className="text-xs font-semibold text-slate-600">Od numeru:</span>
+									<input
+										type="number"
+										min="1"
+										value={customStartOrder}
+										onChange={(e) => handleCustomStartChange(parseInt(e.target.value) || 1)}
+										className="w-24 rounded-lg border border-slate-300 bg-white p-2 text-xs font-bold outline-none focus:border-blue-500"
+									/>
+								</div>
+							)}
+						</div>
+					</div>
+				</div>
+
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
 					{/* LEWA: Wklejanie */}
 					<div className="flex flex-col gap-4">
@@ -180,7 +254,24 @@ export function AdminProjectsBulkAdd() {
 									<tbody>
 										{previewRows.map((row) => (
 											<tr key={row.id} className="border-b border-slate-100 bg-white hover:bg-slate-50">
-												<td className="p-3 font-mono text-slate-400">#{row.sequenceOrder}</td>
+												<td className="p-3">
+													<div className="flex items-center gap-1">
+														<span className="font-mono text-xs text-slate-400">#</span>
+														<input
+															type="number"
+															min="1"
+															value={row.sequenceOrder}
+															onChange={(e) => {
+																const val = parseInt(e.target.value) || 1;
+																setPreviewRows((prev) =>
+																	prev.map((r) => (r.id === row.id ? { ...r, sequenceOrder: val } : r))
+																);
+															}}
+															className="w-16 rounded border border-slate-200 px-2 py-1 text-xs font-bold font-mono outline-none focus:border-blue-500"
+															title="Zmień pozycję dla tego projektu"
+														/>
+													</div>
+												</td>
 												<td className="p-3">
 													{row.isValid ? (
 														<CheckCircleFill className="text-green-500" title="Poprawny" />

@@ -79,4 +79,9 @@ export const projectService = {
 		const response = await apiClient.get<Record<string, unknown>>(`/projects/${id}/usage`);
 		return response.data;
 	},
+
+	reorder: async (items: { id: string; sequenceOrder: number }[]) => {
+		const response = await apiClient.post<{ message: string }>('/projects/reorder', items);
+		return response.data;
+	},
 };
