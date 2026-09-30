@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, ArrowLeftRight } from 'react-bootstrap-icons';
+import { ArrowLeft, Search, ArrowLeftRight, LightningChargeFill } from 'react-bootstrap-icons';
 import { studentService, type StudentRequest, SkillLevel } from '../api/studentService';
-import { groupService, type Group } from '../api/groupService';
+import { groupService, type Group, GroupType } from '../api/groupService';
 import { branchService, type Branch } from '../api/branchService';
 import { systemSettingsService } from '../api/systemSettingsService';
 import { authService } from '../api/authService';
@@ -266,9 +266,18 @@ export function StudentForm() {
 			</button>
 
 			<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-				<h1 className="mb-8 text-2xl font-bold text-slate-800">
-					{isTrainer ? 'Profil ucznia' : isEditMode ? 'Edytuj dane ucznia' : 'Dodaj ucznia'}
-				</h1>
+				<div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+					<div className="flex items-center gap-3 flex-wrap">
+						<h1 className="text-2xl font-bold text-slate-800">
+							{isTrainer ? 'Profil ucznia' : isEditMode ? 'Edytuj dane ucznia' : 'Dodaj ucznia'}
+						</h1>
+						{groups.find((g) => g.id === formData.groupId)?.type === GroupType.Advanced && (
+							<span className="inline-flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 text-xs font-black uppercase tracking-wider text-purple-700 border border-purple-200 shadow-xs">
+								<LightningChargeFill className="text-purple-600" /> Grupa Zaawansowana
+							</span>
+						)}
+					</div>
+				</div>
 
 				<form onSubmit={handlePreSubmit} className="flex flex-col gap-6">
 					<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -370,9 +379,16 @@ export function StudentForm() {
 													setMainGroupSearch(''); // zresetuj, wyświetlać będziemy z formData
 													setIsMainGroupDropdownOpen(false);
 												}}
-												className="cursor-pointer border-b border-slate-100 p-3 text-sm hover:bg-slate-50 last:border-0"
+												className="cursor-pointer border-b border-slate-100 p-3 text-sm hover:bg-slate-50 last:border-0 flex items-center justify-between"
 											>
-												<span className="font-bold">{g.name}</span> <span className="text-slate-500">({g.branchName})</span>
+												<div>
+													<span className="font-bold">{g.name}</span> <span className="text-slate-500">({g.branchName})</span>
+												</div>
+												{g.type === GroupType.Advanced && (
+													<span className="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-black uppercase text-purple-700 border border-purple-200">
+														Zaawansowana
+													</span>
+												)}
 											</div>
 										))
 									)}

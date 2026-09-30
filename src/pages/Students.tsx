@@ -17,6 +17,7 @@ import {
 	PeopleFill,
 	ExclamationTriangleFill,
 	ArrowLeftRight,
+	LightningChargeFill,
 } from 'react-bootstrap-icons';
 import { studentService, type Student, SkillLevel } from '../api/studentService';
 import { groupService, type Group } from '../api/groupService';
@@ -361,7 +362,11 @@ export function Students() {
 										key={student.id}
 										onClick={() => navigate(`/uczniowie/${student.id}`)}
 										className={`group cursor-pointer border-b border-slate-100 transition-colors last:border-0 hover:bg-blue-50/40 ${
-											selectedStudentIds.includes(student.id) ? 'bg-blue-50/70' : ''
+											selectedStudentIds.includes(student.id)
+												? 'bg-blue-50/70'
+												: student.isAdvancedGroup
+												? 'bg-purple-50/25 border-l-4 border-l-purple-500'
+												: ''
 										}`}
 									>
 										{!isTrainer && (
@@ -375,8 +380,16 @@ export function Students() {
 											</td>
 										)}
 										<td className="p-4">
-											<div className="flex items-center gap-2 font-bold text-slate-800 group-hover:text-blue-700 transition-colors">
-												{student.firstName} {student.lastName}
+											<div className="flex items-center gap-2 font-bold text-slate-800 group-hover:text-blue-700 transition-colors flex-wrap">
+												<span>{student.firstName} {student.lastName}</span>
+												{student.isAdvancedGroup && (
+													<span
+														className="inline-flex items-center gap-1 rounded-md bg-purple-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-purple-700 border border-purple-200 shadow-xs"
+														title="Uczeń przypisany do grupy zaawansowanej"
+													>
+														<LightningChargeFill className="text-purple-600 text-xs" /> Zaawansowany
+													</span>
+												)}
 												{student.isIndependent && (
 													<StarFill className="text-xs text-yellow-400" title="Pracuje samodzielnie" />
 												)}
@@ -396,7 +409,16 @@ export function Students() {
 										</td>
 										<td className="p-4">
 											{student.groupName ? (
-												<span className="font-medium text-slate-700">{student.groupName}</span>
+												<div className="flex items-center gap-1.5 flex-wrap">
+													<span className={`font-semibold ${student.isAdvancedGroup ? 'text-purple-900 font-bold' : 'text-slate-700'}`}>
+														{student.groupName}
+													</span>
+													{student.isAdvancedGroup && (
+														<span className="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-purple-700 border border-purple-200">
+															Zaawansowana
+														</span>
+													)}
+												</div>
 											) : (
 												<span className="text-slate-400 italic">Brak grupy</span>
 											)}

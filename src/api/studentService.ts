@@ -19,6 +19,7 @@ export interface Student {
 	groupId: string | null;
 	groupName?: string | null;
 	branchId?: string | null;
+	isAdvancedGroup?: boolean;
 	recordHistory?: boolean;
 	isMidYear?: boolean;
 	academicYear?: string;
