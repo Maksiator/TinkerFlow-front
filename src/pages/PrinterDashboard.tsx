@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { printBatchService, type PrintBatchResponse, PrintBatchState } from '../api/printBatchService';
-import { PrinterFill, ClockHistory, GearFill, CalendarEvent, ListTask, Grid3x3GapFill, ChatLeftTextFill, SlashCircle, Scissors } from 'react-bootstrap-icons';
+import { PrinterFill, ClockHistory, GearFill, CalendarEvent, ListTask, Grid3x3GapFill, ChatLeftTextFill, SlashCircle, Scissors, BarChartFill } from 'react-bootstrap-icons';
 import { PrintBatchManagerModal } from '../components/PrintBatchManagerModal';
 import { NoPrintsScheduleModal } from '../components/NoPrintsScheduleModal';
 import { CustomSelect } from '../components/CustomSelect';
 import { PrintLabelsModal } from '../components/PrintLabelsModal';
+import { PrinterSummaryModal } from '../components/PrinterSummaryModal';
 import { authService } from '../api/authService';
 import { UserRole } from '../api/userService';
 import toast from 'react-hot-toast';
@@ -18,6 +19,7 @@ export function PrinterDashboard() {
 	const [selectedBatch, setSelectedBatch] = useState<PrintBatchResponse | null>(null);
 	const [isLabelsModalOpen, setIsLabelsModalOpen] = useState(false);
 	const [selectedBatchIdsForLabels, setSelectedBatchIdsForLabels] = useState<string[]>([]);
+	const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
 	// Widok: 'compact' (Tabela / Uproszczony) lub 'detailed' (Karty ze szczegółami)
 	const [viewMode, setViewMode] = useState<'compact' | 'detailed'>(() => {
@@ -388,6 +390,16 @@ export function PrinterDashboard() {
 						</button>
 					)}
 
+					{/* PRZYCISK ROZLICZENIA / RAPORTU DRUKÓW */}
+					<button
+						type="button"
+						onClick={() => setIsSummaryModalOpen(true)}
+						className="flex cursor-pointer items-center gap-2 rounded-xl border border-purple-200 bg-purple-50/60 px-3.5 py-2 text-sm font-bold text-purple-700 shadow-sm transition-all hover:border-purple-300 hover:bg-purple-100"
+						title="Otwórz podsumowanie i rozliczenie liczby wydrukowanych modeli w wybranym okresie"
+					>
+						<BarChartFill className="text-purple-600" size={15} />
+						<span>Rozliczenie druków</span>
+					</button>
 
 					<label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 shadow-sm transition-all hover:bg-slate-50">
 						<input
@@ -1028,6 +1040,12 @@ export function PrinterDashboard() {
 					onBatchIdsChange={setSelectedBatchIdsForLabels}
 				/>
 			)}
+
+			{/* MODAL ROZLICZENIA PRACY DRUKARZA */}
+			<PrinterSummaryModal
+				isOpen={isSummaryModalOpen}
+				onClose={() => setIsSummaryModalOpen(false)}
+			/>
 		</div>
 	);
 }

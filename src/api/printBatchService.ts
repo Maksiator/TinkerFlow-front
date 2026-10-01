@@ -239,4 +239,61 @@ export const printBatchService = {
 			throw new Error(extractErrorMessage(error, 'Nie udało się pobrać historii paczek dla tej grupy.'));
 		}
 	},
+	getPrinterSummary: async (params?: {
+		fromDate?: string;
+		toDate?: string;
+		printerId?: string;
+		dateField?: 'lessonDate' | 'createdAt';
+	}) => {
+		try {
+			const query = new URLSearchParams();
+			if (params?.fromDate) query.append('fromDate', params.fromDate);
+			if (params?.toDate) query.append('toDate', params.toDate);
+			if (params?.printerId) query.append('printerId', params.printerId);
+			if (params?.dateField) query.append('dateField', params.dateField);
+
+			const queryString = query.toString();
+			const url = `${BASE_URL}/summary${queryString ? `?${queryString}` : ''}`;
+			const response = await apiClient.get<PrinterSummaryResponse>(url);
+			return response.data;
+		} catch (error) {
+			throw new Error(extractErrorMessage(error, 'Nie udało się pobrać podsumowania dla drukarza.'));
+		}
+	},
 };
+
+export interface PrinterJobSummary {
+	jobId: string;
+	studentName: string;
+	projectName: string;
+	status: PrintJobsStates;
+}
+
+export interface PrinterBatchSummary {
+	batchId: string;
+	lessonDate: string;
+	createdAt: string;
+	status: PrintBatchState;
+	modelsPrintedCount: number;
+	modelsFailedCount: number;
+	jobs: PrinterJobSummary[];
+}
+
+export interface PrinterGroupSummary {
+	groupId: string;
+	groupName: string;
+	branchName?: string | null;
+	assignedPrinterName?: string | null;
+	modelsPrintedCount: number;
+	modelsFailedCount: number;
+	batchesCount: number;
+	batches: PrinterBatchSummary[];
+}
+
+export interface PrinterSummaryResponse {
+	totalModelsPrinted: number;
+	totalModelsFailed: number;
+	totalBatchesCompleted: number;
+	totalGroups: number;
+	groupsSummary: PrinterGroupSummary[];
+}
