@@ -32,6 +32,7 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 
 	const [matrixState, setMatrixState] = useState<Record<string, ProjectState>>({});
 	const [localRefresh, setLocalRefresh] = useState(0);
+	const [activeReadyBatch, setActiveReadyBatch] = useState<any>(null);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -87,6 +88,7 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 				}
 
 				// Jeśli jest paczka do odbioru -> od razu otwieramy nowy panel wydruków!
+				setActiveReadyBatch(readyBatch);
 				if (readyBatch) {
 					setIsPrintManagerOpen(true);
 				}
@@ -302,13 +304,61 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 						<span className="hidden sm:inline">Podsumowanie</span>
 					</button>
 
-					<button
-						onClick={() => setIsPrintManagerOpen(!isPrintManagerOpen)}
-						className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-bold transition-colors md:flex-none md:px-4 md:text-sm ${isPrintManagerOpen ? 'bg-purple-200 text-purple-800' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'}`}
-					>
-						<PrinterFill />
-						<span className="hidden sm:inline">Wydruki</span>
-					</button>
+					{(() => {
+						const isAllFailed =
+							activeReadyBatch &&
+							activeReadyBatch.printJobs?.length > 0 &&
+							activeReadyBatch.printJobs.every((j: any) => j.status === 3); // Failed
+						const hasNotes = !!activeReadyBatch?.printerNotes?.trim();
+
+						let buttonColorClass = isPrintManagerOpen
+							? 'bg-purple-200 text-purple-800'
+							: 'bg-purple-100 text-purple-700 hover:bg-purple-200';
+						let alertBadge = null;
+
+						if (activeReadyBatch) {
+							if (isAllFailed) {
+								buttonColorClass = isPrintManagerOpen
+									? 'bg-red-200 text-red-900 border border-red-300'
+									: 'bg-red-100 text-red-800 hover:bg-red-200 border border-red-300 ring-2 ring-red-400 animate-pulse';
+								alertBadge = (
+									<span className="flex h-2 w-2 relative">
+										<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+										<span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+									</span>
+								);
+							} else if (hasNotes) {
+								buttonColorClass = isPrintManagerOpen
+									? 'bg-amber-200 text-amber-900 border border-amber-300'
+									: 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300 ring-2 ring-amber-400';
+								alertBadge = (
+									<span className="flex h-2 w-2 relative">
+										<span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+									</span>
+								);
+							} else {
+								buttonColorClass = isPrintManagerOpen
+									? 'bg-green-200 text-green-900 border border-green-300'
+									: 'bg-green-100 text-green-800 hover:bg-green-200 border border-green-300';
+								alertBadge = (
+									<span className="flex h-2 w-2 relative">
+										<span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+									</span>
+								);
+							}
+						}
+
+						return (
+							<button
+								onClick={() => setIsPrintManagerOpen(!isPrintManagerOpen)}
+								className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-bold transition-all md:flex-none md:px-4 md:text-sm ${buttonColorClass}`}
+							>
+								<PrinterFill />
+								<span className="hidden sm:inline">Wydruki</span>
+								{alertBadge}
+							</button>
+						);
+					})()}
 
 					<button
 						onClick={() => setIsPrintLogOpen(true)}

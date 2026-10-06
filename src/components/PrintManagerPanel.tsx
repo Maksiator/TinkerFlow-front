@@ -493,16 +493,38 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 	}, [historyBatches]);
 
 	// POMOCNICZE TŁUMACZENIA STATUSÓW
-	const getStatusBadge = (status: PrintBatchState) => {
+	const getStatusBadge = (status: PrintBatchState, batchItem?: PrintBatchResponse) => {
 		switch (status) {
 			case PrintBatchState.Pending:
 				return <span className="rounded bg-yellow-100 px-2 py-0.5 text-[10px] font-bold text-yellow-800">Wysłane</span>;
 			case PrintBatchState.Printing:
 				return <span className="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">W druku</span>;
-			case PrintBatchState.ReadyForCollection:
+			case PrintBatchState.ReadyForCollection: {
+				const isAllFailed =
+					batchItem &&
+					batchItem.printJobs &&
+					batchItem.printJobs.length > 0 &&
+					batchItem.printJobs.every((j) => j.status === PrintJobsStates.Failed);
+				const hasNotes = !!batchItem?.printerNotes?.trim();
+
+				if (isAllFailed) {
+					return (
+						<span className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800 border border-red-200">
+							<ExclamationTriangleFill size={10} /> Brak wydruków
+						</span>
+					);
+				}
+				if (hasNotes) {
+					return (
+						<span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
+							<ChatLeftTextFill size={10} /> Z uwagami
+						</span>
+					);
+				}
 				return (
 					<span className="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-800">Do odbioru</span>
 				);
+			}
 			case PrintBatchState.Completed:
 				return (
 					<span className="rounded bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-800">Zakończone</span>
@@ -547,24 +569,63 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 					<div className="flex flex-col gap-4 p-4">
 						{readyBatch && (() => {
 							const failedJobs = readyBatch.printJobs.filter((j) => j.status === PrintJobsStates.Failed);
+							const isAllFailed = readyBatch.printJobs.length > 0 && failedJobs.length === readyBatch.printJobs.length;
+							const hasNotes = !!readyBatch.printerNotes?.trim();
+
+							// Kolorystyka i tytuły zależne od stanu
+							let containerClasses = 'rounded-xl border border-green-300 bg-green-50 p-4 shadow-sm';
+							let titleClasses = 'mb-2 flex items-center gap-2 text-sm font-bold text-green-800';
+							let descClasses = 'mb-3 text-xs text-green-700';
+							let btnClasses = 'w-full rounded-lg bg-green-600 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-700 disabled:opacity-50 cursor-pointer';
+							let btnText = 'Odbierz wydruki';
+
+							if (isAllFailed) {
+								containerClasses = 'rounded-xl border-2 border-red-400 bg-red-50 p-4 shadow-md';
+								titleClasses = 'mb-2 flex items-center gap-2 text-sm font-extrabold text-red-800';
+								descClasses = 'mb-3 text-xs text-red-700 font-medium';
+								btnClasses = 'w-full rounded-lg bg-red-600 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-red-700 disabled:opacity-50 cursor-pointer';
+								btnText = 'Potwierdź brak wydruków (Zakończ)';
+							} else if (hasNotes || failedJobs.length > 0) {
+								containerClasses = 'rounded-xl border-2 border-amber-300 bg-amber-50 p-4 shadow-sm';
+								titleClasses = 'mb-2 flex items-center gap-2 text-sm font-bold text-amber-900';
+								descClasses = 'mb-3 text-xs text-amber-800 font-medium';
+								btnClasses = 'w-full rounded-lg bg-amber-600 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-amber-700 disabled:opacity-50 cursor-pointer';
+								btnText = 'Odbierz wydruki (z uwagami)';
+							}
 
 							return (
-								<div className="rounded-xl border border-green-300 bg-green-50 p-4 shadow-sm">
-									<h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-green-800">
-										<BoxSeamFill /> Paczka do odbioru!
+								<div className={containerClasses}>
+									<h3 className={titleClasses}>
+										{isAllFailed ? (
+											<>
+												<ExclamationTriangleFill className="text-red-600 animate-pulse" /> Ważne: Brak gotowych wydruków!
+											</>
+										) : (
+											<>
+												<BoxSeamFill /> Paczka do odbioru!
+											</>
+										)}
 									</h3>
-									<p className="mb-3 text-xs text-green-700">
-										Wydruki z grupy gotowe. Potwierdź odbiór, aby oznaczyć projekty jako Zrobione.
+									<p className={descClasses}>
+										{isAllFailed
+											? 'Drukarz zgłosił brak możliwości wydrukowania modeli dla tej grupy. Zapoznaj się z uwagami i zatwierdź, aby przywrócić projekty na matrycy do stanu "W trakcie".'
+											: 'Wydruki z grupy gotowe. Potwierdź odbiór, aby oznaczyć zrealizowane projekty jako Zrobione.'}
 									</p>
 
 									{/* Notatka / informacja od drukarza */}
 									{readyBatch.printerNotes && (
-										<div className="mb-3 rounded-lg border border-green-200 bg-white/95 p-3 text-xs shadow-2xs">
-											<div className="flex items-center gap-1.5 font-bold text-green-800 mb-1">
-												<ChatLeftTextFill size={13} className="text-green-600 shrink-0" />
+										<div className={`mb-3 rounded-lg border p-3 text-xs shadow-2xs ${
+											isAllFailed 
+												? 'border-red-300 bg-white text-red-950' 
+												: 'border-amber-200 bg-white text-amber-950'
+										}`}>
+											<div className={`flex items-center gap-1.5 font-bold mb-1 ${
+												isAllFailed ? 'text-red-800' : 'text-amber-900'
+											}`}>
+												<ChatLeftTextFill size={13} className={isAllFailed ? 'text-red-600 shrink-0' : 'text-amber-600 shrink-0'} />
 												<span>Wiadomość od drukarza:</span>
 											</div>
-											<p className="whitespace-pre-wrap font-medium text-slate-700">{readyBatch.printerNotes}</p>
+											<p className="whitespace-pre-wrap font-semibold">{readyBatch.printerNotes}</p>
 										</div>
 									)}
 
@@ -599,9 +660,9 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 									<button
 										onClick={handleConfirmDelivery}
 										disabled={isSubmitting}
-										className="w-full rounded-lg bg-green-600 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-700 disabled:opacity-50 cursor-pointer"
+										className={btnClasses}
 									>
-										{isSubmitting ? 'Odbieranie...' : 'Odbierz wydruki'}
+										{isSubmitting ? 'Przetwarzanie...' : btnText}
 									</button>
 								</div>
 							);
@@ -925,7 +986,7 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 											<span className="text-xs font-bold text-slate-500">
 												Zajęcia z: {new Date(batch.lessonDate).toLocaleDateString()}
 											</span>
-											{getStatusBadge(batch.status)}
+											{getStatusBadge(batch.status, batch)}
 										</div>
 										<div className="p-3 text-sm">
 											<div className="mb-2 flex items-center justify-between">

@@ -117,7 +117,7 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 						? { ...job, status: PrintJobsStates.Printed }
 						: job;
 				}
-				// Jeśli kliknęliśmy "Nic nie wydrukowano (Zakończ)" -> wszystkie zmieniają się na "Nie wydrukowano"
+				// Jeśli kliknęliśmy "Zakończono" -> wszystkie w druku i oczekujące zmieniają się na "Nie wydrukowano"
 				else if (newStatus === PrintBatchState.Completed) {
 					return job.status === PrintJobsStates.Printing || job.status === PrintJobsStates.Pending
 						? { ...job, status: PrintJobsStates.Failed }
@@ -162,12 +162,8 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 			nextJobs.length > 0 &&
 			localBatchStatus !== PrintBatchState.NoPrints
 		) {
-			if (nextJobs.every((j) => j.status === PrintJobsStates.Failed)) {
-				optimisticBatchStatus = PrintBatchState.Completed;
-			} else if (
-				nextJobs.every((j) => j.status === PrintJobsStates.Printed || j.status === PrintJobsStates.Failed) &&
-				nextJobs.some((j) => j.status === PrintJobsStates.Printed)
-			) {
+			// Jeśli wszystkie zadania zostały rozstrzygnięte (Printed lub Failed) -> Do odbioru (żeby trener odebrał/zobaczył informację)
+			if (nextJobs.every((j) => j.status === PrintJobsStates.Printed || j.status === PrintJobsStates.Failed)) {
 				optimisticBatchStatus = PrintBatchState.ReadyForCollection;
 			} else if (nextJobs.some((j) => j.status === PrintJobsStates.Printing || j.status === PrintJobsStates.Printed)) {
 				optimisticBatchStatus = PrintBatchState.Printing;
@@ -210,15 +206,45 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 	};
 
 	// ==========================================
-	// 3. OZNACZENIE WSZYSTKIEGO JAKO NIEWYDRUKOWANE I ZAMKNIĘCIE PACZKI
+	// 3. OZNACZENIE WSZYSTKIEGO JAKO NIEWYDRUKOWANE (DO ODBIORU TRENERA)
 	// ==========================================
-	const handleMarkAllFailedAndComplete = async () => {
+	const handleMarkAllFailedAndReady = async () => {
 		const isConfirmed = window.confirm(
-			'Czy na pewno chcesz oznaczyć wszystkie modele w tej paczce jako NIEWYDRUKOWANE i zamknąć paczkę?\n\nProjekty wrócą na matrycę ucznia jako "W trakcie", by trener mógł je ponownie zgłosić.',
+			'Czy na pewno chcesz oznaczyć wszystkie modele w tej paczce jako NIEWYDRUKOWANE?\n\nPaczka trafi do trenera ze statusem "Do odbioru (Brak wydruków)", by trener zobaczył informację i zatwierdził odbiór.',
 		);
 		if (!isConfirmed) return;
 
-		await handleBatchStatusChange(PrintBatchState.Completed);
+		setIsSubmitting(true);
+		try {
+			const trimmedNotes = printerNotes.trim() !== '' ? printerNotes.trim() : null;
+			// 1. Zmieniamy status każdego zadania na Failed
+			await Promise.all(
+				localJobs.map((j) => printBatchService.updateJobStatus(j.id, PrintJobsStates.Failed))
+			);
+			// 2. Jeśli jest notatka, zapisujemy ją
+			if (trimmedNotes !== (batch.printerNotes || null)) {
+				await printBatchService.updatePrinterNotes(batch.id, trimmedNotes);
+			}
+
+			const nextJobs = localJobs.map((j) => ({ ...j, status: PrintJobsStates.Failed }));
+			setLocalJobs(nextJobs);
+			setLocalBatchStatus(PrintBatchState.ReadyForCollection);
+
+			onBatchUpdated?.({
+				...batch,
+				status: PrintBatchState.ReadyForCollection,
+				printJobs: nextJobs,
+				printerNotes: trimmedNotes,
+			});
+
+			toast.success('Oznaczono wszystkie modele jako niewydrukowane!');
+			onRefreshNeeded();
+		} catch (error: unknown) {
+			const errorMessage = error instanceof Error ? error.message : 'Wystąpił błąd.';
+			toast.error(errorMessage);
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	// ==========================================
@@ -266,8 +292,26 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 				return <span className="rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-bold text-yellow-800">Oczekujące</span>;
 			case PrintBatchState.Printing:
 				return <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-800">W druku</span>;
-			case PrintBatchState.ReadyForCollection:
+			case PrintBatchState.ReadyForCollection: {
+				const isAllFailed = localJobs.length > 0 && localJobs.every((j) => j.status === PrintJobsStates.Failed);
+				const hasNotes = !!printerNotes.trim();
+
+				if (isAllFailed) {
+					return (
+						<span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-extrabold text-red-800 border border-red-200 animate-pulse">
+							<ExclamationTriangleFill size={11} /> Do odbioru (Brak wydruków)
+						</span>
+					);
+				}
+				if (hasNotes) {
+					return (
+						<span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-extrabold text-amber-800 border border-amber-200">
+							<ChatLeftTextFill size={11} /> Do odbioru (Z uwagami)
+						</span>
+					);
+				}
 				return <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-bold text-purple-800">Do odbioru</span>;
+			}
 			case PrintBatchState.Completed:
 				return <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-800">Zakończone</span>;
 			case PrintBatchState.NoPrints:
@@ -527,7 +571,7 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 							</button>
 
 							<button
-								onClick={handleMarkAllFailedAndComplete}
+								onClick={handleMarkAllFailedAndReady}
 								disabled={
 									isSubmitting ||
 									localBatchStatus === PrintBatchState.Completed ||

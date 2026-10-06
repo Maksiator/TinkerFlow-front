@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { printBatchService, type PrintBatchResponse, PrintBatchState } from '../api/printBatchService';
-import { PrinterFill, ClockHistory, GearFill, CalendarEvent, ListTask, Grid3x3GapFill, ChatLeftTextFill, SlashCircle, Scissors, BarChartFill } from 'react-bootstrap-icons';
+import { printBatchService, type PrintBatchResponse, PrintBatchState, PrintJobsStates } from '../api/printBatchService';
+import { PrinterFill, ClockHistory, GearFill, CalendarEvent, ListTask, Grid3x3GapFill, ChatLeftTextFill, SlashCircle, Scissors, BarChartFill, ExclamationTriangleFill } from 'react-bootstrap-icons';
 import { PrintBatchManagerModal } from '../components/PrintBatchManagerModal';
 import { NoPrintsScheduleModal } from '../components/NoPrintsScheduleModal';
 import { CustomSelect } from '../components/CustomSelect';
@@ -107,7 +107,7 @@ export function PrinterDashboard() {
 	};
 
 	// Pomocnicza funkcja do tłumaczenia statusu i przypisania koloru
-	const getStatusBadge = (status: PrintBatchState) => {
+	const getStatusBadge = (status: PrintBatchState, batch?: PrintBatchResponse) => {
 		switch (status) {
 			case PrintBatchState.Pending:
 				return (
@@ -115,10 +115,32 @@ export function PrinterDashboard() {
 				);
 			case PrintBatchState.Printing:
 				return <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">W druku</span>;
-			case PrintBatchState.ReadyForCollection:
+			case PrintBatchState.ReadyForCollection: {
+				const isAllFailed =
+					batch &&
+					batch.printJobs &&
+					batch.printJobs.length > 0 &&
+					batch.printJobs.every((j) => j.status === PrintJobsStates.Failed);
+				const hasNotes = !!batch?.printerNotes?.trim();
+
+				if (isAllFailed) {
+					return (
+						<span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-extrabold text-red-800 border border-red-200 animate-pulse">
+							<ExclamationTriangleFill size={11} /> Do odbioru (Brak wydruków)
+						</span>
+					);
+				}
+				if (hasNotes) {
+					return (
+						<span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-800 border border-amber-200">
+							<ChatLeftTextFill size={11} /> Do odbioru (Z uwagami)
+						</span>
+					);
+				}
 				return (
 					<span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-800">Do odbioru</span>
 				);
+			}
 			case PrintBatchState.Completed:
 				return <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-800">Zakończone</span>;
 			case PrintBatchState.NoPrints:
@@ -660,7 +682,7 @@ export function PrinterDashboard() {
 												</td>
 											)}
 											<td className="p-4 whitespace-nowrap">
-												{getStatusBadge(batch.status)}
+												{getStatusBadge(batch.status, batch)}
 											</td>
 											<td className="p-4">
 												<div className="font-bold text-slate-800">{batch.groupName}</div>
@@ -823,7 +845,7 @@ export function PrinterDashboard() {
 												</h2>
 											</div>
 										</div>
-										<div className="shrink-0">{getStatusBadge(batch.status)}</div>
+										<div className="shrink-0">{getStatusBadge(batch.status, batch)}</div>
 									</div>
 
 								<div className="flex flex-col gap-1 text-xs text-slate-500 mt-2">
