@@ -117,6 +117,12 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 						? { ...job, status: PrintJobsStates.Printed }
 						: job;
 				}
+				// Jeśli kliknęliśmy "Nic nie wydrukowano (Zakończ)" -> wszystkie zmieniają się na "Nie wydrukowano"
+				else if (newStatus === PrintBatchState.Completed) {
+					return job.status === PrintJobsStates.Printing || job.status === PrintJobsStates.Pending
+						? { ...job, status: PrintJobsStates.Failed }
+						: job;
+				}
 				return job;
 			});
 
@@ -154,10 +160,11 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 		let optimisticBatchStatus = localBatchStatus;
 		if (
 			nextJobs.length > 0 &&
-			localBatchStatus !== PrintBatchState.Completed &&
 			localBatchStatus !== PrintBatchState.NoPrints
 		) {
-			if (
+			if (nextJobs.every((j) => j.status === PrintJobsStates.Failed)) {
+				optimisticBatchStatus = PrintBatchState.Completed;
+			} else if (
 				nextJobs.every((j) => j.status === PrintJobsStates.Printed || j.status === PrintJobsStates.Failed) &&
 				nextJobs.some((j) => j.status === PrintJobsStates.Printed)
 			) {
@@ -203,7 +210,19 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 	};
 
 	// ==========================================
-	// 3. CAŁKOWITE USUNIĘCIE PACZKI
+	// 3. OZNACZENIE WSZYSTKIEGO JAKO NIEWYDRUKOWANE I ZAMKNIĘCIE PACZKI
+	// ==========================================
+	const handleMarkAllFailedAndComplete = async () => {
+		const isConfirmed = window.confirm(
+			'Czy na pewno chcesz oznaczyć wszystkie modele w tej paczce jako NIEWYDRUKOWANE i zamknąć paczkę?\n\nProjekty wrócą na matrycę ucznia jako "W trakcie", by trener mógł je ponownie zgłosić.',
+		);
+		if (!isConfirmed) return;
+
+		await handleBatchStatusChange(PrintBatchState.Completed);
+	};
+
+	// ==========================================
+	// 4. CAŁKOWITE USUNIĘCIE PACZKI
 	// ==========================================
 	const handleDeleteBatch = async () => {
 		const isConfirmed = window.confirm(
@@ -479,16 +498,17 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 						<h3 className="mb-3 text-center text-xs font-bold tracking-wider text-slate-500 uppercase">
 							Masowa aktualizacja (Bulk Update)
 						</h3>
-						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+						<div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
 							<button
 								onClick={() => handleBatchStatusChange(PrintBatchState.Printing)}
 								disabled={
 									isSubmitting ||
 									localBatchStatus === PrintBatchState.Printing ||
 									localBatchStatus === PrintBatchState.ReadyForCollection ||
+									localBatchStatus === PrintBatchState.Completed ||
 									localJobs.length === 0
 								}
-								className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-600 p-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+								className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-600 p-2.5 text-xs sm:text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<PrinterFill /> Przekaż do druku
 							</button>
@@ -496,11 +516,26 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 							<button
 								onClick={() => handleBatchStatusChange(PrintBatchState.ReadyForCollection)}
 								disabled={
-									isSubmitting || localBatchStatus === PrintBatchState.ReadyForCollection || localJobs.length === 0
+									isSubmitting ||
+									localBatchStatus === PrintBatchState.ReadyForCollection ||
+									localBatchStatus === PrintBatchState.Completed ||
+									localJobs.length === 0
 								}
-								className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-600 p-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+								className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-600 p-2.5 text-xs sm:text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<BoxSeamFill /> Gotowe do odbioru
+							</button>
+
+							<button
+								onClick={handleMarkAllFailedAndComplete}
+								disabled={
+									isSubmitting ||
+									localBatchStatus === PrintBatchState.Completed ||
+									localJobs.length === 0
+								}
+								className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs sm:text-sm font-bold text-red-700 shadow-sm transition-colors hover:bg-red-100 hover:border-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+							>
+								<XCircleFill /> Nic nie wydrukowano
 							</button>
 						</div>
 					</div>
