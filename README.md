@@ -104,3 +104,11 @@ The application will be live at `http://localhost:5173`.
 ├── Dockerfile        # Production multi-stage build (Node build -> Nginx static server)
 └── package.json
 ```
+
+---
+
+## License
+
+Copyright © 2026 Maksymilian Fijoł. All rights reserved.  
+This repository and its codebase are proprietary. Published strictly for portfolio, architectural review, and hiring evaluation purposes. Unauthorized copying, distribution, modification, or commercial use without prior written permission is strictly prohibited.
+
