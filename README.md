@@ -1,8 +1,8 @@
 # TinkerFlow — Frontend Client
 
-Web application for **TinkerFlow** — an operational management and 3D print logistics platform built for mobile instructors and 3D printer operators conducting school workshops.
+Field-operations web client for **TinkerFlow** — an internal operational management and 3D print logistics platform used by mobile instructors, regional coordinators, and print lab operators conducting school workshops.
 
-Currently serving **1,000+ active elementary school students across 5 regional branches**, coordinating daily in-class progress, packing calculations, and central 3D print farm intake.
+Currently tracking live progress records for **1,000+ students across 5 regional branches**, coordinating daily in-class matrix progress, material packing calculations, and central 3D print farm intake.
 
 > **Related repository:** Backend REST API available at [TinkerFlow-back](https://github.com/Maksiator/TinkerFlow-back).
 
