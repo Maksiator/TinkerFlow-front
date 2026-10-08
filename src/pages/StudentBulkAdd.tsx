@@ -10,8 +10,10 @@ import {
 	Search,
 	PeopleFill,
 	PersonPlusFill,
+	PersonDashFill,
 	CheckLg,
 	InfoCircleFill,
+	ListUl,
 } from 'react-bootstrap-icons';
 import {
 	studentService,
@@ -276,6 +278,28 @@ export function StudentBulkAdd() {
 		});
 	};
 
+	// Wybór aktywnej zakładki w podglądzie (wszystko / tylko do dodania / brak w ActiveNow)
+	const [activeTab, setActiveTab] = useState<'all' | 'missing_in_activenow'>('all');
+
+	// Uczniowie, którzy są obecnie w grupie w bazie, ale nie pojawili się na wklejonej liście z ActiveNow
+	const missingInImportStudents = useMemo(() => {
+		if (!selectedGroupId || groupStudents.length === 0 || previewRows.length === 0) {
+			return [];
+		}
+
+		// Zbiór kluczy uczniów z wklejonej listy
+		const importKeys = new Set(
+			previewRows
+				.filter((r) => r.isValid)
+				.map((r) => `${r.firstName.trim().toLowerCase()}_${r.lastName.trim().toLowerCase()}`)
+		);
+
+		return groupStudents.filter((student) => {
+			const key = `${student.firstName.trim().toLowerCase()}_${student.lastName.trim().toLowerCase()}`;
+			return !importKeys.has(key);
+		});
+	}, [selectedGroupId, groupStudents, previewRows]);
+
 	// Statystyki podglądu
 	const stats = useMemo(() => {
 		const toAdd = previewRows.filter((r) => r.isValid && !r.isAlreadyInGroup && !r.isDuplicateInList);
@@ -289,8 +313,9 @@ export function StudentBulkAdd() {
 			duplicateInListCount: duplicateInList.length,
 			invalidCount: invalid.length,
 			toAddRows: toAdd,
+			missingInImportCount: missingInImportStudents.length,
 		};
-	}, [previewRows]);
+	}, [previewRows, missingInImportStudents]);
 
 	const handleSubmit = async () => {
 		if (stats.invalidCount > 0) {
@@ -606,19 +631,72 @@ export function StudentBulkAdd() {
 
 					{/* PRAWA KOLUMNA: Dynamiczny podgląd i statystyki */}
 					<div className="flex h-full flex-col">
-						<label className="mb-2 block text-sm font-bold text-slate-700">Dynamiczny podgląd weryfikacji:</label>
+						<div className="mb-2 flex items-center justify-between">
+							<label className="block text-sm font-bold text-slate-700">Dynamiczny podgląd weryfikacji:</label>
+							{selectedGroupId && previewRows.length > 0 && groupStudents.length > 0 && (
+								<div className="flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-bold shadow-2xs">
+									<button
+										type="button"
+										onClick={() => setActiveTab('all')}
+										className={`cursor-pointer flex items-center gap-1.5 rounded-md px-2.5 py-1 transition-all ${
+											activeTab === 'all'
+												? 'bg-blue-600 text-white shadow-xs'
+												: 'text-slate-600 hover:text-slate-900'
+										}`}
+									>
+										<ListUl size={13} />
+										<span>Wklejona lista ({previewRows.length})</span>
+									</button>
+									<button
+										type="button"
+										onClick={() => setActiveTab('missing_in_activenow')}
+										className={`cursor-pointer flex items-center gap-1.5 rounded-md px-2.5 py-1 transition-all ${
+											activeTab === 'missing_in_activenow'
+												? 'bg-rose-600 text-white shadow-xs'
+												: stats.missingInImportCount > 0
+												? 'text-rose-700 font-extrabold hover:bg-rose-50'
+												: 'text-slate-600 hover:text-slate-900'
+										}`}
+									>
+										<PersonDashFill size={13} />
+										<span>Brak w ActiveNow ({stats.missingInImportCount})</span>
+										{stats.missingInImportCount > 0 && (
+											<span className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+												activeTab === 'missing_in_activenow' ? 'bg-white text-rose-700' : 'bg-rose-100 text-rose-800'
+											}`}>
+												!
+											</span>
+										)}
+									</button>
+								</div>
+							)}
+						</div>
 
 						{/* LICZNIKI STATYSTYK W CZASIE RZECZYWISTYM */}
 						{previewRows.length > 0 && (
-							<div className="mb-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+							<div className={`mb-3 grid grid-cols-2 gap-2 text-center text-xs ${selectedGroupId && groupStudents.length > 0 ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
 								<div className="rounded-lg border border-green-200 bg-green-50 p-2 text-green-800">
 									<div className="text-lg font-extrabold">{stats.toAddCount}</div>
-									<div className="font-bold">Do dodania</div>
+									<div className="font-bold">Nowi do dodania</div>
 								</div>
 								<div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-800">
 									<div className="text-lg font-extrabold">{stats.inGroupCount}</div>
 									<div className="font-bold">Już w grupie</div>
 								</div>
+								{selectedGroupId && groupStudents.length > 0 && (
+									<button
+										type="button"
+										onClick={() => setActiveTab('missing_in_activenow')}
+										className={`cursor-pointer rounded-lg border p-2 text-center transition-all ${
+											stats.missingInImportCount > 0
+												? 'border-rose-300 bg-rose-50/80 text-rose-800 hover:bg-rose-100'
+												: 'border-slate-200 bg-slate-50 text-slate-500'
+										}`}
+									>
+										<div className="text-lg font-extrabold">{stats.missingInImportCount}</div>
+										<div className="font-bold">Brak w ActiveNow</div>
+									</button>
+								)}
 								<div className="rounded-lg border border-orange-200 bg-orange-50 p-2 text-orange-800">
 									<div className="text-lg font-extrabold">{stats.duplicateInListCount}</div>
 									<div className="font-bold">Duplikat listy</div>
@@ -635,7 +713,62 @@ export function StudentBulkAdd() {
 								<div className="flex h-full items-center justify-center p-8 text-center text-sm text-slate-400">
 									Wklej tekst po lewej stronie, aby zobaczyć dynamiczne porównanie.
 								</div>
+							) : activeTab === 'missing_in_activenow' ? (
+								/* ZAKŁADKA 2: UCZNIOWIE Z BAZY KTÓRYCH BRAKUJE W ACTIVENOW */
+								<div>
+									<div className="border-b border-rose-200 bg-rose-50/90 p-3 text-xs text-rose-900">
+										<p className="font-bold flex items-center gap-1.5">
+											<PersonDashFill className="text-rose-600" size={14} />
+											Uczniowie zapisani w TinkerFlow w tej grupie, których NIE MA na wklejonej liście ActiveNow ({stats.missingInImportCount}):
+										</p>
+										<p className="mt-0.5 text-rose-700">
+											Jeśli uczeń zrezygnował z zajęć i został wypisany w ActiveNow bez powiadomienia, możesz go zweryfikować i wypisać w widoku edycji grupy.
+										</p>
+									</div>
+
+									{missingInImportStudents.length === 0 ? (
+										<div className="flex h-48 flex-col items-center justify-center p-8 text-center text-sm text-emerald-600">
+											<CheckCircleFill size={28} className="mb-2 text-emerald-500" />
+											<span className="font-bold">Pełna zgodność!</span>
+											<span className="text-xs text-slate-500 mt-1">
+												Wszyscy uczniowie z bazy TinkerFlow ({groupStudents.length}) znajdują się na wklejonej liście.
+											</span>
+										</div>
+									) : (
+										<table className="w-full text-left text-sm">
+											<thead className="sticky top-0 bg-slate-200 text-slate-600 shadow-sm text-xs font-bold uppercase">
+												<tr>
+													<th className="p-3">Status</th>
+													<th className="p-3">Uczeń w TinkerFlow</th>
+													<th className="p-3">Rocznik / Data</th>
+												</tr>
+											</thead>
+											<tbody>
+												{missingInImportStudents.map((student) => (
+													<tr key={student.id} className="border-b border-rose-100 bg-rose-50/40 hover:bg-rose-50 transition-colors">
+														<td className="p-3">
+															<span className="inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[11px] font-extrabold text-rose-800 border border-rose-200">
+																<PersonDashFill size={12} /> Brak w Excelu
+															</span>
+														</td>
+														<td className="p-3 font-bold text-slate-800">
+															{student.firstName} {student.lastName}
+														</td>
+														<td className="p-3 text-xs text-slate-600">
+															{student.dateOfBirth ? (
+																<span className="font-mono">{student.dateOfBirth.substring(0, 10)}</span>
+															) : (
+																<span className="italic text-slate-400">Brak daty</span>
+															)}
+														</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									)}
+								</div>
 							) : (
+								/* ZAKŁADKA 1: STANDARDOWA WKLEJONA LISTA */
 								<table className="w-full text-left text-sm">
 									<thead className="sticky top-0 bg-slate-200 text-slate-600 shadow-sm text-xs font-bold uppercase">
 										<tr>
@@ -719,6 +852,11 @@ export function StudentBulkAdd() {
 								{previewRows.length > 0 && (
 									<span>
 										Razem wklejono: <strong>{previewRows.length}</strong> osób | Do dodania: <strong className="text-green-600">{stats.toAddCount}</strong>
+										{selectedGroupId && groupStudents.length > 0 && stats.missingInImportCount > 0 && (
+											<span className="ml-2 font-bold text-rose-600">
+												• Brak w Excelu: {stats.missingInImportCount}
+											</span>
+										)}
 									</span>
 								)}
 							</div>
