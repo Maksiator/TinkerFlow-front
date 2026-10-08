@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, PrinterFill, BoxSeamFill, ClockHistory, ExclamationTriangleFill, InfoCircleFill, StarFill } from 'react-bootstrap-icons';
+import { Search, PrinterFill, BoxSeamFill, ClockHistory, ExclamationTriangleFill, InfoCircleFill, StarFill, BoxArrowUpRight } from 'react-bootstrap-icons';
 import { studentService, type Student } from '../api/studentService';
 import { projectService, type Project, ProjectState, ProjectSoftware } from '../api/projectService';
 import { studentProjectService } from '../api/studentProjectService';
@@ -33,6 +33,7 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 	const [matrixState, setMatrixState] = useState<Record<string, ProjectState>>({});
 	const [localRefresh, setLocalRefresh] = useState(0);
 	const [activeReadyBatch, setActiveReadyBatch] = useState<any>(null);
+	const [tinkercadUrl, setTinkercadUrl] = useState<string | null>(null);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -52,6 +53,9 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 
 				if (fetchedMatrixTree && fetchedMatrixTree.groupType !== undefined) {
 					setGroupType(fetchedMatrixTree.groupType);
+				}
+				if (fetchedMatrixTree) {
+					setTinkercadUrl(fetchedMatrixTree.tinkercadUrl || null);
 				}
 
 				const sortedStudents = fetchedStudents.sort((a, b) => {
@@ -367,6 +371,19 @@ export function ProjectPivot({ groupId, refreshTrigger = 0 }: ProjectPivotProps)
 						<ClockHistory />
 						<span className="hidden md:inline">Logi zajęć</span>
 					</button>
+
+					{tinkercadUrl && (
+						<a
+							href={tinkercadUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-700 transition-all hover:bg-cyan-100 hover:text-cyan-800 md:flex-none md:px-3.5 md:text-sm"
+							title="Otwórz klasę w Tinkercad w nowej karcie"
+						>
+							<BoxArrowUpRight size={13} />
+							<span>Tinkercad</span>
+						</a>
+					)}
 				</div>
 			</div>
 

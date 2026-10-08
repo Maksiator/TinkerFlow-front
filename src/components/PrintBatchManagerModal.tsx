@@ -10,6 +10,7 @@ import {
 	Scissors,
 	ChatLeftTextFill,
 	CheckCircleFill,
+	BoxArrowUpRight,
 } from 'react-bootstrap-icons';
 import { printBatchService, type PrintBatchResponse, PrintBatchState, PrintJobsStates } from '../api/printBatchService';
 import { authService } from '../api/authService';
@@ -335,8 +336,22 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 							<h2 className="text-xl font-extrabold text-slate-800">Zarządzanie Paczką</h2>
 							{getBatchStatusBadge(localBatchStatus)}
 						</div>
-						<p className="text-sm font-medium text-slate-500 mt-0.5">
-							Grupa: <span className="text-purple-600 font-bold">{batch.groupName}</span> • Oddział: <span className="text-slate-700 font-semibold">{batch.branchName}</span>
+						<p className="text-sm font-medium text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+							<span>
+								Grupa: <span className="text-purple-600 font-bold">{batch.groupName}</span> • Oddział: <span className="text-slate-700 font-semibold">{batch.branchName}</span>
+							</span>
+							{batch.tinkercadUrl && (
+								<a
+									href={batch.tinkercadUrl}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="inline-flex items-center gap-1.5 rounded-md bg-cyan-50 px-2 py-0.5 text-xs font-bold text-cyan-700 border border-cyan-200 transition-colors hover:bg-cyan-100 hover:text-cyan-800"
+									title="Otwórz klasę grupy w Tinkercad"
+								>
+									<span className="h-2 w-2 rounded-full bg-cyan-500"></span>
+									Tinkercad <BoxArrowUpRight size={10} />
+								</a>
+							)}
 						</p>
 					</div>
 					<div className="flex items-center gap-2">

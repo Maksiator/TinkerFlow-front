@@ -8,6 +8,7 @@ export interface GroupMatrixResponse {
 	groupName: string;
 	groupType?: GroupType;
 	location: string;
+	tinkercadUrl?: string | null;
 	students: {
 		studentId: string;
 		fullName: string;

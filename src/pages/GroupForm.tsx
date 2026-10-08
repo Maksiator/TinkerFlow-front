@@ -16,6 +16,7 @@ import {
 	ArrowLeftRight,
 	XCircleFill,
 	PersonPlusFill,
+	BoxArrowUpRight,
 } from 'react-bootstrap-icons';
 import toast from 'react-hot-toast';
 import { authService } from '../api/authService';
@@ -28,7 +29,7 @@ export function GroupForm() {
 	const isEditMode = Boolean(id) && id !== 'nowa';
 
 	// --- STAN: DANE GRUPY I LISTY WYBORU ---
-	const [formData, setFormData] = useState<CreateGroup>({ name: '', branchId: '', primaryTrainerId: null, assignedPrinterId: null, classDayOfWeek: null, type: GroupType.Standard });
+	const [formData, setFormData] = useState<CreateGroup>({ name: '', branchId: '', primaryTrainerId: null, assignedPrinterId: null, classDayOfWeek: null, type: GroupType.Standard, tinkercadUrl: '' });
 	const [branches, setBranches] = useState<Branch[]>([]);
 	const [trainers, setTrainers] = useState<User[]>([]);
 	const [printers, setPrinters] = useState<User[]>([]);
@@ -121,6 +122,7 @@ export function GroupForm() {
 							assignedPrinterId: group.assignedPrinterId ?? null,
 							classDayOfWeek: group.classDayOfWeek ?? null,
 							type: group.type ?? GroupType.Standard,
+							tinkercadUrl: group.tinkercadUrl ?? '',
 						});
 						setIsGroupArchived(group.isArchived ?? false);
 						setEnrolledStudents(students);
@@ -501,7 +503,36 @@ export function GroupForm() {
 								]}
 							/>
 
-							{/* 6. TYLKO DLA ADMINA: Checkbox grupy zaawansowanej */}
+							{/* 6. LINK DO KLASY TINKERCAD */}
+							<div>
+								<div className="flex items-center justify-between mb-1.5">
+									<label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+										Link do klasy Tinkercad
+									</label>
+									{formData.tinkercadUrl && (
+										<a
+											href={formData.tinkercadUrl}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="inline-flex items-center gap-1 text-xs font-bold text-cyan-600 hover:text-cyan-700 hover:underline"
+										>
+											Otwórz <BoxArrowUpRight size={11} />
+										</a>
+									)}
+								</div>
+								<input
+									type="url"
+									value={formData.tinkercadUrl || ''}
+									onChange={(e) => setFormData({ ...formData, tinkercadUrl: e.target.value })}
+									className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-800 shadow-sm transition-all outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/10 placeholder:text-slate-400"
+									placeholder="https://www.tinkercad.com/joinclass/..."
+								/>
+								<p className="mt-1 text-[11px] text-slate-400">
+									Link do wirtualnej klasy — widoczny dla trenera na matrycy oraz drukarza w zleceniu paczki.
+								</p>
+							</div>
+
+							{/* 7. TYLKO DLA ADMINA: Checkbox grupy zaawansowanej */}
 							{authService.getCurrentUser()?.role === UserRole.Admin && (
 								<label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-purple-200 bg-purple-50/60 p-3 select-none hover:bg-purple-50 transition-colors">
 									<input

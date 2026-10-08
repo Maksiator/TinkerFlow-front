@@ -21,6 +21,7 @@ export interface Group {
 	isArchived?: boolean;
 	archivedAcademicYear?: string | null;
 	type?: GroupType;
+	tinkercadUrl?: string | null;
 }
 
 export interface CreateGroup {
@@ -30,6 +31,7 @@ export interface CreateGroup {
 	assignedPrinterId?: string | null;
 	classDayOfWeek?: number | null;
 	type?: GroupType;
+	tinkercadUrl?: string | null;
 }
 
 export interface UpdateGroup {
@@ -39,6 +41,7 @@ export interface UpdateGroup {
 	assignedPrinterId?: string | null;
 	classDayOfWeek?: number | null;
 	type?: GroupType;
+	tinkercadUrl?: string | null;
 }
 
 export const groupService = {

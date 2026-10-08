@@ -77,6 +77,7 @@ export interface PrintBatchResponse {
 	assignedPrinterName?: string | null;
 	classDayOfWeek?: number | null;
 	printerNotes?: string | null;
+	tinkercadUrl?: string | null;
 }
 
 export interface ConfirmDeliveryRequest {
