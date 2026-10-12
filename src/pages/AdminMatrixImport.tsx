@@ -464,16 +464,23 @@ export function AdminMatrixImport() {
 
 							{/* STATUS GOTOWOŚCI */}
 							{missingStudents.length === 0 && missingProjects.length === 0 && (
-								<div className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3.5 text-emerald-800">
-									<CheckCircleFill size={24} className="shrink-0 text-emerald-600" />
-									<div className="text-xs">
-										<p className="font-bold text-sm">
-											Gotowe do migracji: {selectedStudentNames.size} uczniów, {parsedData.rows.length} projektów
-										</p>
-										<p className="mt-0.5 text-emerald-700">
-											{targetMode === 'group'
-												? 'Zapis do wybranej grupy.'
-												: 'Zapis bezpośrednio do wybranych uczniów w ich aktualnych grupach.'}
+								<div className="flex flex-col gap-2">
+									<div className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3.5 text-emerald-800">
+										<CheckCircleFill size={24} className="shrink-0 text-emerald-600" />
+										<div className="text-xs">
+											<p className="font-bold text-sm">
+												Gotowe do migracji: {selectedStudentNames.size} uczniów, {parsedData.rows.length} projektów
+											</p>
+											<p className="mt-0.5 text-emerald-700">
+												{targetMode === 'group'
+													? 'Zapis do wybranej grupy.'
+													: 'Zapis bezpośrednio do wybranych uczniów w ich aktualnych grupach.'}
+											</p>
+										</div>
+									</div>
+									<div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-xs text-blue-800">
+										<p className="font-semibold">
+											🛡️ <strong>Bezpieczna migracja:</strong> Import uzupełnia wyłącznie brakujące projekty z historii. Projekty, które uczniowie mają już rozpoczęte lub zaplanowane w nowym roku w systemie, pozostaną nienaruszone.
 										</p>
 									</div>
 								</div>
