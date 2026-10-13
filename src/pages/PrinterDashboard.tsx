@@ -40,6 +40,7 @@ export function PrinterDashboard() {
 	const [groupSearch, setGroupSearch] = useState('');
 	const [dayOfWeekFilter, setDayOfWeekFilter] = useState<string>('all');
 	const [statusFilter, setStatusFilter] = useState<string>('all');
+	const [printerFilter, setPrinterFilter] = useState<string>('all');
 	
 	// Czy pokazywać zakończone (domyślnie false, zapisywane w localStorage)
 	const [showCompleted, setShowCompleted] = useState<boolean>(() => {
@@ -202,6 +203,16 @@ export function PrinterDashboard() {
 		return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 	}, [batches]);
 
+	const uniquePrinters = useMemo(() => {
+		const map = new Map<string, { id: string; name: string }>();
+		batches.forEach((b) => {
+			if (b.assignedPrinterId && b.assignedPrinterName) {
+				map.set(b.assignedPrinterId, { id: b.assignedPrinterId, name: b.assignedPrinterName });
+			}
+		});
+		return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+	}, [batches]);
+
 	const filteredAndSortedBatches = useMemo(() => {
 		let result = [...batches];
 
@@ -213,7 +224,16 @@ export function PrinterDashboard() {
 			result = result.filter((b) => b.status !== PrintBatchState.NoPrints);
 		}
 
-		// 2. Filtrowanie szkoły / grupy - multi-select
+		// 2. Filtrowanie po drukarzu (Admin)
+		if (printerFilter !== 'all') {
+			if (printerFilter === 'unassigned') {
+				result = result.filter((b) => !b.assignedPrinterId);
+			} else {
+				result = result.filter((b) => b.assignedPrinterId === printerFilter);
+			}
+		}
+
+		// 3. Filtrowanie szkoły / grupy - multi-select
 		if (selectedGroupIds.length > 0) {
 			result = result.filter((b) => selectedGroupIds.includes(b.groupId));
 		}
@@ -264,7 +284,7 @@ export function PrinterDashboard() {
 		});
 
 		return result;
-	}, [batches, statusFilter, selectedGroupIds, dayOfWeekFilter, dateFilterType, customDateValue, sortBy]);
+	}, [batches, statusFilter, printerFilter, selectedGroupIds, dayOfWeekFilter, dateFilterType, customDateValue, sortBy]);
 
 	// Paczki spełniające kryteria etykiet (mające wydruki i niebędące NoPrints)
 	const eligibleBatchesForLabels = useMemo(() => {
@@ -594,14 +614,33 @@ export function PrinterDashboard() {
 					className="flex-1 min-w-[180px]"
 				/>
 
+				{/* FILTR DRUKARZA (TYLKO DLA ADMINA) */}
+				{isAdmin && (
+					<CustomSelect
+						label="Drukarz"
+						value={printerFilter}
+						onChange={setPrinterFilter}
+						options={[
+							{ value: 'all', label: 'Wszyscy drukarze' },
+							...uniquePrinters.map((p) => ({
+								value: p.id,
+								label: p.name,
+							})),
+							{ value: 'unassigned', label: 'Nieprzypisany' },
+						]}
+						className="flex-1 min-w-[170px]"
+					/>
+				)}
+
 				{/* WYCZYŚĆ FILTRY */}
-				{(selectedGroupIds.length > 0 || dayOfWeekFilter !== 'all' || statusFilter !== 'all' || dateFilterType !== 'all' || sortBy !== 'createdAtDesc') && (
+				{(selectedGroupIds.length > 0 || dayOfWeekFilter !== 'all' || statusFilter !== 'all' || printerFilter !== 'all' || dateFilterType !== 'all' || sortBy !== 'createdAtDesc') && (
 					<div className="flex items-end">
 						<button
 							onClick={() => {
 								setSelectedGroupIds([]);
 								setDayOfWeekFilter('all');
 								setStatusFilter('all');
+								setPrinterFilter('all');
 								setDateFilterType('all');
 								setCustomDateValue('');
 								setSortBy('createdAtDesc');
