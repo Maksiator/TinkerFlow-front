@@ -62,9 +62,23 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 			groups[job.studentName].push(job);
 		});
 
-		// Sortowanie alfabetyczne uczniów
+		// Sortowanie alfabetyczne uczniów po NAZWISKU (zgodnie z Tinkercadem)
+		const parseName = (fullName: string) => {
+			const parts = fullName.trim().split(/\s+/);
+			if (parts.length <= 1) return { firstName: fullName, lastName: fullName };
+			const lastName = parts.slice(1).join(' ');
+			const firstName = parts[0];
+			return { firstName, lastName };
+		};
+
 		return Object.keys(groups)
-			.sort()
+			.sort((a, b) => {
+				const nameA = parseName(a);
+				const nameB = parseName(b);
+				const lastNameComp = nameA.lastName.localeCompare(nameB.lastName, 'pl');
+				if (lastNameComp !== 0) return lastNameComp;
+				return nameA.firstName.localeCompare(nameB.firstName, 'pl');
+			})
 			.reduce((acc, key) => {
 				acc[key] = groups[key];
 				return acc;
