@@ -124,13 +124,27 @@ export function AdminProjects() {
 		setIsModalOpen(true);
 	};
 
+	const openAddModal = () => {
+		setEditingProject(null);
+		setFormData({
+			name: '',
+			code: '',
+			sequenceOrder: projects.length + 1,
+			isPractice: false,
+			isYearBoundary: false,
+			software: ProjectSoftware.Tinkercad,
+			isAdvanced: false,
+		});
+		setIsModalOpen(true);
+	};
+
 	const handleCloseModal = () => {
 		setIsModalOpen(false);
 		setEditingProject(null);
 		setFormData({
 			name: '',
 			code: '',
-			sequenceOrder: 1,
+			sequenceOrder: projects.length + 1,
 			isPractice: false,
 			isYearBoundary: false,
 			software: ProjectSoftware.Tinkercad,
@@ -138,12 +152,14 @@ export function AdminProjects() {
 		});
 	};
 
-	const saveReorderedProjects = async (newProjects: Project[]) => {
+	const saveReorderedProjects = async (newProjects: Project[], showSuccessToast = true) => {
 		setProjects(newProjects);
 		try {
 			const items = newProjects.map((p, idx) => ({ id: p.id, sequenceOrder: idx + 1 }));
 			await projectService.reorder(items);
-			toast.success('Kolejność została pomyślnie zapisana!');
+			if (showSuccessToast) {
+				toast.success('Kolejność została pomyślnie zapisana!');
+			}
 		} catch (err) {
 			console.error('Błąd zapisu kolejności:', err);
 			toast.error('Błąd synchronizacji kolejności z serwerem.');
@@ -203,37 +219,44 @@ export function AdminProjects() {
 		e.preventDefault();
 		setIsSubmitting(true);
 
+		const payload = {
+			...formData,
+			name: formData.name.trim(),
+			code: formData.code.trim(),
+		};
+
 		try {
 			if (editingProject) {
-				const orderChanged = formData.sequenceOrder !== editingProject.sequenceOrder;
-				await projectService.update(editingProject.id, formData);
+				const orderChanged = payload.sequenceOrder !== editingProject.sequenceOrder;
+				await projectService.update(editingProject.id, payload);
 
 				if (orderChanged) {
-					await moveProjectToPosition({ ...editingProject, ...formData }, formData.sequenceOrder);
+					await moveProjectToPosition({ ...editingProject, ...payload }, payload.sequenceOrder);
 				} else {
 					setProjects((prev) =>
 						prev
-							.map((p) => (p.id === editingProject.id ? { ...p, ...formData } : p))
+							.map((p) => (p.id === editingProject.id ? { ...p, ...payload } : p))
 							.sort((a, b) => a.sequenceOrder - b.sequenceOrder),
 					);
 				}
 				toast.success('Projekt zaktualizowany!');
 			} else {
-				const newOrder = formData.sequenceOrder || projects.length + 1;
-				const created = await projectService.create({ ...formData, sequenceOrder: newOrder });
+				const newOrder = payload.sequenceOrder || projects.length + 1;
+				const created = await projectService.create({ ...payload, sequenceOrder: newOrder });
 
-				const updated = [...projects];
-				const insertIndex = Math.max(0, Math.min(updated.length, newOrder - 1));
-				updated.splice(insertIndex, 0, created);
-				const reordered = updated.map((p, idx) => ({ ...p, sequenceOrder: idx + 1 }));
-				await saveReorderedProjects(reordered);
-				toast.success('Projekt dodany!');
+				const sortedCurrent = [...projects].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+				const insertIndex = Math.max(0, Math.min(sortedCurrent.length, newOrder - 1));
+				sortedCurrent.splice(insertIndex, 0, created);
+				const reordered = sortedCurrent.map((p, idx) => ({ ...p, sequenceOrder: idx + 1 }));
+				await saveReorderedProjects(reordered, false);
+				toast.success(`Projekt dodany na pozycji #${newOrder}!`);
 			}
 
 			handleCloseModal();
-		} catch (err) {
+		} catch (err: any) {
 			console.error(err);
-			toast.error('Operacja nieudana. Sprawdź konsolę.');
+			const message = err.response?.data?.message || 'Operacja nieudana. Sprawdź konsolę.';
+			toast.error(message);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -320,7 +343,7 @@ export function AdminProjects() {
 						<CloudArrowUpFill /> Masowy import
 					</button>
 					<button
-						onClick={() => setIsModalOpen(true)}
+						onClick={openAddModal}
 						className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 font-bold text-white shadow-sm transition-colors hover:bg-blue-700 md:w-auto"
 					>
 						<PlusLg /> Dodaj Projekt
@@ -604,10 +627,15 @@ export function AdminProjects() {
 										<span className="text-slate-300">|</span>
 										<button
 											type="button"
-											onClick={() => setFormData({ ...formData, sequenceOrder: projects.length || 1 })}
+											onClick={() =>
+												setFormData({
+													...formData,
+													sequenceOrder: editingProject ? projects.length : projects.length + 1,
+												})
+											}
 											className="cursor-pointer font-semibold text-blue-600 hover:underline"
 										>
-											Koniec ({projects.length || 1})
+											Koniec ({editingProject ? projects.length : projects.length + 1})
 										</button>
 									</div>
 								</div>

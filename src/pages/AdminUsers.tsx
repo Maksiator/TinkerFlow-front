@@ -33,6 +33,7 @@ export function AdminUsers() {
 	const [branches, setBranches] = useState<Branch[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [searchTerm, setSearchTerm] = useState('');
+	const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 	const [selectedRole, setSelectedRole] = useState<string>('all');
 	const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
 	const [sortBy, setSortBy] = useState<string>('branch');
@@ -111,6 +112,13 @@ export function AdminUsers() {
 	};
 
 	useEffect(() => {
+		const timer = setTimeout(() => {
+			setDebouncedSearchTerm(searchTerm);
+		}, 400);
+		return () => clearTimeout(timer);
+	}, [searchTerm]);
+
+	useEffect(() => {
 		if (currentUserRole === undefined || currentUserRole === UserRole.Trainer) {
 			toast.error('Brak dostępu. Ta strona jest tylko dla administracji.');
 			navigate('/');
@@ -124,7 +132,7 @@ export function AdminUsers() {
 				const roleParam = selectedRole === 'all' ? undefined : (Number(selectedRole) as UserRole);
 				const branchParam = selectedBranchId === 'all' ? undefined : selectedBranchId;
 				const [usersData, branchesData] = await Promise.all([
-					userService.getAll(searchTerm, page, pageSize, roleParam, branchParam, sortBy, sortOrder),
+					userService.getAll(debouncedSearchTerm, page, pageSize, roleParam, branchParam, sortBy, sortOrder),
 					branchService.getAll()
 				]);
 				if (isMounted) {
@@ -148,13 +156,13 @@ export function AdminUsers() {
 		return () => {
 			isMounted = false;
 		};
-	}, [currentUserRole, navigate, page, pageSize, searchTerm, selectedRole, selectedBranchId, sortBy, sortOrder]);
+	}, [currentUserRole, navigate, page, pageSize, debouncedSearchTerm, selectedRole, selectedBranchId, sortBy, sortOrder]);
 
 	const refreshData = async () => {
 		try {
 			const roleParam = selectedRole === 'all' ? undefined : (Number(selectedRole) as UserRole);
 			const branchParam = selectedBranchId === 'all' ? undefined : selectedBranchId;
-			const usersData = await userService.getAll(searchTerm, page, pageSize, roleParam, branchParam, sortBy, sortOrder);
+			const usersData = await userService.getAll(debouncedSearchTerm, page, pageSize, roleParam, branchParam, sortBy, sortOrder);
 			const branchesData = await branchService.getAll();
 			setUsers(usersData.items);
 			setTotalPages(usersData.totalPages);
