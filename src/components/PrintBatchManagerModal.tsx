@@ -11,6 +11,7 @@ import {
 	ChatLeftTextFill,
 	CheckCircleFill,
 	BoxArrowUpRight,
+	BuildingFill,
 } from 'react-bootstrap-icons';
 import { printBatchService, type PrintBatchResponse, PrintBatchState, PrintJobsStates } from '../api/printBatchService';
 import { authService } from '../api/authService';
@@ -45,11 +46,14 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 	const [localBatchStatus, setLocalBatchStatus] = useState(batch.status);
 	// Stan lokalny dla notatki od drukarza
 	const [printerNotes, setPrinterNotes] = useState(batch.printerNotes || '');
+	// Stan lokalny dla obsługi przez biuro
+	const [localIsHandledByOffice, setLocalIsHandledByOffice] = useState(batch.isHandledByOffice || false);
 
 	useEffect(() => {
 		setLocalJobs(batch.printJobs);
 		setLocalBatchStatus(batch.status);
 		setPrinterNotes(batch.printerNotes || '');
+		setLocalIsHandledByOffice(batch.isHandledByOffice || false);
 	}, [batch]);
 
 	// Grupowanie wydruków po uczniu
@@ -105,6 +109,40 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 			toast.error(errorMsg);
 		} finally {
 			setIsSavingNotes(false);
+		}
+	};
+
+	const handleToggleOfficeTakeover = async () => {
+		const targetState = !localIsHandledByOffice;
+		if (targetState && localBatchStatus === PrintBatchState.Printing) {
+			const confirmed = window.confirm(
+				"Drukarz oznaczył tę paczkę jako 'W druku'. Czy na pewno chcesz przejąć ją do realizacji przez Biuro?",
+			);
+			if (!confirmed) return;
+		}
+
+		setIsSubmitting(true);
+		try {
+			const updated = await printBatchService.takeoverBatch(batch.id, targetState);
+			setLocalIsHandledByOffice(targetState);
+			onBatchUpdated?.({
+				...batch,
+				...updated,
+				status: localBatchStatus,
+				printJobs: localJobs,
+				isHandledByOffice: targetState,
+			});
+			onRefreshNeeded();
+			toast.success(
+				targetState
+					? 'Paczka została pomyślnie przejęta przez Biuro!'
+					: 'Paczka została zwrócona do przypisanego drukarza.',
+			);
+		} catch (error: unknown) {
+			const msg = error instanceof Error ? error.message : 'Nie udało się zmienić przypisania paczki.';
+			toast.error(msg);
+		} finally {
+			setIsSubmitting(false);
 		}
 	};
 
@@ -354,6 +392,15 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 							<span>
 								Grupa: <span className="text-purple-600 font-bold">{batch.groupName}</span> • Oddział: <span className="text-slate-700 font-semibold">{batch.branchName}</span>
 							</span>
+							{localIsHandledByOffice ? (
+								<span className="inline-flex items-center gap-1 rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-black text-indigo-700 border border-indigo-200 uppercase">
+									<BuildingFill size={11} /> Biuro (Centrala)
+								</span>
+							) : batch.assignedPrinterName ? (
+								<span className="text-xs font-semibold text-slate-600">
+									Drukarz: <strong className="text-slate-800">{batch.assignedPrinterName}</strong>
+								</span>
+							) : null}
 							{batch.tinkercadUrl && (
 								<a
 									href={batch.tinkercadUrl}
@@ -369,6 +416,26 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 						</p>
 					</div>
 					<div className="flex items-center gap-2">
+						{isAdmin && batch.status !== PrintBatchState.NoPrints && (
+							<button
+								type="button"
+								onClick={handleToggleOfficeTakeover}
+								disabled={isSubmitting}
+								title={
+									localIsHandledByOffice
+										? 'Oddaj paczkę z powrotem przypisanemu drukarzowi grupy'
+										: 'Przejmij tę paczkę do realizacji przez Biuro (Admina)'
+								}
+								className={`cursor-pointer flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition-colors disabled:opacity-50 ${
+									localIsHandledByOffice
+										? 'border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+										: 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+								}`}
+							>
+								<BuildingFill size={13} />
+								<span>{localIsHandledByOffice ? 'Zwróć drukarzowi' : 'Przejmij do Biura'}</span>
+							</button>
+						)}
 						{isAdmin && batch.status !== PrintBatchState.NoPrints && localJobs.length > 0 && (
 							<button
 								type="button"

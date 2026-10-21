@@ -37,6 +37,7 @@ export interface CreatePrintBatchRequest {
 	lessonDate: string; // ISO String np. "2026-10-15T00:00:00Z"
 	notes?: string | null;
 	projectsToPrint: PrintJobRequest[];
+	isHandledByOffice?: boolean;
 }
 
 export interface UpdatePrintBatchRequest {
@@ -78,6 +79,7 @@ export interface PrintBatchResponse {
 	classDayOfWeek?: number | null;
 	printerNotes?: string | null;
 	tinkercadUrl?: string | null;
+	isHandledByOffice?: boolean;
 }
 
 export interface ConfirmDeliveryRequest {
@@ -230,6 +232,16 @@ export const printBatchService = {
 			return response.data;
 		} catch (error) {
 			throw new Error(extractErrorMessage(error, 'Wystąpił błąd podczas usuwania paczki.'));
+		}
+	},
+	takeoverBatch: async (batchId: string, isHandledByOffice: boolean) => {
+		try {
+			const response = await apiClient.patch<PrintBatchResponse>(`${BASE_URL}/${batchId}/takeover`, {
+				isHandledByOffice,
+			});
+			return response.data;
+		} catch (error) {
+			throw new Error(extractErrorMessage(error, 'Nie udało się zmienić statusu przejęcia paczki przez Biuro.'));
 		}
 	},
 	getBatchHistoryForGroup: async (groupId: string) => {

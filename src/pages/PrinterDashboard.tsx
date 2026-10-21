@@ -226,10 +226,12 @@ export function PrinterDashboard() {
 
 		// 2. Filtrowanie po drukarzu (Admin)
 		if (printerFilter !== 'all') {
-			if (printerFilter === 'unassigned') {
-				result = result.filter((b) => !b.assignedPrinterId);
+			if (printerFilter === 'office') {
+				result = result.filter((b) => b.isHandledByOffice);
+			} else if (printerFilter === 'unassigned') {
+				result = result.filter((b) => !b.assignedPrinterId && !b.isHandledByOffice);
 			} else {
-				result = result.filter((b) => b.assignedPrinterId === printerFilter);
+				result = result.filter((b) => b.assignedPrinterId === printerFilter && !b.isHandledByOffice);
 			}
 		}
 
@@ -622,6 +624,7 @@ export function PrinterDashboard() {
 						onChange={setPrinterFilter}
 						options={[
 							{ value: 'all', label: 'Wszyscy drukarze' },
+							{ value: 'office', label: '🏢 Tylko Biuro (Centrala)' },
 							...uniquePrinters.map((p) => ({
 								value: p.id,
 								label: p.name,
@@ -724,8 +727,20 @@ export function PrinterDashboard() {
 												{getStatusBadge(batch.status, batch)}
 											</td>
 											<td className="p-4">
-												<div className="font-bold text-slate-800">{batch.groupName}</div>
-												<div className="text-xs font-semibold text-purple-600">{batch.branchName}</div>
+												<div className="flex items-center gap-1.5 flex-wrap">
+													<span className="font-bold text-slate-800">{batch.groupName}</span>
+													{batch.isHandledByOffice && (
+														<span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-black text-indigo-700 uppercase border border-indigo-200">
+															🏢 Biuro
+														</span>
+													)}
+												</div>
+												<div className="text-xs font-semibold text-purple-600 flex items-center gap-2">
+													<span>{batch.branchName}</span>
+													{isAdmin && !batch.isHandledByOffice && batch.assignedPrinterName && (
+														<span className="text-[11px] text-slate-400 font-medium">({batch.assignedPrinterName})</span>
+													)}
+												</div>
 											</td>
 											<td className="p-4 whitespace-nowrap">
 												<span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
@@ -879,9 +894,16 @@ export function PrinterDashboard() {
 											)}
 											<div className="min-w-0">
 												<span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-600 block truncate">{batch.branchName}</span>
-												<h2 className="truncate pr-2 text-lg font-bold text-slate-800" title={batch.groupName}>
-													{batch.groupName}
-												</h2>
+												<div className="flex items-center gap-1.5 flex-wrap">
+													<h2 className="truncate pr-1 text-lg font-bold text-slate-800" title={batch.groupName}>
+														{batch.groupName}
+													</h2>
+													{batch.isHandledByOffice && (
+														<span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-black text-indigo-700 uppercase border border-indigo-200 shrink-0">
+															🏢 Biuro
+														</span>
+													)}
+												</div>
 											</div>
 										</div>
 										<div className="shrink-0">{getStatusBadge(batch.status, batch)}</div>
@@ -900,8 +922,12 @@ export function PrinterDashboard() {
 										<strong className="text-red-600">{new Date(batch.deadline).toLocaleDateString()}</strong>
 									</div>
 									<div className="flex items-center gap-1.5 pt-1">
-										<PrinterFill className={batch.assignedPrinterName ? "text-purple-600" : "text-slate-400"} />
-										{batch.assignedPrinterName ? (
+										<PrinterFill className={batch.isHandledByOffice ? "text-indigo-600" : (batch.assignedPrinterName ? "text-purple-600" : "text-slate-400")} />
+										{batch.isHandledByOffice ? (
+											<span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+												🏢 Realizacja przez Biuro
+											</span>
+										) : batch.assignedPrinterName ? (
 											<span className="font-semibold text-purple-700">
 												Drukarz: {batch.assignedPrinterName}
 											</span>

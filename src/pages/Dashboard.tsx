@@ -4,6 +4,7 @@ import { authService } from '../api/authService';
 import { UserRole } from '../api/userService';
 import { trainerListService, type TrainerList } from '../api/trainerListService';
 import { substituteService, type SubstituteResponse } from '../api/substituteService';
+import { printBatchService, type PrintBatchResponse, PrintBatchState } from '../api/printBatchService';
 import {
 	PlayCircleFill,
 	CalendarEventFill,
@@ -12,6 +13,9 @@ import {
 	LayersFill,
 	ArrowLeftRight,
 	ClockHistory,
+	PrinterFill,
+	BoxSeam,
+	ArrowRight,
 } from 'react-bootstrap-icons';
 import toast from 'react-hot-toast';
 
@@ -23,6 +27,7 @@ export function Dashboard() {
 
 	const [lists, setLists] = useState<TrainerList[]>([]);
 	const [mySubstitutes, setMySubstitutes] = useState<SubstituteResponse[]>([]);
+	const [officeBatches, setOfficeBatches] = useState<PrintBatchResponse[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 
 	// Przekierowanie drukarza bezpośrednio na farmę druku
@@ -33,7 +38,8 @@ export function Dashboard() {
 	}, [user, navigate]);
 
 	const currentDayIndex = new Date().getDay();
-	const canManage = user?.role === UserRole.Admin || user?.role === UserRole.Coordinator;
+	const isAdmin = user?.role === UserRole.Admin;
+	const canManage = isAdmin || user?.role === UserRole.Coordinator;
 
 	const todayFormatted = new Intl.DateTimeFormat('pl-PL', {
 		weekday: 'long',
@@ -46,14 +52,26 @@ export function Dashboard() {
 
 		const fetchDashboardData = async () => {
 			try {
-				const [fetchedLists, fetchedSubstitutes] = await Promise.all([
+				const promises: [Promise<TrainerList[]>, Promise<SubstituteResponse[]>, Promise<PrintBatchResponse[]> | Promise<never[]>] = [
 					trainerListService.getMyLists(),
 					substituteService.getMy(),
-				]);
+					isAdmin ? printBatchService.getBatchesForFarm(undefined, false) : Promise.resolve([]),
+				];
+
+				const [fetchedLists, fetchedSubstitutes, farmBatches] = await Promise.all(promises);
 
 				if (isMounted) {
 					setLists(fetchedLists);
 					setMySubstitutes(fetchedSubstitutes);
+					if (isAdmin && Array.isArray(farmBatches)) {
+						const pendingOffice = farmBatches.filter(
+							(b) =>
+								b.isHandledByOffice &&
+								b.status !== PrintBatchState.Completed &&
+								b.status !== PrintBatchState.NoPrints,
+						);
+						setOfficeBatches(pendingOffice);
+					}
 				}
 			} catch (error) {
 				console.error(error);
@@ -68,7 +86,7 @@ export function Dashboard() {
 		return () => {
 			isMounted = false;
 		};
-	}, []);
+	}, [isAdmin]);
 
 	const todayList = lists.find((l) => l.targetDay === currentDayIndex);
 	const otherLists = lists.filter((l) => l.targetDay !== currentDayIndex);
@@ -164,6 +182,109 @@ export function Dashboard() {
 				<div className="animate-pulse p-10 text-center font-bold text-slate-400">Ładowanie Twojego pulpitu...</div>
 			) : (
 				<>
+					{/* PACZKI DO WYDRUKOWANIA PRZEZ BIURO (TYLKO DLA ADMINA) */}
+					{isAdmin && (
+						<div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+							<div className="mb-4 flex items-center justify-between">
+								<div className="flex items-center gap-2.5 text-slate-800">
+									<div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm shadow-indigo-200">
+										<PrinterFill size={20} />
+									</div>
+									<div>
+										<h2 className="text-2xl font-extrabold flex items-center gap-2.5 tracking-tight text-slate-900">
+											<span>Twoje wydruki (Paczki Biura)</span>
+											{officeBatches.length > 0 ? (
+												<span className="rounded-full bg-indigo-600 px-2.5 py-0.5 text-xs font-black text-white shadow-xs">
+													{officeBatches.length}
+												</span>
+											) : (
+												<span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-500">
+													0
+												</span>
+											)}
+										</h2>
+									</div>
+								</div>
+
+								<button
+									onClick={() => navigate('/farma')}
+									className="cursor-pointer text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1.5"
+								>
+									<span>Otwórz całą Farmę</span>
+									<ArrowRight size={14} />
+								</button>
+							</div>
+
+							{officeBatches.length === 0 ? (
+								<div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center text-slate-500 shadow-xs">
+									<p className="font-medium text-sm">
+										Świetnie! Nie masz obecnie żadnych oczekujących paczek przypisanych do druku w Biurze.
+									</p>
+								</div>
+							) : (
+								<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+									{officeBatches.map((batch) => {
+										const deadlineDate = new Date(batch.deadline);
+										const isUrgent = deadlineDate.getTime() - Date.now() < 24 * 60 * 60 * 1000 * 2;
+										return (
+											<div
+												key={batch.id}
+												className="flex flex-col justify-between rounded-2xl border border-indigo-100 bg-indigo-50/40 p-5 shadow-xs transition-all hover:shadow-md hover:border-indigo-200"
+											>
+												<div>
+													<div className="mb-2 flex items-start justify-between gap-2">
+														<div>
+															<span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 block">
+																{batch.branchName}
+															</span>
+															<h3 className="text-lg font-bold text-slate-800">
+																{batch.groupName}
+															</h3>
+														</div>
+														{batch.status === PrintBatchState.Printing ? (
+															<span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-800 border border-blue-200">
+																W druku
+															</span>
+														) : (
+															<span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800 border border-amber-200">
+																Oczekuje
+															</span>
+														)}
+													</div>
+
+													<div className="space-y-1.5 text-xs text-slate-600 mt-3">
+														<div className="flex items-center gap-1.5 font-medium text-slate-700">
+															<BoxSeam className="text-indigo-600" /> Liczba modeli:{' '}
+															<strong className="text-slate-900">{batch.printJobs.length} szt.</strong>
+														</div>
+														<div className="flex items-center gap-1.5 font-medium text-slate-700">
+															<ClockHistory className={isUrgent ? 'text-red-500' : 'text-slate-400'} /> Termin oddania:{' '}
+															<strong className={isUrgent ? 'text-red-600 font-bold' : 'text-slate-900'}>
+																{deadlineDate.toLocaleDateString()}
+															</strong>
+														</div>
+														{batch.notes && (
+															<p className="mt-2 text-xs italic text-amber-900 bg-amber-50/80 p-2 rounded-lg border border-amber-200/60 line-clamp-2">
+																„{batch.notes}”
+															</p>
+														)}
+													</div>
+												</div>
+
+												<button
+													onClick={() => navigate('/farma')}
+													className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white shadow-xs transition-colors hover:bg-indigo-700 active:scale-95"
+												>
+													<PrinterFill size={14} /> Drukuj w Farmie
+												</button>
+											</div>
+										);
+									})}
+								</div>
+							)}
+						</div>
+					)}
+
 					{/* TWOJE ZASTĘPSTWA (Zgrupowane po dacie) */}
 					{groupedSubstitutesArray.length > 0 && (
 						<div className="animate-in fade-in slide-in-from-bottom-4 delay-100 duration-500">

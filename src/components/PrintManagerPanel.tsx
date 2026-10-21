@@ -54,6 +54,8 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 		}
 	});
 
+	const [isHandledByOffice, setIsHandledByOffice] = useState(false);
+
 	// AUTO-ZAPIS NOTATKI W LOCAL STORAGE (żeby nie znikała po zamknięciu panelu)
 	useEffect(() => {
 		try {
@@ -320,9 +322,15 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 				lessonDate,
 				notes: notes.trim() !== '' ? notes : null,
 				projectsToPrint: allProjectsToPrint,
+				isHandledByOffice,
 			});
-			toast.success('Paczka została wysłana do drukarza!');
+			toast.success(
+				isHandledByOffice
+					? 'Paczka została wysłana do realizacji przez Biuro!'
+					: 'Paczka została wysłana do drukarza!',
+			);
 			setNotes('');
+			setIsHandledByOffice(false);
 			try {
 				localStorage.removeItem(`print_notes_${groupId}`);
 			} catch {
@@ -900,17 +908,33 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 									<textarea
 										rows={2}
 										className="w-full rounded-md border border-slate-300 p-2 text-sm outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
-										placeholder="Uwagi dla drukarza..."
+										placeholder="Uwagi dla drukarza / biura..."
 										value={notes}
 										onChange={(e) => setNotes(e.target.value)}
 										disabled={isSubmitting}
 									/>
+									<div className="mt-2.5 flex items-center justify-between">
+										<label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+											<input
+												type="checkbox"
+												checked={isHandledByOffice}
+												onChange={(e) => setIsHandledByOffice(e.target.checked)}
+												disabled={isSubmitting}
+												className="h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+											/>
+											<span>Wydruk realizowany przez Biuro</span>
+										</label>
+									</div>
 									<button
 										onClick={handleSendClick}
 										disabled={isSubmitting}
 										className="mt-2.5 w-full rounded-lg bg-purple-600 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-purple-700 disabled:opacity-50"
 									>
-										{isSubmitting ? 'Wysyłanie...' : 'Wyślij do drukarza'}
+										{isSubmitting
+											? 'Wysyłanie...'
+											: isHandledByOffice
+											? 'Wyślij do Biura'
+											: 'Wyślij do drukarza'}
 									</button>
 								</div>
 							)}
@@ -983,9 +1007,16 @@ export const PrintManagerPanel: React.FC<PrintManagerPanelProps> = ({
 								return (
 									<div key={batch.id} className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
 										<div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-3">
-											<span className="text-xs font-bold text-slate-500">
-												Zajęcia z: {new Date(batch.lessonDate).toLocaleDateString()}
-											</span>
+											<div className="flex items-center gap-2">
+												<span className="text-xs font-bold text-slate-500">
+													Zajęcia z: {new Date(batch.lessonDate).toLocaleDateString()}
+												</span>
+												{batch.isHandledByOffice && (
+													<span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-black tracking-tight text-indigo-700 uppercase border border-indigo-200">
+														🏢 Biuro
+													</span>
+												)}
+											</div>
 											{getStatusBadge(batch.status, batch)}
 										</div>
 										<div className="p-3 text-sm">
