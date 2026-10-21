@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { systemSettingsService, type SystemSettings } from '../api/systemSettingsService';
+import { userService, type User, UserRole } from '../api/userService';
 import toast from 'react-hot-toast';
 import { GearFill, ShieldLockFill, CalendarEvent, PrinterFill } from 'react-bootstrap-icons';
 
@@ -8,10 +9,12 @@ export function AdminSettings() {
 		substituteDaysBefore: 2,
 		substituteDaysAfter: 2,
 		printDeadlineDays: 0,
-		currentAcademicYear: '2024/2025'
+		currentAcademicYear: '2024/2025',
+		officePrinterUserId: null,
 	});
 
 	const [initialSettings, setInitialSettings] = useState<SystemSettings | null>(null);
+	const [users, setUsers] = useState<User[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSaving, setIsSaving] = useState(false);
 	
@@ -24,10 +27,14 @@ export function AdminSettings() {
 		let isMounted = true;
 		const fetchSettings = async () => {
 			try {
-				const data = await systemSettingsService.getSettings();
+				const [data, usersData] = await Promise.all([
+					systemSettingsService.getSettings(),
+					userService.getAll('', 1, 100),
+				]);
 				if (isMounted) {
 					setSettings(data);
 					setInitialSettings(data);
+					setUsers(usersData.items);
 				}
 			} catch (error) {
 				console.error(error);
@@ -285,7 +292,7 @@ export function AdminSettings() {
 						Skonfiguruj globalne parametry dotyczące zleceń wydruków 3D dla studentów w systemie.
 					</p>
 
-					<div className="grid max-w-md grid-cols-2 gap-4">
+					<div className="grid max-w-2xl grid-cols-1 md:grid-cols-2 gap-4">
 						<div>
 							<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase">
 								Dni na realizację (Deadline)
@@ -302,6 +309,32 @@ export function AdminSettings() {
 								}}
 								className="w-full rounded-xl border border-slate-300 bg-slate-50 p-3 transition-all outline-none focus:border-purple-500 focus:bg-white focus:ring-1 focus:ring-purple-500"
 							/>
+						</div>
+
+						<div>
+							<label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase">
+								Osoba reprezentująca Biuro (Druk)
+							</label>
+							<select
+								value={settings.officePrinterUserId || ''}
+								onChange={(e) =>
+									setSettings({
+										...settings,
+										officePrinterUserId: e.target.value ? e.target.value : null,
+									})
+								}
+								className="w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-sm font-medium transition-all outline-none focus:border-purple-500 focus:bg-white focus:ring-1 focus:ring-purple-500"
+							>
+								<option value="">Brak / Domyślne Biuro</option>
+								{users.map((u) => (
+									<option key={u.id} value={u.id}>
+										{u.firstName} {u.lastName} ({u.role === UserRole.Admin ? 'Administrator' : u.role === UserRole.Coordinator ? 'Koordynator' : u.role === UserRole.Printer ? 'Drukarz' : 'Trener'})
+									</option>
+								))}
+							</select>
+							<p className="mt-1 text-[11px] text-slate-400">
+								Zdefiniowana osoba będzie widzieć zlecenia biurowe na swoim Dashboardzie.
+							</p>
 						</div>
 					</div>
 				</div>

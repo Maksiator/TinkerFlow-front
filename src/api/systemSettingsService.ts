@@ -5,6 +5,8 @@ export interface SystemSettings {
 	substituteDaysAfter: number;
 	printDeadlineDays: number;
 	currentAcademicYear: string;
+	officePrinterUserId?: string | null;
+	officePrinterUserName?: string | null;
 }
 
 export const systemSettingsService = {

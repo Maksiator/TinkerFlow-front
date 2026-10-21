@@ -392,15 +392,12 @@ export const PrintBatchManagerModal: React.FC<PrintBatchManagerModalProps> = ({
 							<span>
 								Grupa: <span className="text-purple-600 font-bold">{batch.groupName}</span> • Oddział: <span className="text-slate-700 font-semibold">{batch.branchName}</span>
 							</span>
-							{localIsHandledByOffice ? (
-								<span className="inline-flex items-center gap-1 rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-black text-indigo-700 border border-indigo-200 uppercase">
-									<BuildingFill size={11} /> Biuro (Centrala)
-								</span>
-							) : batch.assignedPrinterName ? (
-								<span className="text-xs font-semibold text-slate-600">
-									Drukarz: <strong className="text-slate-800">{batch.assignedPrinterName}</strong>
-								</span>
-							) : null}
+							<span className="text-xs font-semibold text-slate-600">
+								Drukarz:{' '}
+								<strong className={localIsHandledByOffice ? 'text-indigo-700 font-bold' : 'text-slate-800'}>
+									{localIsHandledByOffice ? 'Biuro' : (batch.assignedPrinterName || 'Brak przypisania')}
+								</strong>
+							</span>
 							{batch.tinkercadUrl && (
 								<a
 									href={batch.tinkercadUrl}

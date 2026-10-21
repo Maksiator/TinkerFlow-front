@@ -5,6 +5,7 @@ import { UserRole } from '../api/userService';
 import { trainerListService, type TrainerList } from '../api/trainerListService';
 import { substituteService, type SubstituteResponse } from '../api/substituteService';
 import { printBatchService, type PrintBatchResponse, PrintBatchState } from '../api/printBatchService';
+import { systemSettingsService } from '../api/systemSettingsService';
 import {
 	PlayCircleFill,
 	CalendarEventFill,
@@ -28,6 +29,7 @@ export function Dashboard() {
 	const [lists, setLists] = useState<TrainerList[]>([]);
 	const [mySubstitutes, setMySubstitutes] = useState<SubstituteResponse[]>([]);
 	const [officeBatches, setOfficeBatches] = useState<PrintBatchResponse[]>([]);
+	const [isOfficeUser, setIsOfficeUser] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
 
 	// Przekierowanie drukarza bezpośrednio na farmę druku
@@ -52,18 +54,27 @@ export function Dashboard() {
 
 		const fetchDashboardData = async () => {
 			try {
-				const promises: [Promise<TrainerList[]>, Promise<SubstituteResponse[]>, Promise<PrintBatchResponse[]> | Promise<never[]>] = [
+				const promises: [
+					Promise<TrainerList[]>,
+					Promise<SubstituteResponse[]>,
+					Promise<PrintBatchResponse[]> | Promise<never[]>,
+					Promise<any>,
+				] = [
 					trainerListService.getMyLists(),
 					substituteService.getMy(),
 					isAdmin ? printBatchService.getBatchesForFarm(undefined, false) : Promise.resolve([]),
+					systemSettingsService.getSettings().catch(() => null),
 				];
 
-				const [fetchedLists, fetchedSubstitutes, farmBatches] = await Promise.all(promises);
+				const [fetchedLists, fetchedSubstitutes, farmBatches, sysSettings] = await Promise.all(promises);
 
 				if (isMounted) {
 					setLists(fetchedLists);
 					setMySubstitutes(fetchedSubstitutes);
-					if (isAdmin && Array.isArray(farmBatches)) {
+					const hasOfficeAccess =
+						isAdmin || (sysSettings?.officePrinterUserId && user?.id === sysSettings.officePrinterUserId);
+					setIsOfficeUser(Boolean(hasOfficeAccess));
+					if (hasOfficeAccess && Array.isArray(farmBatches)) {
 						const pendingOffice = farmBatches.filter(
 							(b) =>
 								b.isHandledByOffice &&
@@ -86,7 +97,7 @@ export function Dashboard() {
 		return () => {
 			isMounted = false;
 		};
-	}, [isAdmin]);
+	}, [isAdmin, user?.id]);
 
 	const todayList = lists.find((l) => l.targetDay === currentDayIndex);
 	const otherLists = lists.filter((l) => l.targetDay !== currentDayIndex);
@@ -182,8 +193,8 @@ export function Dashboard() {
 				<div className="animate-pulse p-10 text-center font-bold text-slate-400">Ładowanie Twojego pulpitu...</div>
 			) : (
 				<>
-					{/* PACZKI DO WYDRUKOWANIA PRZEZ BIURO (TYLKO DLA ADMINA) */}
-					{isAdmin && (
+					{/* PACZKI DO WYDRUKOWANIA PRZEZ BIURO (DLA ADMINA LUB OSOBY REPREZENTUJĄCEJ BIURO) */}
+					{(isAdmin || isOfficeUser) && (
 						<div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
 							<div className="mb-4 flex items-center justify-between">
 								<div className="flex items-center gap-2.5 text-slate-800">
