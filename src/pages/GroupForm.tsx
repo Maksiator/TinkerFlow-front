@@ -165,17 +165,19 @@ export function GroupForm() {
 						(u.role === UserRole.Admin && u.canActAsTrainer),
 				);
 
-				// Wyłuskujemy drukarzy (Drukarze, Trenerzy z uprawnieniem drukarza oraz Administratorzy)
+				const currentUserToken = authService.getCurrentUser();
+				const isCurrentUserAdmin = currentUserToken?.role === UserRole.Admin;
+
+				// Wyłuskujemy drukarzy (Drukarze, Trenerzy z uprawnieniem drukarza oraz Administratorzy - dostępni tylko dla Admina)
 				const availablePrinters = fetchedUsers.filter(
 					(u: User) =>
 						u.role === UserRole.Printer ||
-						u.role === UserRole.Admin ||
+						(isCurrentUserAdmin && u.role === UserRole.Admin) ||
 						(u.role === UserRole.Trainer && !!u.canActAsPrinter),
 				);
 
 				if (isMounted) {
 					// FILTROWANIE ODDZIAŁÓW DLA KOORDYNATORA
-					const currentUserToken = authService.getCurrentUser();
 					let availableBranches = fetchedBranches;
 
 					if (currentUserToken?.role === UserRole.Coordinator) {

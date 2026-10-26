@@ -20,6 +20,8 @@ import toast from 'react-hot-toast';
 
 export function Groups() {
 	const navigate = useNavigate();
+	const currentUser = authService.getCurrentUser();
+	const isAdmin = currentUser?.role === UserRole.Admin;
 
 	const [allGroups, setAllGroups] = useState<Group[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -231,7 +233,7 @@ export function Groups() {
 			const availablePrinters = fetchedUsers.filter(
 				(u: User) =>
 					u.role === UserRole.Printer ||
-					u.role === UserRole.Admin ||
+					(isAdmin && u.role === UserRole.Admin) ||
 					(u.role === UserRole.Trainer && !!u.canActAsPrinter),
 			);
 			setPrinters(availablePrinters);
