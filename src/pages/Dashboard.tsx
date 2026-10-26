@@ -54,6 +54,9 @@ export function Dashboard() {
 
 		const fetchDashboardData = async () => {
 			try {
+				const canViewFarm =
+					isAdmin || user?.canActAsPrinter || user?.role === UserRole.Printer;
+
 				const promises: [
 					Promise<TrainerList[]>,
 					Promise<SubstituteResponse[]>,
@@ -62,7 +65,7 @@ export function Dashboard() {
 				] = [
 					trainerListService.getMyLists(),
 					substituteService.getMy(),
-					isAdmin ? printBatchService.getBatchesForFarm(undefined, false) : Promise.resolve([]),
+					canViewFarm ? printBatchService.getBatchesForFarm(undefined, false) : Promise.resolve([]),
 					systemSettingsService.getSettings().catch(() => null),
 				];
 
@@ -74,14 +77,22 @@ export function Dashboard() {
 					const hasOfficeAccess =
 						isAdmin || (sysSettings?.officePrinterUserId && user?.id === sysSettings.officePrinterUserId);
 					setIsOfficeUser(Boolean(hasOfficeAccess));
-					if (hasOfficeAccess && Array.isArray(farmBatches)) {
-						const pendingOffice = farmBatches.filter(
-							(b) =>
-								b.isHandledByOffice &&
-								b.status !== PrintBatchState.Completed &&
-								b.status !== PrintBatchState.NoPrints,
-						);
-						setOfficeBatches(pendingOffice);
+					if (Array.isArray(farmBatches)) {
+						const myBatches = farmBatches.filter((b) => {
+							if (b.status === PrintBatchState.Completed || b.status === PrintBatchState.NoPrints) {
+								return false;
+							}
+							// Paczki z grup przypisanych bezpośrednio do użytkownika jako drukarza
+							if (b.assignedPrinterId === user?.id) {
+								return true;
+							}
+							// Paczki realizowane przez Biuro (dla Admina lub osoby zdefiniowanej jako Biuro)
+							if (hasOfficeAccess && b.isHandledByOffice) {
+								return true;
+							}
+							return false;
+						});
+						setOfficeBatches(myBatches);
 					}
 				}
 			} catch (error) {
@@ -193,8 +204,8 @@ export function Dashboard() {
 				<div className="animate-pulse p-10 text-center font-bold text-slate-400">Ładowanie Twojego pulpitu...</div>
 			) : (
 				<>
-					{/* PACZKI DO WYDRUKOWANIA PRZEZ BIURO (DLA ADMINA LUB OSOBY REPREZENTUJĄCEJ BIURO) */}
-					{(isAdmin || isOfficeUser) && (
+					{/* PACZKI DO WYDRUKOWANIA PRZEZ BIURO / PRZYPISANEGO DRUKARZA */}
+					{(isAdmin || isOfficeUser || officeBatches.length > 0) && (
 						<div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
 							<div className="mb-4 flex items-center justify-between">
 								<div className="flex items-center gap-2.5 text-slate-800">
@@ -203,7 +214,7 @@ export function Dashboard() {
 									</div>
 									<div>
 										<h2 className="text-2xl font-extrabold flex items-center gap-2.5 tracking-tight text-slate-900">
-											<span>Twoje wydruki (Paczki Biura)</span>
+											<span>Twoje wydruki (Biuro / Przypisane)</span>
 											{officeBatches.length > 0 ? (
 												<span className="rounded-full bg-indigo-600 px-2.5 py-0.5 text-xs font-black text-white shadow-xs">
 													{officeBatches.length}
@@ -229,7 +240,7 @@ export function Dashboard() {
 							{officeBatches.length === 0 ? (
 								<div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center text-slate-500 shadow-xs">
 									<p className="font-medium text-sm">
-										Świetnie! Nie masz obecnie żadnych oczekujących paczek przypisanych do druku w Biurze.
+										Świetnie! Nie masz obecnie żadnych oczekujących paczek przypisanych do druku.
 									</p>
 								</div>
 							) : (
@@ -245,9 +256,20 @@ export function Dashboard() {
 												<div>
 													<div className="mb-2 flex items-start justify-between gap-2">
 														<div>
-															<span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 block">
-																{batch.branchName}
-															</span>
+															<div className="flex items-center gap-1.5 mb-1">
+																<span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 block">
+																	{batch.branchName}
+																</span>
+																{batch.isHandledByOffice ? (
+																	<span className="text-[10px] font-bold text-indigo-700 bg-indigo-100/70 border border-indigo-200 px-2 py-0.5 rounded-full">
+																		Biuro
+																	</span>
+																) : (
+																	<span className="text-[10px] font-bold text-purple-700 bg-purple-100/70 border border-purple-200 px-2 py-0.5 rounded-full">
+																		Przypisana
+																	</span>
+																)}
+															</div>
 															<h3 className="text-lg font-bold text-slate-800">
 																{batch.groupName}
 															</h3>
@@ -283,7 +305,7 @@ export function Dashboard() {
 												</div>
 
 												<button
-													onClick={() => navigate('/farma')}
+													onClick={() => navigate(`/farma?batchId=${batch.id}`)}
 													className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white shadow-xs transition-colors hover:bg-indigo-700 active:scale-95"
 												>
 													<PrinterFill size={14} /> Drukuj w Farmie

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { printBatchService, type PrintBatchResponse, PrintBatchState, PrintJobsStates } from '../api/printBatchService';
 import { PrinterFill, ClockHistory, GearFill, CalendarEvent, ListTask, Grid3x3GapFill, ChatLeftTextFill, SlashCircle, Scissors, BarChartFill, ExclamationTriangleFill } from 'react-bootstrap-icons';
 import { PrintBatchManagerModal } from '../components/PrintBatchManagerModal';
@@ -14,9 +15,36 @@ export function PrinterDashboard() {
 	const currentUser = authService.getCurrentUser();
 	const isAdmin = currentUser?.role === UserRole.Admin;
 
+	const [searchParams, setSearchParams] = useSearchParams();
+	const batchIdFromUrl = searchParams.get('batchId');
+
 	const [batches, setBatches] = useState<PrintBatchResponse[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [selectedBatch, setSelectedBatch] = useState<PrintBatchResponse | null>(null);
+
+	const handleOpenBatch = (batch: PrintBatchResponse) => {
+		setSelectedBatch(batch);
+		setSearchParams(
+			(prev) => {
+				const next = new URLSearchParams(prev);
+				next.set('batchId', batch.id);
+				return next;
+			},
+			{ replace: true }
+		);
+	};
+
+	const handleCloseBatch = () => {
+		setSelectedBatch(null);
+		setSearchParams(
+			(prev) => {
+				const next = new URLSearchParams(prev);
+				next.delete('batchId');
+				return next;
+			},
+			{ replace: true }
+		);
+	};
 	const [isLabelsModalOpen, setIsLabelsModalOpen] = useState(false);
 	const [selectedBatchIdsForLabels, setSelectedBatchIdsForLabels] = useState<string[]>([]);
 	const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
@@ -95,6 +123,20 @@ export function PrinterDashboard() {
 			isMounted = false;
 		};
 	}, [refreshTrigger, showCompleted, statusFilter]);
+
+	// Synchronizacja otwartej paczki z parametrem w URL (?batchId=...)
+	useEffect(() => {
+		if (batchIdFromUrl && batches.length > 0) {
+			if (!selectedBatch || selectedBatch.id !== batchIdFromUrl) {
+				const matched = batches.find((b) => b.id === batchIdFromUrl);
+				if (matched) {
+					setSelectedBatch(matched);
+				} else if (!showCompleted) {
+					setShowCompleted(true);
+				}
+			}
+		}
+	}, [batchIdFromUrl, batches, selectedBatch, showCompleted]);
 
 	// Funkcja wywoływana przez przycisk odświeżania
 	const handleRefresh = () => {
@@ -703,7 +745,7 @@ export function PrinterDashboard() {
 									return (
 										<tr
 											key={batch.id}
-											onClick={() => setSelectedBatch(batch)}
+											onClick={() => handleOpenBatch(batch)}
 											className={`cursor-pointer transition-colors ${
 												isSelectedForLabels ? 'bg-purple-50/80 hover:bg-purple-100/70' : 'hover:bg-purple-50/50'
 											}`}
@@ -823,7 +865,7 @@ export function PrinterDashboard() {
 														</button>
 													)}
 													<button
-														onClick={() => setSelectedBatch(batch)}
+														onClick={() => handleOpenBatch(batch)}
 														className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold shadow-xs transition-colors ${
 															batch.status === PrintBatchState.NoPrints
 																? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
@@ -1009,7 +1051,7 @@ export function PrinterDashboard() {
 									</button>
 								)}
 								<button
-									onClick={() => setSelectedBatch(batch)}
+									onClick={() => handleOpenBatch(batch)}
 									className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold shadow-xs transition-colors ${
 										batch.status === PrintBatchState.NoPrints
 											? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
@@ -1078,7 +1120,7 @@ export function PrinterDashboard() {
 				<PrintBatchManagerModal
 					batch={selectedBatch}
 					isOpen={!!selectedBatch}
-					onClose={() => setSelectedBatch(null)}
+					onClose={handleCloseBatch}
 					onBatchUpdated={handleBatchUpdated}
 					onRefreshNeeded={() => {
 						// Gdy paczka zmieni status z poziomu modala, musimy odświeżyć główną listę
@@ -1094,7 +1136,7 @@ export function PrinterDashboard() {
 				batches={batches}
 				onSelectBatch={(batch) => {
 					setIsNoPrintsModalOpen(false);
-					setSelectedBatch(batch);
+					handleOpenBatch(batch);
 				}}
 			/>
 

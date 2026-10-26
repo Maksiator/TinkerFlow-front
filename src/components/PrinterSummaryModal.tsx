@@ -88,7 +88,7 @@ export function PrinterSummaryModal({ isOpen, onClose }: PrinterSummaryModalProp
 				.then((res) => {
 					// Filtrujemy tylko tych, którzy są drukarzami lub mogą działać jako drukarz
 					const printers = res.items.filter(
-						(u) => u.role === UserRole.Printer || u.canActAsPrinter
+						(u) => u.role === UserRole.Printer || u.role === UserRole.Admin || u.canActAsPrinter
 					);
 					setPrintersList(printers);
 				})
