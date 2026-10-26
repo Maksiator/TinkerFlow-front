@@ -20,10 +20,14 @@ export function PrinterDashboard() {
 
 	const [batches, setBatches] = useState<PrintBatchResponse[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
-	const [selectedBatch, setSelectedBatch] = useState<PrintBatchResponse | null>(null);
+
+	// Paczka otwarta w modalu jest bezpośrednio powiązana z parametrem ?batchId= w URL
+	const selectedBatch = useMemo(() => {
+		if (!batchIdFromUrl) return null;
+		return batches.find((b) => b.id === batchIdFromUrl) || null;
+	}, [batchIdFromUrl, batches]);
 
 	const handleOpenBatch = (batch: PrintBatchResponse) => {
-		setSelectedBatch(batch);
 		setSearchParams(
 			(prev) => {
 				const next = new URLSearchParams(prev);
@@ -35,7 +39,6 @@ export function PrinterDashboard() {
 	};
 
 	const handleCloseBatch = () => {
-		setSelectedBatch(null);
 		setSearchParams(
 			(prev) => {
 				const next = new URLSearchParams(prev);
@@ -98,11 +101,10 @@ export function PrinterDashboard() {
 		const fetchBatches = async () => {
 			setIsLoading(true);
 			try {
-				const includeCompleted = showCompleted || statusFilter === '3';
+				const includeCompleted = showCompleted || statusFilter === '3' || Boolean(batchIdFromUrl);
 				const data = await printBatchService.getBatchesForFarm(undefined, includeCompleted);
 				if (isMounted) {
 					setBatches(data);
-					setSelectedBatch((prev) => (prev ? data.find((b) => b.id === prev.id) || null : null));
 				}
 			} catch (error: unknown) {
 				console.error(error);
@@ -122,21 +124,7 @@ export function PrinterDashboard() {
 		return () => {
 			isMounted = false;
 		};
-	}, [refreshTrigger, showCompleted, statusFilter]);
-
-	// Synchronizacja otwartej paczki z parametrem w URL (?batchId=...)
-	useEffect(() => {
-		if (batchIdFromUrl && batches.length > 0) {
-			if (!selectedBatch || selectedBatch.id !== batchIdFromUrl) {
-				const matched = batches.find((b) => b.id === batchIdFromUrl);
-				if (matched) {
-					setSelectedBatch(matched);
-				} else if (!showCompleted) {
-					setShowCompleted(true);
-				}
-			}
-		}
-	}, [batchIdFromUrl, batches, selectedBatch, showCompleted]);
+	}, [refreshTrigger, showCompleted, statusFilter, batchIdFromUrl]);
 
 	// Funkcja wywoływana przez przycisk odświeżania
 	const handleRefresh = () => {
@@ -146,7 +134,6 @@ export function PrinterDashboard() {
 	// Natychmiastowa aktualizacja paczki w stanie komponentu (bez czekania na pełny refetch)
 	const handleBatchUpdated = (updatedBatch: PrintBatchResponse) => {
 		setBatches((prev) => prev.map((b) => (b.id === updatedBatch.id ? updatedBatch : b)));
-		setSelectedBatch(updatedBatch);
 	};
 
 	// Pomocnicza funkcja do tłumaczenia statusu i przypisania koloru
